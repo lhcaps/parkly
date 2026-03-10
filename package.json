@@ -1,0 +1,20 @@
+{
+  "name": "parkly-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "dev:api": "pnpm --dir apps/api dev",
+    "dev:web": "pnpm --dir apps/web dev",
+    "build:web": "pnpm --dir apps/web build",
+    "typecheck:api": "pnpm --dir apps/api typecheck",
+    "db:migrate": "pnpm --dir apps/api db:migrate",
+    "db:grant:app": "pnpm --dir apps/api db:grant:app",
+    "db:seed:min": "pnpm --dir apps/api db:seed:min",
+    "postinstall": "pnpm --dir apps/api prisma:generate",
+    "prisma:generate": "pnpm --dir apps/api prisma:generate",
+    "test:pr02": "pnpm --dir apps/api test:pr02",
+    "test:pr04": "node --import ./apps/api/node_modules/tsx/dist/loader.mjs --test apps/api/src/tests/pr04-capture-auth-idempotency.test.ts"
+  },
+  "packageManager": "pnpm@10.0.0"
+}

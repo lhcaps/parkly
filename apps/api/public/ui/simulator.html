@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gate Simulator — Parkly</title>
+    <link rel="stylesheet" href="/ui/styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="topbar">
+        <div class="brand">
+          <div class="logo"></div>
+          <div>
+            <div style="font-weight:700">Gate Simulator</div>
+            <div class="muted" style="font-size:12px">ENTRY/EXIT + Camera/Upload + ALPR (mock) + Idempotency</div>
+          </div>
+        </div>
+        <div class="nav">
+          <a href="/ui/">Home</a>
+          <a href="/ui/dashboard.html">Dashboard</a>
+          <a href="/ui/admin.html">Admin</a>
+          <a href="/docs" target="_blank" rel="noreferrer">Swagger</a>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h2>1) Form sự kiện cổng</h2>
+          <div class="row">
+            <div>
+              <label>Site</label>
+              <select id="site"></select>
+            </div>
+            <div>
+              <label>Device</label>
+              <select id="device"></select>
+            </div>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <div>
+              <label>Direction</label>
+              <select id="direction">
+                <option value="ENTRY">ENTRY</option>
+                <option value="EXIT">EXIT</option>
+              </select>
+            </div>
+            <div>
+              <label>RFID UID</label>
+              <input id="rfid" placeholder="VD: RFID_DEMO_001" />
+            </div>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <div>
+              <label>Idempotency key</label>
+              <input id="idem" placeholder="auto-generate" />
+            </div>
+            <div>
+              <label>License plate (có thể sửa)</label>
+              <input id="plate" placeholder="VD: 59A-123.45" />
+            </div>
+          </div>
+          <div class="btns">
+            <button id="genIdem">Generate idem</button>
+            <button class="primary" id="submitEvent">Submit gate event</button>
+            <button id="resendEvent">Resend same idem (test idempotency)</button>
+          </div>
+          <div class="muted" style="margin-top:10px">
+            Tip: submit 2 lần với cùng idempotencyKey => API trả <code>changed=false</code>.
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Auth bar</h2>
+          <div class="row">
+            <div>
+              <label>Role</label>
+              <select id="demoRole">
+                <option>ADMIN</option>
+                <option>OPS</option>
+                <option selected>GUARD</option>
+                <option>CASHIER</option>
+                <option>WORKER</option>
+              </select>
+            </div>
+            <div>
+              <label>Bearer token</label>
+              <input id="demoToken" placeholder="VD: guard_dev_token_change_me" />
+            </div>
+          </div>
+          <div class="btns">
+            <button class="primary" id="saveAuth">Save</button>
+            <button class="danger" id="clearAuth">Clear</button>
+          </div>
+          <div class="muted" style="margin-top:10px">Nếu bạn để <b>API_AUTH_MODE=OFF</b> thì không cần token.</div>
+        </div>
+      </div>
+
+      <div class="two" style="margin-top:16px">
+        <div class="card">
+          <h2>2) Camera / Upload</h2>
+          <div class="muted">Ưu tiên: <b>file input capture</b> (ổn định trên điện thoại). Tùy máy, có thể bật Live camera.</div>
+
+          <div class="row" style="margin-top:10px">
+            <div>
+              <label>Capture (mobile-friendly)</label>
+              <input id="file" type="file" accept="image/*" capture="environment" />
+            </div>
+            <div>
+              <label>ALPR mode</label>
+              <div class="pill"><input id="simulateAlpr" type="checkbox" checked style="width:auto" /> <span>simulate=true (mock)</span></div>
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:10px">
+            <div>
+              <label>Live camera (getUserMedia)</label>
+              <div class="videoWrap"><video id="video" playsinline></video></div>
+              <div class="btns">
+                <button id="startCam">Start</button>
+                <button id="capture">Capture frame</button>
+                <button id="stopCam">Stop</button>
+              </div>
+            </div>
+            <div>
+              <label>Preview</label>
+              <div class="videoWrap"><img id="preview" alt="preview" /></div>
+              <div class="btns">
+                <button class="primary" id="upload">Upload</button>
+                <button id="recognize">ALPR recognize</button>
+              </div>
+              <div class="muted" style="margin-top:8px">imageUrl: <span id="imageUrl" class="pill">(none)</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>3) Response / Logs</h2>
+          <div class="log" id="log"></div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      import { apiFetch, bindAuthBar, uuid, appendLog, fmtJson, $, setText } from '/ui/common.js';
+
+      bindAuthBar();
+
+      const siteEl = $('site');
+      const deviceEl = $('device');
+
+      const idemEl = $('idem');
+      const plateEl = $('plate');
+      const rfidEl = $('rfid');
+      const dirEl = $('direction');
+
+      const fileEl = $('file');
+      const previewEl = $('preview');
+      const imageUrlEl = $('imageUrl');
+      const simulateAlprEl = $('simulateAlpr');
+
+      const video = $('video');
+      let stream = null;
+      let lastBlob = null;
+      let lastImageUrl = '';
+      let lastEventBody = null;
+
+      function log(x) {
+        appendLog('log', typeof x === 'string' ? x : fmtJson(x));
+      }
+
+      function setImageUrl(url) {
+        lastImageUrl = url || '';
+        setText('imageUrl', lastImageUrl || '(none)');
+      }
+
+      async function loadCatalog() {
+        try {
+          const sites = await apiFetch('/sites');
+          siteEl.innerHTML = '';
+          for (const s of sites) {
+            const opt = document.createElement('option');
+            opt.value = s.site_code;
+            opt.textContent = `${s.site_code} — ${s.site_name || ''}`.trim();
+            siteEl.appendChild(opt);
+          }
+          if (!sites.length) {
+            const opt = document.createElement('option');
+            opt.value = 'SITE_HCM_01';
+            opt.textContent = 'SITE_HCM_01';
+            siteEl.appendChild(opt);
+          }
+          await loadDevices();
+        } catch (e) {
+          log(`[ERR] load sites: ${e.message}`);
+        }
+      }
+
+      async function loadDevices() {
+        const siteCode = siteEl.value || 'SITE_HCM_01';
+        try {
+          const res = await apiFetch(`/devices?siteCode=${encodeURIComponent(siteCode)}`);
+          const devices = res.devices || [];
+          deviceEl.innerHTML = '';
+          for (const d of devices) {
+            const opt = document.createElement('option');
+            opt.value = d.device_code;
+            opt.textContent = `${d.device_code} — ${d.device_name || ''}`.trim();
+            deviceEl.appendChild(opt);
+          }
+          if (!devices.length) {
+            const opt = document.createElement('option');
+            opt.value = 'GATE_ENTRY_01';
+            opt.textContent = 'GATE_ENTRY_01';
+            deviceEl.appendChild(opt);
+          }
+        } catch (e) {
+          log(`[ERR] load devices: ${e.message}`);
+        }
+      }
+
+      siteEl.addEventListener('change', loadDevices);
+
+      $('genIdem').addEventListener('click', () => {
+        idemEl.value = `idem_${uuid().slice(0, 18)}`;
+      });
+      $('genIdem').click();
+
+      // File capture preview
+      fileEl.addEventListener('change', async () => {
+        const f = fileEl.files?.[0];
+        if (!f) return;
+        lastBlob = f;
+        previewEl.src = URL.createObjectURL(f);
+        setImageUrl('');
+        log(`[OK] file selected: ${f.name} (${f.type}, ${f.size} bytes)`);
+      });
+
+      // Live camera
+      $('startCam').addEventListener('click', async () => {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+          video.srcObject = stream;
+          await video.play();
+          log('[OK] camera started');
+        } catch (e) {
+          log(`[ERR] start camera: ${e.message}`);
+        }
+      });
+
+      $('stopCam').addEventListener('click', () => {
+        if (stream) {
+          stream.getTracks().forEach((t) => t.stop());
+          stream = null;
+          video.srcObject = null;
+          log('[OK] camera stopped');
+        }
+      });
+
+      $('capture').addEventListener('click', async () => {
+        if (!video.videoWidth) {
+          log('[WARN] camera chưa sẵn sàng (hoặc không hỗ trợ getUserMedia). Dùng file input capture cho chắc.');
+          return;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0);
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+        lastBlob = blob;
+        previewEl.src = URL.createObjectURL(blob);
+        setImageUrl('');
+        log('[OK] captured frame (jpeg)');
+      });
+
+      $('upload').addEventListener('click', async () => {
+        if (!lastBlob) {
+          log('[WARN] chưa có ảnh. Chụp hoặc chọn file trước.');
+          return;
+        }
+        try {
+          const fd = new FormData();
+          fd.append('file', lastBlob, 'plate.jpg');
+          const res = await apiFetch('/media/upload', { method: 'POST', body: fd });
+          setImageUrl(res.imageUrl);
+          log({ upload: res });
+        } catch (e) {
+          log(`[ERR] upload: ${e.message}`);
+          if (e.details) log(e.details);
+        }
+      });
+
+      $('recognize').addEventListener('click', async () => {
+        if (!lastImageUrl) {
+          log('[WARN] chưa có imageUrl. Upload trước.');
+          return;
+        }
+        try {
+          const res = await apiFetch('/alpr/recognize', {
+            method: 'POST',
+            body: JSON.stringify({ imageUrl: lastImageUrl, simulate: !!simulateAlprEl.checked }),
+          });
+          log({ alpr: res });
+          if (res.plate) plateEl.value = res.plate;
+        } catch (e) {
+          log(`[ERR] alpr: ${e.message}`);
+        }
+      });
+
+      async function submitGateEvent(useSameIdem) {
+        const siteCode = siteEl.value || 'SITE_HCM_01';
+        const deviceCode = deviceEl.value || 'GATE_ENTRY_01';
+        const idempotencyKey = useSameIdem ? idemEl.value : `idem_${uuid().slice(0, 18)}`;
+        if (!useSameIdem) idemEl.value = idempotencyKey;
+
+        const body = {
+          siteCode,
+          deviceCode,
+          direction: dirEl.value,
+          eventTime: new Date().toISOString(),
+          idempotencyKey,
+          rfidUid: rfidEl.value || undefined,
+          licensePlateRaw: plateEl.value || undefined,
+          imageUrl: lastImageUrl || undefined,
+          rawPayload: lastImageUrl
+            ? { alprMock: true, imageUrl: lastImageUrl, capturedAt: new Date().toISOString() }
+            : undefined,
+        };
+        lastEventBody = body;
+
+        try {
+          const res = await apiFetch('/gate-events', { method: 'POST', body: JSON.stringify(body) });
+          log({ gateEvent: res, request: body });
+        } catch (e) {
+          log(`[ERR] gate-events: ${e.message}`);
+          if (e.payload) log(e.payload);
+        }
+      }
+
+      $('submitEvent').addEventListener('click', () => submitGateEvent(false));
+      $('resendEvent').addEventListener('click', () => {
+        if (!lastEventBody) {
+          log('[WARN] chưa submit lần nào');
+          return;
+        }
+        submitGateEvent(true);
+      });
+
+      // init
+      loadCatalog();
+    </script>
+  </body>
+</html>

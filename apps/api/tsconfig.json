@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "baseUrl": ".",
+    "paths": {
+      "@parkly/contracts": ["../../packages/contracts/src/index.ts"],
+      "@parkly/gate-core": ["../../packages/gate-core/src/index.ts"]
+    },
+    "outDir": "dist",
+    "types": ["node", "express"],
+    "noImplicitAny": false
+  },
+  "include": ["src", "src/types", "scripts", "prisma.config.ts"],
+  "exclude": ["dist"]
+}
