@@ -1,25 +1,11 @@
 ﻿import { useMemo } from 'react'
-import { Loader2, RadioTower, Wifi, WifiOff } from 'lucide-react'
+import { RadioTower } from 'lucide-react'
+import { ConnectionBadge, SurfaceState } from '@/components/ops/console'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { cn } from '@/lib/utils'
 import { makeSseUrl, type OutboxSnapshot } from '@/lib/api'
 import { useSseSnapshot } from '@/features/_shared/use-sse-snapshot'
-
-function StreamBadge({ connected }: { connected: boolean }) {
-  return (
-    <div
-      className={cn(
-        'flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-mono-data',
-        connected ? 'border-success/25 bg-success/8 text-success' : 'border-border bg-card text-muted-foreground',
-      )}
-    >
-      {connected ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
-      OUTBOX SSE {connected ? 'CONNECTED' : 'DISCONNECTED'}
-    </div>
-  )
-}
 
 function outboxVariant(status: string): 'secondary' | 'outline' | 'destructive' {
   if (status === 'SENT' || status === 'ACKED') return 'secondary'
@@ -35,25 +21,21 @@ export function OutboxMonitorPanel({ compact = false }: { compact?: boolean }) {
 
   const rows = data?.rows ?? []
 
-  const metrics = useMemo(() => {
-    return {
-      total: rows.length,
-      pending: rows.filter((row) => row.status === 'PENDING' || row.status === 'RETRYING').length,
-      failed: rows.filter((row) => row.status === 'FAILED' || row.status === 'TIMEOUT' || row.status === 'NACKED').length,
-      sent: rows.filter((row) => row.status === 'SENT' || row.status === 'ACKED').length,
-    }
-  }, [rows])
+  const metrics = useMemo(() => ({
+    total: rows.length,
+    pending: rows.filter((row) => row.status === 'PENDING' || row.status === 'RETRYING').length,
+    failed: rows.filter((row) => row.status === 'FAILED' || row.status === 'TIMEOUT' || row.status === 'NACKED').length,
+    sent: rows.filter((row) => row.status === 'SENT' || row.status === 'ACKED').length,
+  }), [rows])
 
   return (
     <Card className="border-border/80 bg-card/95">
       <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
         <div>
           <CardTitle>{compact ? 'Outbox' : 'Outbox Monitor'}</CardTitle>
-          <CardDescription>
-            Feed này là dữ liệu outbox thật, không phải poll giả. Dùng để thấy hàng đợi tích luỹ, retry, lỗi và bridge qua downstream.
-          </CardDescription>
+          <CardDescription>Quan sát backlog đồng bộ, retry và kết quả đẩy xuống downstream theo thời gian thực.</CardDescription>
         </div>
-        <StreamBadge connected={state.connected} />
+        <ConnectionBadge connected={state.connected} label="Outbox stream" />
       </CardHeader>
 
       <CardContent className="space-y-4">
@@ -67,19 +49,15 @@ export function OutboxMonitorPanel({ compact = false }: { compact?: boolean }) {
         </div>
 
         {state.error ? (
-          <div className="rounded-lg border border-destructive/25 bg-destructive/8 px-4 py-3 text-xs text-destructive">
-            {state.error}
-          </div>
-        ) : null}
-
-        {rows.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 px-5 py-10 text-muted-foreground/60">
-            {state.connected ? <RadioTower className="h-10 w-10" /> : <Loader2 className="h-10 w-10 animate-spin" />}
-            <div className="text-center">
-              <p className="text-sm font-medium">{state.connected ? 'Chưa có outbox snapshot' : 'Đang chờ outbox stream...'}</p>
-              <p className="mt-1 text-xs">Khi gate đọc / session / barrier ghi ra outbox, feed này sẽ đổi ngay.</p>
-            </div>
-          </div>
+          <SurfaceState title="Không thể nhận outbox stream" description={state.error} tone="error" className="min-h-[140px]" />
+        ) : rows.length === 0 ? (
+          <SurfaceState
+            title={state.connected ? 'Chưa có outbox snapshot' : 'Đang chờ kết nối outbox stream'}
+            description="Khi session, gate read hoặc barrier ghi ra outbox, danh sách này sẽ cập nhật ngay."
+            icon={RadioTower}
+            tone={state.connected ? 'empty' : 'loading'}
+            className="min-h-[220px]"
+          />
         ) : (
           <ScrollArea className={compact ? 'h-[360px]' : 'h-[640px]'}>
             <div className="space-y-3 pr-3">

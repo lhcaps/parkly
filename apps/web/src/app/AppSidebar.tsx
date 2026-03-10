@@ -1,6 +1,5 @@
-import { NavLink } from 'react-router-dom'
-import { Menu, ParkingSquare, X } from 'lucide-react'
-import { Badge, type BadgeProps } from '@/components/ui/badge'
+﻿import { NavLink } from 'react-router-dom'
+import { ParkingSquare, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { APP_SHELL_NAV_GROUPS, getNavItemsByGroup } from '@/app/routes'
@@ -33,8 +32,8 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
               <ParkingSquare className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <p className="truncate font-mono-data text-sm font-semibold tracking-tight">Parkly Console v3</p>
-              <p className="mt-0.5 truncate text-[10px] uppercase tracking-[0.24em] text-muted-foreground">task-driven information architecture</p>
+              <p className="truncate text-sm font-semibold tracking-tight">Parkly Console</p>
+              <p className="mt-0.5 truncate text-[11px] text-muted-foreground">Điều hành cổng, queue và đồng bộ.</p>
             </div>
           </div>
 
@@ -48,12 +47,11 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
             const items = getNavItemsByGroup(group)
             return (
               <section key={group} className="mb-5 last:mb-0">
-                <div className="mb-2 flex items-center justify-between px-3">
+                <div className="mb-2 px-3">
                   <p className="text-[10px] font-mono-data uppercase tracking-[0.2em] text-muted-foreground/70">{group}</p>
-                  <span className="text-[10px] text-muted-foreground/45">{items.length}</span>
                 </div>
                 <div className="space-y-1">
-                  {items.map(({ path, label, description, icon: Icon, badge }) => (
+                  {items.map(({ path, label, description, icon: Icon }) => (
                     <NavLink
                       key={path}
                       to={path}
@@ -78,10 +76,7 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
                             <Icon className="h-4 w-4" />
                           </div>
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between gap-2">
-                              <p className="truncate text-sm font-medium">{label}</p>
-                              {badge ? <Badge variant={badge as BadgeProps['variant']}>{badge}</Badge> : null}
-                            </div>
+                            <p className="truncate text-sm font-medium">{label}</p>
                             <p className="mt-1 text-[11px] leading-4 text-muted-foreground/80">{description}</p>
                           </div>
                         </div>
@@ -92,17 +87,6 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
               </section>
             )
           })}
-        </div>
-
-        <div className="border-t border-border/80 px-5 py-4">
-          <div className="flex items-center gap-2 text-[10px] font-mono-data uppercase tracking-[0.18em] text-muted-foreground/70">
-            <span className="h-2 w-2 rounded-full bg-success shadow-[0_0_12px_hsl(var(--success)/0.55)]" />
-            shell transition active
-          </div>
-          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground/70 lg:hidden">
-            <Menu className="h-3.5 w-3.5" />
-            điều hướng mobile không phá route cũ
-          </div>
         </div>
       </aside>
     </>

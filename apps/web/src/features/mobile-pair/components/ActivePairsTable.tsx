@@ -17,15 +17,15 @@ export function ActivePairsTable({
   return (
     <div className="rounded-3xl border border-border/80 bg-card/95 p-5 shadow-[0_18px_60px_rgba(0,0,0,0.12)]">
       <div className="mb-4">
-        <p className="text-sm font-medium">Active pairs list</p>
+        <p className="text-sm font-medium">Active pairs</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Danh sách này đang được giữ ở local browser registry của desktop để operator mở lại hoặc copy lại link nhanh.
+          Danh sách này được giữ trong local registry của browser để mở lại hoặc copy lại pair link nhanh.
         </p>
       </div>
 
       {rows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border/80 bg-background/40 px-4 py-10 text-center text-sm text-muted-foreground">
-          Chưa có active pair nào.
+          Chưa có pair nào được lưu trên browser này.
         </div>
       ) : (
         <div className="space-y-3">

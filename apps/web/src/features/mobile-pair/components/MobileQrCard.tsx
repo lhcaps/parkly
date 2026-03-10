@@ -32,14 +32,18 @@ export function MobileQrCard({
       <div className="mt-4">
         <p className="text-sm font-medium">Pair QR</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Snapshot hiện tại không có thư viện QR riêng, nên card này render QR bằng image service. Nếu mạng chặn QR image, nút copy/open link vẫn dùng được.
+          QR được render bằng image service để tránh thêm dependency mới. Nếu QR không tải được, bạn vẫn có thể copy link hoặc mở link trực tiếp.
         </p>
       </div>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[320px_1fr]">
         <div className="flex min-h-[320px] items-center justify-center rounded-3xl border border-border/80 bg-background/40 p-4">
           {pairUrl ? (
-            <img src={qrUrl} alt="Mobile pair QR" className="h-[280px] w-[280px] rounded-2xl border border-border/80 bg-white p-2" />
+            <img
+              src={qrUrl}
+              alt="Mobile pair QR"
+              className="h-[280px] w-[280px] rounded-2xl border border-border/80 bg-white p-2"
+            />
           ) : (
             <div className="text-center text-sm text-muted-foreground">
               <Smartphone className="mx-auto h-10 w-10" />
@@ -67,7 +71,7 @@ export function MobileQrCard({
           </div>
 
           <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm text-muted-foreground">
-            QR chỉ là bề mặt pair. Điện thoại sau đó vẫn chạy surface riêng: preview nhẹ, override nhẹ, send capture và heartbeat.
+            Pair QR chỉ dùng để đưa điện thoại vào đúng context. Việc preview, gửi capture và heartbeat vẫn diễn ra trên mobile surface.
           </div>
         </div>
       </div>

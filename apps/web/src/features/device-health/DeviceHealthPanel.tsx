@@ -1,25 +1,11 @@
 ﻿import { useMemo } from 'react'
-import { Loader2, ServerCog, Wifi, WifiOff } from 'lucide-react'
+import { ServerCog } from 'lucide-react'
+import { ConnectionBadge, SurfaceState } from '@/components/ops/console'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { cn } from '@/lib/utils'
 import { makeSseUrl, type DeviceHealthSnapshot } from '@/lib/api'
 import { useSseSnapshot } from '@/features/_shared/use-sse-snapshot'
-
-function StreamBadge({ connected }: { connected: boolean }) {
-  return (
-    <div
-      className={cn(
-        'flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-mono-data',
-        connected ? 'border-success/25 bg-success/8 text-success' : 'border-border bg-card text-muted-foreground',
-      )}
-    >
-      {connected ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
-      DEVICE SSE {connected ? 'CONNECTED' : 'DISCONNECTED'}
-    </div>
-  )
-}
 
 export function DeviceHealthPanel({ compact = false }: { compact?: boolean }) {
   const { data, state } = useSseSnapshot<DeviceHealthSnapshot>({
@@ -32,39 +18,28 @@ export function DeviceHealthPanel({ compact = false }: { compact?: boolean }) {
     const deduped = new Map<string, typeof sourceRows[number]>()
 
     for (const row of sourceRows) {
-      const key = [
-        row.siteCode,
-        row.gateCode ?? 'NA',
-        row.laneCode ?? 'UNASSIGNED',
-        row.deviceCode,
-        row.deviceRole ?? row.deviceType ?? 'NA',
-      ].join(':')
-
+      const key = [row.siteCode, row.gateCode ?? 'NA', row.laneCode ?? 'UNASSIGNED', row.deviceCode, row.deviceRole ?? row.deviceType ?? 'NA'].join(':')
       if (!deduped.has(key)) deduped.set(key, row)
     }
 
     return Array.from(deduped.values())
   }, [data?.rows])
 
-  const metrics = useMemo(() => {
-    return {
-      total: rows.length,
-      online: rows.filter((row) => row.derivedHealth === 'ONLINE').length,
-      degraded: rows.filter((row) => row.derivedHealth === 'DEGRADED').length,
-      offline: rows.filter((row) => row.derivedHealth === 'OFFLINE').length,
-    }
-  }, [rows])
+  const metrics = useMemo(() => ({
+    total: rows.length,
+    online: rows.filter((row) => row.derivedHealth === 'ONLINE').length,
+    degraded: rows.filter((row) => row.derivedHealth === 'DEGRADED').length,
+    offline: rows.filter((row) => row.derivedHealth === 'OFFLINE').length,
+  }), [rows])
 
   return (
     <Card className="border-border/80 bg-card/95">
       <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
         <div>
           <CardTitle>{compact ? 'Device health' : 'Device Health'}</CardTitle>
-          <CardDescription>
-            Derived health được tính từ heartbeat aging, capture status và lane mapping thật.
-          </CardDescription>
+          <CardDescription>Derived health phản ánh tuổi heartbeat, trạng thái capture và liên kết thực tế với lane.</CardDescription>
         </div>
-        <StreamBadge connected={state.connected} />
+        <ConnectionBadge connected={state.connected} label="Device stream" />
       </CardHeader>
 
       <CardContent className="space-y-4">
@@ -76,19 +51,15 @@ export function DeviceHealthPanel({ compact = false }: { compact?: boolean }) {
         </div>
 
         {state.error ? (
-          <div className="rounded-lg border border-destructive/25 bg-destructive/8 px-4 py-3 text-xs text-destructive">
-            {state.error}
-          </div>
-        ) : null}
-
-        {rows.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 px-5 py-10 text-muted-foreground/60">
-            {state.connected ? <ServerCog className="h-10 w-10" /> : <Loader2 className="h-10 w-10 animate-spin" />}
-            <div className="text-center">
-              <p className="text-sm font-medium">{state.connected ? 'Chưa có device health snapshot' : 'Đang chờ device health...'}</p>
-              <p className="mt-1 text-xs">SSE này phản ánh health thật từ backend.</p>
-            </div>
-          </div>
+          <SurfaceState title="Không thể nhận device health" description={state.error} tone="error" className="min-h-[140px]" />
+        ) : rows.length === 0 ? (
+          <SurfaceState
+            title={state.connected ? 'Chưa có device health snapshot' : 'Đang chờ kết nối device stream'}
+            description="SSE sẽ đẩy tình trạng thiết bị ngay khi backend có snapshot mới."
+            icon={ServerCog}
+            tone={state.connected ? 'empty' : 'loading'}
+            className="min-h-[220px]"
+          />
         ) : (
           <ScrollArea className={compact ? 'h-[360px]' : 'h-[640px]'}>
             <div className="space-y-3 pr-3">

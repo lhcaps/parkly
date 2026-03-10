@@ -1,6 +1,7 @@
 ﻿import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRightLeft, Camera, ClipboardList, Smartphone } from 'lucide-react'
+import { PageHeader } from '@/components/ops/console'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { PreviewDebugPanel } from '@/features/capture-debug/components/PreviewDebugPanel'
@@ -26,25 +27,15 @@ export function CaptureDebugPage() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-border/80 bg-card/95 p-5 shadow-[0_18px_60px_rgba(0,0,0,0.18)] sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-4xl">
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="secondary">capture surfaces</Badge>
-              <Badge variant="outline">debug split</Badge>
-              <Badge variant="outline">no run-lane coupling</Badge>
-            </div>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight">Capture Debug</h1>
-            <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-              Page này chỉ lo debug capture: raw OCR, candidates, crop/psm/provider, capture feed và event mapping summary. Nó đã tách khỏi GateEventsMonitor monolith và không ảnh hưởng state của Run Lane.
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-border/80 bg-background/40 p-4 text-sm text-muted-foreground">
-            Pair QR dành cho desktop nằm ở route <span className="font-mono-data">/mobile-camera-pair</span>.
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Capture"
+        title="Capture Debug"
+        description="Quan sát preview OCR, feed capture và mapping summary để xác định lỗi ingest hoặc sai lệch plate trước khi chuyển sang màn thao tác lane."
+        badges={[
+          { label: 'capture', variant: 'secondary' },
+          { label: 'debug only', variant: 'outline' },
+        ]}
+      />
 
       <div className="grid gap-4 md:grid-cols-3">
         <Link to="/mobile-camera-pair">
@@ -53,7 +44,7 @@ export function CaptureDebugPage() {
               <Smartphone className="mt-0.5 h-5 w-5 text-primary" />
               <div>
                 <p className="font-medium">Mobile Camera Pair</p>
-                <p className="mt-1 text-sm text-muted-foreground">Tạo QR/link pair cho điện thoại trên desktop.</p>
+                <p className="mt-1 text-sm text-muted-foreground">Tạo QR và pair link cho điện thoại từ desktop.</p>
               </div>
             </CardContent>
           </Card>
@@ -65,7 +56,7 @@ export function CaptureDebugPage() {
               <Camera className="mt-0.5 h-5 w-5 text-primary" />
               <div>
                 <p className="font-medium">Mobile Capture</p>
-                <p className="mt-1 text-sm text-muted-foreground">Standalone mobile surface để preview nhẹ, send capture và heartbeat.</p>
+                <p className="mt-1 text-sm text-muted-foreground">Mở bề mặt mobile để gửi ảnh, preview và heartbeat.</p>
               </div>
             </CardContent>
           </Card>
@@ -77,7 +68,7 @@ export function CaptureDebugPage() {
               <ArrowRightLeft className="mt-0.5 h-5 w-5 text-primary" />
               <div>
                 <p className="font-medium">Run Lane</p>
-                <p className="mt-1 text-sm text-muted-foreground">Xử lý lane flow chính. Debug page này không chia sẻ store với Run Lane.</p>
+                <p className="mt-1 text-sm text-muted-foreground">Chuyển sang màn thao tác chính khi cần xử lý quyết định cho lane.</p>
               </div>
             </CardContent>
           </Card>
@@ -88,10 +79,7 @@ export function CaptureDebugPage() {
         <PreviewDebugPanel />
 
         <div className="space-y-5">
-          <CaptureFeedTable
-            selectedEventId={selected?.eventId || ''}
-            onSelect={setSelected}
-          />
+          <CaptureFeedTable selectedEventId={selected?.eventId || ''} onSelect={setSelected} />
 
           <div className="rounded-3xl border border-border/80 bg-card/95 p-5 shadow-[0_18px_60px_rgba(0,0,0,0.12)]">
             <div className="mb-4 flex items-center gap-2">
@@ -101,7 +89,7 @@ export function CaptureDebugPage() {
 
             {!summary ? (
               <div className="rounded-2xl border border-dashed border-border/80 bg-background/40 px-4 py-10 text-center text-sm text-muted-foreground">
-                Chọn một row trong capture feed để xem summary mapping.
+                Chọn một row trong capture feed để xem context mapping.
               </div>
             ) : (
               <div className="space-y-2 rounded-2xl border border-border/80 bg-background/40 p-4">
@@ -113,6 +101,10 @@ export function CaptureDebugPage() {
                 ))}
               </div>
             )}
+          </div>
+
+          <div className="rounded-2xl border border-border/80 bg-card/95 p-4 text-sm text-muted-foreground">
+            Capture Debug chỉ dùng để đọc tín hiệu đầu vào và preview OCR. Các quyết định nghiệp vụ nên thực hiện ở Run Lane hoặc Review Queue.
           </div>
         </div>
       </div>

@@ -1,31 +1,20 @@
 ﻿import { Link } from 'react-router-dom'
 import { Activity, ArrowRightLeft, ClipboardCheck, History, ShieldCheck } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import { PageHeader } from '@/components/ops/console'
 import { Card, CardContent } from '@/components/ui/card'
 import { LaneMonitorPanel } from '@/features/lane-monitor/LaneMonitorPanel'
 
 export function LaneMonitorPage() {
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-border/80 bg-card/95 p-5 shadow-[0_18px_60px_rgba(0,0,0,0.18)] sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-4xl">
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="secondary">monitoring</Badge>
-              <Badge variant="outline">lane status</Badge>
-              <Badge variant="outline">SSE dedicated</Badge>
-            </div>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight">Lane Monitor</h1>
-            <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-              Đây là trang chuyên cho lane health, barrier lifecycle và session gần nhất theo lane. Nó không còn đóng vai trò overview tổng hợp; nó là màn hình triage realtime riêng.
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-border/80 bg-background/40 p-4 text-sm text-muted-foreground">
-            Ưu tiên dùng trang này khi bạn cần xác định lane nào đang unhealthy hoặc lane nào vừa phát sinh trạng thái bất thường.
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Lane Monitor"
+        description="Theo dõi sức khỏe lane, barrier và trạng thái phiên mới nhất theo thời gian thực. Đây là màn hình triage, không phải nơi thao tác quyết định."
+        badges={[
+          { label: 'lane realtime', variant: 'secondary' },
+          { label: 'SSE', variant: 'outline' },
+        ]}
+      />
 
       <div className="grid gap-4 md:grid-cols-3">
         <Link to="/run-lane">
@@ -34,7 +23,7 @@ export function LaneMonitorPage() {
               <ArrowRightLeft className="mt-0.5 h-5 w-5 text-primary" />
               <div>
                 <p className="font-medium">Run Lane</p>
-                <p className="mt-1 text-sm text-muted-foreground">Nhảy thẳng vào surface xử lý lượt xe nếu lane vừa cần thao tác.</p>
+                <p className="mt-1 text-sm text-muted-foreground">Chuyển sang màn thao tác khi lane vừa phát sinh trường hợp cần xử lý.</p>
               </div>
             </CardContent>
           </Card>
@@ -46,7 +35,7 @@ export function LaneMonitorPage() {
               <ClipboardCheck className="mt-0.5 h-5 w-5 text-primary" />
               <div>
                 <p className="font-medium">Review Queue</p>
-                <p className="mt-1 text-sm text-muted-foreground">Đi tiếp sang queue nếu lane đang kẹt vì review/manual decision.</p>
+                <p className="mt-1 text-sm text-muted-foreground">Đi tiếp sang hàng đợi khi lane đang chờ xác nhận thủ công.</p>
               </div>
             </CardContent>
           </Card>
@@ -58,7 +47,7 @@ export function LaneMonitorPage() {
               <History className="mt-0.5 h-5 w-5 text-primary" />
               <div>
                 <p className="font-medium">Session History</p>
-                <p className="mt-1 text-sm text-muted-foreground">Đọc timeline và event nếu cần forensic/debug sâu hơn.</p>
+                <p className="mt-1 text-sm text-muted-foreground">Xem timeline và bằng chứng khi cần truy vết chi tiết hơn.</p>
               </div>
             </CardContent>
           </Card>
@@ -73,20 +62,20 @@ export function LaneMonitorPage() {
             <div className="rounded-2xl border border-border/80 bg-background/40 p-4">
               <div className="mb-2 flex items-center gap-2">
                 <Activity className="h-4 w-4 text-primary" />
-                <p className="text-sm font-medium">Cách đọc màn hình này</p>
+                <p className="text-sm font-medium">Ưu tiên đọc</p>
               </div>
               <p className="text-sm text-muted-foreground">
-                Nhìn lane aggregate health trước, sau đó nhìn session status gần nhất và barrier status gần nhất. Nếu lane unhealthy, chuyển tiếp đúng route thay vì cố xử lý mọi thứ trong một màn.
+                Nhìn aggregate health trước, sau đó kiểm tra trạng thái phiên gần nhất và trạng thái barrier để xác định lane cần xử lý ngay.
               </p>
             </div>
 
             <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
               <div className="mb-2 flex items-center gap-2">
                 <ShieldCheck className="h-4 w-4 text-primary" />
-                <p className="text-sm font-medium">Vai trò của page</p>
+                <p className="text-sm font-medium">Phân vai màn hình</p>
               </div>
               <p className="text-sm text-muted-foreground">
-                Lane Monitor là trang quan sát realtime. Run Lane mới là nơi thao tác submit/override. Tách vai trò vậy sẽ đỡ thành một page monolith.
+                Lane Monitor dùng để quan sát và khoanh vùng sự cố. Thao tác quyết định nên thực hiện ở Run Lane hoặc Review Queue.
               </p>
             </div>
           </CardContent>

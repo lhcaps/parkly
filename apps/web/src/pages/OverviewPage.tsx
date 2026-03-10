@@ -1,21 +1,17 @@
-﻿import { Link } from 'react-router-dom'
-import {
+﻿import {
   Activity,
   ArrowRightLeft,
   Camera,
   ClipboardCheck,
   Cpu,
-  Loader2,
   RadioTower,
   RefreshCcw,
-  ShieldAlert,
-  Wifi,
-  WifiOff,
 } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { ConnectionBadge, PageHeader, SurfaceState } from '@/components/ops/console'
+import { Badge } from '@/components/ui/badge'
 import { KpiCard } from '@/features/overview/components/KpiCard'
 import { QuickActionsCard, type QuickActionItem } from '@/features/overview/components/QuickActionsCard'
 import { useOverviewData } from '@/features/overview/hooks/useOverviewData'
@@ -25,43 +21,43 @@ const QUICK_ACTIONS: QuickActionItem[] = [
   {
     to: '/run-lane',
     label: 'Run Lane',
-    helper: 'Đi thẳng vào workflow xử lý lượt xe hiện tại.',
-    badge: 'entry',
+    helper: 'Xử lý lượt xe đang tới lane.',
+    badge: 'Lane',
     icon: ArrowRightLeft,
   },
   {
     to: '/review-queue',
     label: 'Review Queue',
-    helper: 'Xử lý các case ambiguous và manual review.',
-    badge: 'review',
+    helper: 'Giải quyết các ca cần xác nhận thủ công.',
+    badge: 'Review',
     icon: ClipboardCheck,
   },
   {
     to: '/lane-monitor',
     label: 'Lane Monitor',
-    helper: 'Theo dõi lane aggregate health và barrier lifecycle.',
-    badge: 'SSE',
+    helper: 'Theo dõi lane, barrier và cảnh báo realtime.',
+    badge: 'Live',
     icon: Activity,
   },
   {
     to: '/device-health',
     label: 'Device Health',
-    helper: 'Kiểm tra heartbeat và thiết bị đang degraded/offline.',
-    badge: 'health',
+    helper: 'Kiểm tra heartbeat và suy giảm thiết bị.',
+    badge: 'Health',
     icon: Cpu,
   },
   {
     to: '/sync-outbox',
     label: 'Sync Outbox',
-    helper: 'Theo dõi backlog đồng bộ và retry queue.',
-    badge: 'queue',
+    helper: 'Theo dõi backlog đồng bộ và retry.',
+    badge: 'Queue',
     icon: RadioTower,
   },
   {
     to: '/capture-debug',
     label: 'Capture Debug',
-    helper: 'Debug capture feed, upload và ALPR ingestion.',
-    badge: 'debug',
+    helper: 'Xem feed capture và kết quả ALPR.',
+    badge: 'Capture',
     icon: Camera,
   },
 ]
@@ -79,9 +75,9 @@ function SessionRow({ session }: { session: SessionSummary }) {
     <div className="rounded-2xl border border-border/80 bg-background/40 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="font-mono-data text-sm font-semibold">session={session.sessionId}</p>
+          <p className="font-mono-data text-sm font-semibold">{session.sessionId || '—'}</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {session.siteCode} / {session.gateCode} / {session.laneCode} · {session.direction}
+            {session.siteCode || '—'} / {session.gateCode || '—'} / {session.laneCode || '—'} · {session.direction}
           </p>
         </div>
         <Badge variant={sessionVariant(session.status)}>{session.status}</Badge>
@@ -112,64 +108,45 @@ export function OverviewPage() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-border/80 bg-card/95 p-5 shadow-[0_18px_60px_rgba(0,0,0,0.18)] sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-4xl">
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="secondary">operations-first</Badge>
-              <Badge variant="outline">overview hub</Badge>
-              <Badge variant="outline">partial-failure safe</Badge>
-              {siteCode ? <Badge variant="muted">site={siteCode}</Badge> : null}
-            </div>
-
-            <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">Overview bây giờ là bảng điều hướng công việc</h2>
-            <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-              Trang này không còn là chỗ nhét vài panel ngẫu nhiên. Nó chốt KPI, quick actions, recent sessions, queue summary và device alerts để operator quyết định bước tiếp theo ngay.
-            </p>
-          </div>
-
+      <PageHeader
+        title="Overview"
+        description="Điểm vào điều phối ca trực. Trang này gom chỉ số chính, đường dẫn thao tác nhanh và các lát cắt cần ưu tiên xử lý."
+        badges={[
+          { label: 'Operations', variant: 'secondary' },
+          { label: siteCode ? `Site ${siteCode}` : 'All sites', variant: 'outline' },
+        ]}
+        actions={
           <div className="flex flex-wrap items-center gap-2">
-            <Badge
-              variant={deviceHealthState.connected ? 'entry' : 'outline'}
-              className="px-3 py-1.5"
-            >
-              {deviceHealthState.connected ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
-              device SSE {deviceHealthState.connected ? 'connected' : 'disconnected'}
-            </Badge>
-
+            <ConnectionBadge connected={deviceHealthState.connected} label="Device stream" />
             <Button variant="outline" size="sm" onClick={() => void refreshAll()}>
               <RefreshCcw className="h-4 w-4" />
-              Refresh overview
+              Làm mới
             </Button>
           </div>
-        </div>
+        }
+      />
 
-        {refreshedAt ? (
-          <p className="mt-4 text-xs text-muted-foreground">
-            Refreshed {new Date(refreshedAt).toLocaleString('vi-VN')}
-          </p>
-        ) : null}
-      </div>
+      {refreshedAt ? <p className="text-xs text-muted-foreground">Cập nhật {new Date(refreshedAt).toLocaleString('vi-VN')}</p> : null}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
         <KpiCard
           title="7-day entry"
           value={reports.loading ? '...' : String(reports.data?.entry ?? 0)}
-          helper={reports.error ? reports.error : 'Tổng lượt entry trong 7 ngày gần nhất.'}
+          helper={reports.error ? reports.error : 'Lượt vào trong 7 ngày gần nhất.'}
           icon={ArrowRightLeft}
           tone="success"
         />
         <KpiCard
           title="7-day exit"
           value={reports.loading ? '...' : String(reports.data?.exit ?? 0)}
-          helper={reports.error ? 'Reports summary đang lỗi riêng.' : 'Tổng lượt exit trong 7 ngày gần nhất.'}
+          helper={reports.error ? 'Không đọc được số liệu thoát xe.' : 'Lượt ra trong 7 ngày gần nhất.'}
           icon={ArrowRightLeft}
           tone="default"
         />
         <KpiCard
           title="7-day throughput"
           value={reports.loading ? '...' : String(reports.data?.total ?? 0)}
-          helper="KPI tổng lưu lượng để nhìn nhanh mức vận hành."
+          helper="Tổng lưu lượng để nhìn nhanh mức vận hành."
           icon={Activity}
           tone="default"
         />
@@ -181,46 +158,41 @@ export function OverviewPage() {
           tone={deviceAlertSummary.attention > 0 ? 'danger' : 'success'}
         />
         <KpiCard
-          title="open review slice"
+          title="open review"
           value={queueSummary.loading ? '...' : String(queueSummary.data.length)}
-          helper={queueSummary.error ? queueSummary.error : 'Số case review mở vừa được nạp ở overview.'}
+          helper={queueSummary.error ? queueSummary.error : 'Review đang mở trong lát cắt hiện tại.'}
           icon={ClipboardCheck}
           tone={queueSummary.data.length > 0 ? 'warning' : 'default'}
         />
         <KpiCard
-          title="failed outbox slice"
+          title="failed outbox"
           value={outboxSummary.loading ? '...' : String(outboxFailedCount)}
-          helper={outboxSummary.error ? outboxSummary.error : 'Số row lỗi trong lát cắt outbox hiện tại.'}
+          helper={outboxSummary.error ? outboxSummary.error : 'Row lỗi trong lát cắt outbox hiện tại.'}
           icon={RadioTower}
           tone={outboxFailedCount > 0 ? 'danger' : 'default'}
         />
       </div>
 
-      <QuickActionsCard actions={QUICK_ACTIONS} />
+      <QuickActionsCard
+        actions={QUICK_ACTIONS}
+        title="Đi nhanh tới màn hình làm việc"
+        description="Mở đúng màn hình theo việc cần xử lý, không phải đi qua nhiều route trung gian."
+      />
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr_0.9fr]">
         <Card className="border-border/80 bg-card/95 shadow-[0_18px_60px_rgba(0,0,0,0.12)]">
           <CardHeader>
-            <CardTitle>Recent Sessions</CardTitle>
-            <CardDescription>
-              Session gần đây để operator nhìn nhanh lane nào đang chờ quyết định hoặc có lỗi.
-            </CardDescription>
+            <CardTitle>Recent sessions</CardTitle>
+            <CardDescription>Các phiên mới nhất để nhìn nhanh lane nào đang chờ quyết định hoặc có vấn đề.</CardDescription>
           </CardHeader>
 
           <CardContent>
             {recentSessions.loading ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Đang tải recent sessions...
-              </div>
+              <SurfaceState tone="loading" title="Đang tải session" description="Hệ thống đang nạp lát cắt session gần đây." className="min-h-[220px]" />
             ) : recentSessions.error ? (
-              <div className="rounded-2xl border border-destructive/25 bg-destructive/10 p-4 text-sm text-destructive">
-                {recentSessions.error}
-              </div>
+              <SurfaceState tone="error" title="Không tải được session" description={recentSessions.error} className="min-h-[220px]" />
             ) : recentSessions.data.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-border/80 bg-background/40 p-6 text-sm text-muted-foreground">
-                Chưa có session nào trong lát cắt overview.
-              </div>
+              <SurfaceState title="Chưa có session" description="Không có session nào trong lát cắt overview hiện tại." className="min-h-[220px]" />
             ) : (
               <ScrollArea className="h-[340px]">
                 <div className="space-y-3 pr-3">
@@ -235,10 +207,8 @@ export function OverviewPage() {
 
         <Card className="border-border/80 bg-card/95 shadow-[0_18px_60px_rgba(0,0,0,0.12)]">
           <CardHeader>
-            <CardTitle>Device Alerts</CardTitle>
-            <CardDescription>
-              Overview chỉ lấy một SSE nhẹ cho device health, không mount toàn bộ monitoring panels.
-            </CardDescription>
+            <CardTitle>Device alerts</CardTitle>
+            <CardDescription>Cảnh báo thiết bị theo snapshot realtime, giữ riêng khỏi các khối còn lại để lỗi cục bộ không kéo sập trang.</CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-4">
@@ -248,7 +218,7 @@ export function OverviewPage() {
                 <p className="mt-2 text-2xl font-semibold">{deviceAlertSummary.total}</p>
               </div>
               <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4">
-                <p className="text-[11px] font-mono-data uppercase tracking-[0.18em] text-muted-foreground">Attention needed</p>
+                <p className="text-[11px] font-mono-data uppercase tracking-[0.18em] text-muted-foreground">Attention</p>
                 <p className="mt-2 text-2xl font-semibold">{deviceAlertSummary.attention}</p>
               </div>
               <div className="rounded-2xl border border-border/80 bg-background/40 p-4">
@@ -262,79 +232,46 @@ export function OverviewPage() {
             </div>
 
             {deviceHealthState.error ? (
-              <div className="rounded-2xl border border-destructive/25 bg-destructive/10 p-4 text-sm text-destructive">
-                {deviceHealthState.error}
-              </div>
+              <SurfaceState tone="error" title="Stream thiết bị gặp lỗi" description={deviceHealthState.error} className="min-h-[120px]" />
             ) : (
               <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm text-muted-foreground">
-                {deviceHealthState.connected ? 'Device SSE đang connected.' : 'Device SSE đang disconnected nhưng Overview vẫn load được các khối khác.'}
+                {deviceHealthState.connected
+                  ? 'Thiết bị đang đẩy snapshot realtime. Ưu tiên kiểm tra OFFLINE trước, sau đó tới DEGRADED.'
+                  : 'Chưa kết nối được stream thiết bị. Có thể xem lane monitor hoặc capture debug để đối chiếu thêm.'}
               </div>
             )}
-
-            <Button asChild variant="outline" className="w-full justify-start">
-              <Link to="/device-health">Mở Device Health</Link>
-            </Button>
           </CardContent>
         </Card>
 
         <Card className="border-border/80 bg-card/95 shadow-[0_18px_60px_rgba(0,0,0,0.12)]">
           <CardHeader>
-            <CardTitle>Queue Summary</CardTitle>
-            <CardDescription>
-              Review queue và outbox summary đứng cạnh nhau để operator quyết định nên xử lý hàng đợi nào trước.
-            </CardDescription>
+            <CardTitle>Queue focus</CardTitle>
+            <CardDescription>Hai lát cắt cần ưu tiên nếu đang xử lý sự cố vận hành hoặc đồng bộ.</CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-4">
             <div className="rounded-2xl border border-border/80 bg-background/40 p-4">
-              <div className="flex items-center gap-2">
-                <ClipboardCheck className="h-4 w-4 text-primary" />
-                <p className="text-sm font-medium">Review queue</p>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-medium">Review queue</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Các ca đang chờ xác nhận thủ công.</p>
+                </div>
+                <Badge variant={queueSummary.data.length > 0 ? 'amber' : 'secondary'}>{queueSummary.data.length}</Badge>
               </div>
-              {queueSummary.loading ? (
-                <p className="mt-2 text-sm text-muted-foreground">Đang tải review queue...</p>
-              ) : queueSummary.error ? (
-                <p className="mt-2 text-sm text-destructive">{queueSummary.error}</p>
-              ) : (
-                <>
-                  <p className="mt-2 text-2xl font-semibold">{queueSummary.data.length}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">Case OPEN trong lát cắt overview.</p>
-                </>
-              )}
             </div>
 
             <div className="rounded-2xl border border-border/80 bg-background/40 p-4">
-              <div className="flex items-center gap-2">
-                <RadioTower className="h-4 w-4 text-primary" />
-                <p className="text-sm font-medium">Outbox summary</p>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-medium">Outbox failed</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Bản ghi đồng bộ lỗi hoặc timeout.</p>
+                </div>
+                <Badge variant={outboxFailedCount > 0 ? 'destructive' : 'secondary'}>{outboxFailedCount}</Badge>
               </div>
-              {outboxSummary.loading ? (
-                <p className="mt-2 text-sm text-muted-foreground">Đang tải outbox summary...</p>
-              ) : outboxSummary.error ? (
-                <p className="mt-2 text-sm text-destructive">{outboxSummary.error}</p>
-              ) : (
-                <>
-                  <p className="mt-2 text-2xl font-semibold">{outboxFailedCount}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">FAILED / TIMEOUT / NACKED trong lát cắt hiện tại.</p>
-                </>
-              )}
             </div>
 
-            <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-muted-foreground">
-              <div className="mb-2 flex items-center gap-2 text-foreground">
-                <ShieldAlert className="h-4 w-4 text-amber-500" />
-                <span className="font-medium">Error isolation</span>
-              </div>
-              Nếu review queue hoặc outbox lỗi riêng, các khối khác của overview vẫn render bình thường.
-            </div>
-
-            <div className="grid gap-2 sm:grid-cols-2">
-              <Button asChild variant="outline" className="justify-start">
-                <Link to="/review-queue">Mở Review Queue</Link>
-              </Button>
-              <Button asChild variant="outline" className="justify-start">
-                <Link to="/sync-outbox">Mở Sync Outbox</Link>
-              </Button>
+            <div className="rounded-2xl border border-border/80 bg-background/40 p-4 text-sm text-muted-foreground">
+              Queue review và outbox nên được xem song song khi lane có sự cố nhưng backend vẫn nhận sự kiện.
             </div>
           </CardContent>
         </Card>

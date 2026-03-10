@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   XCircle,
 } from 'lucide-react'
+import { PageHeader } from '@/components/ops/console'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -26,10 +27,6 @@ import type { LaneRow, SiteRow } from '@/lib/contracts/topology'
 
 function rid() {
   return `ui_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`
-}
-
-function readString(value: unknown) {
-  return typeof value === 'string' ? value : ''
 }
 
 function sessionVariant(status: SessionState): 'secondary' | 'entry' | 'amber' | 'destructive' | 'muted' {
@@ -176,7 +173,7 @@ function DetailActionBar({
 
       {actions.filter((action) => canRunSessionAction(role, action)).length === 0 && actions.length > 0 ? (
         <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
-          Allowed actions có từ backend, nhưng role hiện tại không được mở khoá action nào.
+          Backend đang cho phép action, nhưng role hiện tại không được quyền thao tác trên session này.
         </div>
       ) : null}
 
@@ -347,27 +344,21 @@ export function SessionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-border/80 bg-card/95 p-5 shadow-[0_18px_60px_rgba(0,0,0,0.18)] sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-4xl">
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="secondary">operations detail</Badge>
-              <Badge variant="outline">session history</Badge>
-              <Badge variant="outline">detail console</Badge>
-              <Badge variant="muted">role {role || '—'}</Badge>
-            </div>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight">Session History</h1>
-            <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-              Flow này dành cho tra cứu session vận hành. Filter bars, session list, detail console và timeline đã được tách vai trò rõ hơn để OPS đọc nhanh mà không bị ngộp.
-            </p>
-          </div>
-
+      <PageHeader
+        eyebrow="Operations"
+        title="Session History"
+        description="Tra cứu session, xem timeline và chạy các action được backend cho phép mà không phải chuyển sang màn hình khác."
+        badges={[
+          { label: 'history', variant: 'secondary' },
+          { label: role ? `role ${role}` : 'role —', variant: 'muted' },
+        ]}
+        actions={
           <Button variant="outline" onClick={() => void refresh(selectedId)} disabled={loading}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             Refresh
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       <SessionFilterBar
         sites={sites}
@@ -407,9 +398,7 @@ export function SessionsPage() {
           <Card className="border-border/80 bg-card/95 shadow-[0_18px_60px_rgba(0,0,0,0.12)]">
             <CardHeader>
               <CardTitle>Session detail</CardTitle>
-              <CardDescription>
-                Surface này đóng vai trò như detail drawer. Chọn session ở danh sách bên trái là context bên phải đổi theo ngay.
-              </CardDescription>
+              <CardDescription>Panel chi tiết để đọc context hiện tại, kiểm tra action hợp lệ và theo dõi trạng thái xử lý của phiên.</CardDescription>
             </CardHeader>
 
             <CardContent className="space-y-4">

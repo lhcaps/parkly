@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { BarChart3, CalendarRange, RefreshCw, TrendingDown, TrendingUp } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Select, type SelectOption } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { getReportsSummary, getSites, type ReportsSummaryRes, type SiteRow } from '@/lib/api'
 
@@ -17,6 +18,24 @@ function Metric({ label, value, helper, positive = false, negative = false }: { 
     </Card>
   )
 }
+
+function buildSiteOptions(sites: SiteRow[]): SelectOption[] {
+  return sites.map<SelectOption>((site) => ({
+    value: site.siteCode,
+    label: site.siteCode,
+    description: site.name,
+    badge: site.isActive ? 'active' : 'off',
+    badgeVariant: site.isActive ? 'success' : 'neutral',
+  }))
+}
+
+const DAY_OPTIONS: SelectOption[] = [1, 3, 7, 14, 30].map<SelectOption>((n) => ({
+  value: String(n),
+  label: `${n} ngày`,
+  description: `Cửa sổ tổng hợp ${n} ngày gần nhất`,
+  badge: `${n}d`,
+  badgeVariant: 'neutral',
+}))
 
 export function ReportsPage() {
   const [sites, setSites] = useState<SiteRow[]>([])
@@ -62,7 +81,6 @@ export function ReportsPage() {
     return () => {
       active = false
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const entryShare = summary?.total ? Math.round((summary.entry / summary.total) * 100) : 0
@@ -86,13 +104,9 @@ export function ReportsPage() {
           <CardTitle>Bộ lọc báo cáo</CardTitle>
           <CardDescription>Backend hiện chỉ support summary theo siteCode và số ngày.</CardDescription>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_220px_auto]">
-          <select value={siteCode} onChange={(e) => setSiteCode(e.target.value)} className="h-10 rounded-lg border border-input bg-muted px-3 text-sm font-mono-data">
-            {sites.map((site) => <option key={site.siteCode} value={site.siteCode}>{site.siteCode} · {site.name}</option>)}
-          </select>
-          <select value={days} onChange={(e) => setDays(Number(e.target.value))} className="h-10 rounded-lg border border-input bg-muted px-3 text-sm font-mono-data">
-            {[1, 3, 7, 14, 30].map((n) => <option key={n} value={n}>{n} ngày</option>)}
-          </select>
+        <CardContent className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(280px,1fr)_220px_auto]">
+          <Select value={siteCode} onChange={setSiteCode} options={buildSiteOptions(sites)} disabled={loading} />
+          <Select value={String(days)} onChange={(value) => setDays(Number(value))} options={DAY_OPTIONS} disabled={loading} />
           <Button onClick={() => void load(siteCode, days)} disabled={loading || !siteCode}>
             <BarChart3 className="h-4 w-4" />
             Load summary

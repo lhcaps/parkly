@@ -1,5 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
 import { AlertCircle, CheckCircle2, ClipboardCheck, DoorOpen, Loader2, RefreshCw, ShieldX } from 'lucide-react'
+import { PageHeader } from '@/components/ops/console'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -49,9 +50,9 @@ function reviewMatchesTime(row: ReviewQueueItem, from: string, to: string) {
 }
 
 function queueActionLabel(action: string) {
-  if (action === 'MANUAL_APPROVE') return 'Manual approve'
-  if (action === 'MANUAL_REJECT') return 'Manual reject'
-  if (action === 'MANUAL_OPEN_BARRIER') return 'Manual open barrier'
+  if (action === 'MANUAL_APPROVE') return 'Approve'
+  if (action === 'MANUAL_REJECT') return 'Reject'
+  if (action === 'MANUAL_OPEN_BARRIER') return 'Open barrier'
   if (action === 'CLAIM') return 'Claim'
   return action
 }
@@ -203,27 +204,21 @@ export function ReviewQueuePage() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-border/80 bg-card/95 p-5 shadow-[0_18px_60px_rgba(0,0,0,0.18)] sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-4xl">
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="secondary">operations detail</Badge>
-              <Badge variant="outline">review queue</Badge>
-              <Badge variant="outline">filter-first</Badge>
-              <Badge variant="muted">role {operatorRole || '—'}</Badge>
-            </div>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight">Review Queue</h1>
-            <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-              Flow này dành cho OPS xử lý case ambiguous. Filter bars, list state và detail surface giờ rõ vai trò hơn, không còn là một màn nhồi cả đống panel rời rạc.
-            </p>
-          </div>
-
+      <PageHeader
+        eyebrow="Operations"
+        title="Review Queue"
+        description="Xử lý các ca cần xác nhận thủ công. Màn hình này ưu tiên tốc độ đọc danh sách, chọn đúng case và thao tác ngay trên panel chi tiết."
+        badges={[
+          { label: 'manual review', variant: 'secondary' },
+          { label: operatorRole ? `role ${operatorRole}` : 'role —', variant: 'muted' },
+        ]}
+        actions={
           <Button variant="outline" onClick={() => void refresh()} disabled={loading}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             Refresh
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       <ReviewFilterBar
         sites={sites}
@@ -255,9 +250,7 @@ export function ReviewQueuePage() {
           <Card className="border-border/80 bg-card/95 shadow-[0_18px_60px_rgba(0,0,0,0.12)]">
             <CardHeader>
               <CardTitle>Review detail</CardTitle>
-              <CardDescription>
-                Detail surface này đóng vai trò như một drawer làm việc. Click item bên trái là nội dung bên phải đổi ngay, không đẩy operator sang raw JSON.
-              </CardDescription>
+              <CardDescription>Kiểm tra context của session, xác nhận lý do và chạy đúng hành động đang được backend cho phép.</CardDescription>
             </CardHeader>
 
             <CardContent className="space-y-4">
@@ -353,4 +346,3 @@ export function ReviewQueuePage() {
     </div>
   )
 }
-

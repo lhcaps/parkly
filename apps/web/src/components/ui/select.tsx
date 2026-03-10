@@ -1,4 +1,4 @@
-import * as React from 'react'
+﻿import * as React from 'react'
 import { Check, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -19,6 +19,7 @@ interface SelectProps {
   className?: string
   size?: 'sm' | 'md'
   accentColor?: string
+  disabled?: boolean
 }
 
 export function Select({
@@ -29,6 +30,7 @@ export function Select({
   className,
   size = 'md',
   accentColor,
+  disabled = false,
 }: SelectProps) {
   const [open, setOpen] = React.useState(false)
   const ref = React.useRef<HTMLDivElement>(null)
@@ -54,46 +56,71 @@ export function Select({
     <div ref={ref} className={cn('relative', className)}>
       <button
         type="button"
-        onClick={() => setOpen((prev) => !prev)}
+        disabled={disabled}
+        onClick={() => {
+          if (!disabled) setOpen((prev) => !prev)
+        }}
         className={cn(
-          'group flex w-full items-center justify-between gap-2 rounded-lg border bg-card/80 text-left backdrop-blur-sm transition-all duration-150',
+          'group flex w-full items-center justify-between gap-3 rounded-xl border text-left backdrop-blur-sm transition-all duration-150',
           'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background',
           open
-            ? 'border-primary/50 bg-card shadow-[0_0_0_1px_hsl(var(--primary)/0.15),0_4px_16px_hsl(var(--background)/0.8)]'
-            : 'border-border hover:border-border/80 hover:bg-card',
-          size === 'sm' ? 'h-8 px-2.5 py-1.5 text-xs' : 'h-10 px-3 py-2 text-sm',
+            ? 'border-primary/50 bg-card shadow-[0_0_0_1px_hsl(var(--primary)/0.14),0_10px_28px_hsl(var(--background)/0.85)]'
+            : 'border-border/80 bg-card/80 hover:border-primary/25 hover:bg-card/95',
+          size === 'sm' ? 'min-h-9 px-3 py-2 text-xs' : 'min-h-10 px-3.5 py-2.5 text-sm',
+          disabled && 'cursor-not-allowed opacity-60',
         )}
-        style={open && accentColor ? { borderColor: accentColor, boxShadow: `0 0 0 1px ${accentColor}30, 0 4px 16px hsl(var(--background)/0.8)` } : undefined}
+        style={
+          open && accentColor
+            ? {
+                borderColor: accentColor,
+                boxShadow: `0 0 0 1px ${accentColor}30, 0 10px 28px hsl(var(--background)/0.85)`,
+              }
+            : undefined
+        }
       >
-        <span className="flex min-w-0 items-center gap-2">
+        <span className="flex min-w-0 flex-1 flex-col">
           {selected ? (
             <>
-              <span className="truncate font-mono-data font-medium text-foreground">{selected.label}</span>
-              {selected.description && (
-                <span className="truncate text-[11px] text-muted-foreground">{selected.description}</span>
-              )}
+              <span className="truncate font-mono-data text-sm font-semibold text-foreground">{selected.label}</span>
+              {selected.description ? (
+                <span className="mt-0.5 truncate text-[11px] text-muted-foreground">{selected.description}</span>
+              ) : null}
             </>
           ) : (
-            <span className="text-muted-foreground">{placeholder}</span>
+            <span className="truncate text-muted-foreground">{placeholder}</span>
           )}
         </span>
-        <ChevronDown
-          className={cn(
-            'h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200',
-            open && 'rotate-180 text-primary',
-          )}
-        />
+
+        <span className="flex shrink-0 items-center gap-2">
+          {selected?.badge ? (
+            <span
+              className={cn(
+                'rounded-full border px-1.5 py-0.5 text-[10px] font-mono-data font-semibold uppercase tracking-wide',
+                badgeColor[selected.badgeVariant ?? 'neutral'],
+              )}
+            >
+              {selected.badge}
+            </span>
+          ) : null}
+
+          <ChevronDown
+            className={cn(
+              'h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200',
+              open && 'rotate-180 text-primary',
+            )}
+          />
+        </span>
       </button>
 
-      {open && (
+      {open ? (
         <div
           className={cn(
-            'absolute left-0 right-0 z-50 mt-1 overflow-hidden rounded-xl border border-border/80',
-            'bg-card/95 shadow-[0_8px_32px_hsl(var(--background)/0.9),0_2px_8px_hsl(var(--background)/0.6)] backdrop-blur-xl',
+            'absolute left-0 right-0 z-50 mt-1.5 overflow-hidden rounded-2xl border border-border/80',
+            'bg-card/95 shadow-[0_16px_40px_hsl(var(--background)/0.95),0_4px_12px_hsl(var(--background)/0.65)] backdrop-blur-xl',
             'animate-in fade-in-0 zoom-in-95 duration-100',
           )}
         >
-          <div className="max-h-56 overflow-y-auto p-1">
+          <div className="max-h-64 overflow-y-auto p-1.5">
             {options.map((opt) => {
               const isActive = opt.value === value
               return (
@@ -102,27 +129,29 @@ export function Select({
                   type="button"
                   disabled={opt.disabled}
                   onClick={() => {
+                    if (opt.disabled) return
                     onChange(opt.value)
                     setOpen(false)
                   }}
                   className={cn(
-                    'flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left transition-colors duration-100',
+                    'flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left transition-colors duration-100',
                     isActive
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-foreground hover:bg-accent',
+                      ? 'bg-primary/14 text-primary'
+                      : 'text-foreground hover:bg-accent/80',
                     opt.disabled && 'cursor-not-allowed opacity-40',
                   )}
                 >
                   <span className="flex min-w-0 flex-col">
-                    <span className={cn('truncate font-mono-data text-sm font-medium', isActive && 'text-primary')}>
+                    <span className={cn('truncate font-mono-data text-sm font-semibold', isActive ? 'text-primary' : 'text-foreground')}>
                       {opt.label}
                     </span>
-                    {opt.description && (
+                    {opt.description ? (
                       <span className="mt-0.5 truncate text-[11px] text-muted-foreground">{opt.description}</span>
-                    )}
+                    ) : null}
                   </span>
+
                   <span className="flex shrink-0 items-center gap-2">
-                    {opt.badge && (
+                    {opt.badge ? (
                       <span
                         className={cn(
                           'rounded-full border px-1.5 py-0.5 text-[10px] font-mono-data font-semibold uppercase tracking-wide',
@@ -131,20 +160,19 @@ export function Select({
                       >
                         {opt.badge}
                       </span>
-                    )}
-                    {isActive && <Check className="h-3 w-3 text-primary" />}
+                    ) : null}
+                    {isActive ? <Check className="h-3.5 w-3.5 text-primary" /> : null}
                   </span>
                 </button>
               )
             })}
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   )
 }
 
-/** Thin wrapper matching the simple string-based interface in GateEventsMonitorPage */
 export function SelectBox({
   value,
   onChange,
@@ -156,7 +184,6 @@ export function SelectBox({
   children: React.ReactNode
   className?: string
 }) {
-  // parse children (option elements) into SelectOption[]
   const options: SelectOption[] = React.Children.toArray(children)
     .filter((child): child is React.ReactElement<{ value: string; children?: React.ReactNode; disabled?: boolean }> =>
       React.isValidElement(child),

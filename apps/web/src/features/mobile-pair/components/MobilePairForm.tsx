@@ -1,8 +1,9 @@
-﻿import type { DeviceRow } from '@/lib/contracts/devices'
-import type { LaneRow, SiteRow } from '@/lib/contracts/topology'
-import type { Direction } from '@/lib/contracts/common'
-import { Button } from '@/components/ui/button'
+﻿import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select, type SelectOption } from '@/components/ui/select'
+import type { Direction } from '@/lib/contracts/common'
+import type { DeviceRow } from '@/lib/contracts/devices'
+import type { LaneRow, SiteRow } from '@/lib/contracts/topology'
 
 export type MobilePairDraft = {
   siteCode: string
@@ -11,6 +12,54 @@ export type MobilePairDraft = {
   deviceCode: string
   deviceSecret: string
   token: string
+}
+
+function buildSiteOptions(sites: SiteRow[]): SelectOption[] {
+  return [
+    { value: '', label: 'Chọn site', description: 'Site sẽ được gắn vào pair link' },
+    ...sites.map<SelectOption>((site) => ({
+      value: site.siteCode,
+      label: site.siteCode,
+      description: site.name,
+      badge: site.isActive ? 'active' : 'off',
+      badgeVariant: site.isActive ? 'success' : 'neutral',
+    })),
+  ]
+}
+
+function buildLaneOptions(lanes: LaneRow[]): SelectOption[] {
+  return [
+    { value: '', label: 'Chọn lane', description: 'Lane sẽ nhận capture từ điện thoại' },
+    ...lanes.map<SelectOption>((lane) => ({
+      value: lane.laneCode,
+      label: lane.laneCode,
+      description: `${lane.gateCode} · ${lane.label}`,
+      badge: lane.direction,
+      badgeVariant: lane.direction === 'ENTRY' ? 'success' : 'warning',
+    })),
+  ]
+}
+
+function buildDirectionOptions(): SelectOption[] {
+  return [
+    { value: 'ENTRY', label: 'ENTRY', description: 'Luồng xe vào', badge: 'in', badgeVariant: 'success' },
+    { value: 'EXIT', label: 'EXIT', description: 'Luồng xe ra', badge: 'out', badgeVariant: 'warning' },
+  ]
+}
+
+function buildDeviceOptions(devices: DeviceRow[]): SelectOption[] {
+  return [
+    { value: '', label: 'Chọn device', description: 'Thiết bị sẽ ký request từ mobile surface' },
+    ...devices.map<SelectOption>((device) => ({
+      value: device.deviceCode,
+      label: device.deviceCode,
+      description: [device.deviceRole || device.deviceType, device.laneLabel || device.laneCode || device.gateCode || '']
+        .filter(Boolean)
+        .join(' · '),
+      badge: device.isPrimary ? 'primary' : device.isRequired ? 'required' : undefined,
+      badgeVariant: device.isPrimary ? 'success' : device.isRequired ? 'warning' : 'neutral',
+    })),
+  ]
 }
 
 export function MobilePairForm({
@@ -38,88 +87,52 @@ export function MobilePairForm({
   return (
     <div className="rounded-3xl border border-border/80 bg-card/95 p-5 shadow-[0_18px_60px_rgba(0,0,0,0.12)]">
       <div className="mb-4">
-        <p className="text-sm font-medium">Pair context</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Desktop chọn lane / device rồi tạo link pair cho điện thoại. Mobile surface vẫn đứng riêng ở route <span className="font-mono-data">/mobile-capture</span>.
-        </p>
+        <p className="text-sm font-medium">Ngữ cảnh ghép thiết bị</p>
+        <p className="mt-1 text-xs text-muted-foreground">Chọn site, lane và thiết bị nguồn trước khi tạo đường dẫn hoặc mã QR cho điện thoại.</p>
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
-        <select
+        <Select
           value={value.siteCode}
-          onChange={(e) => onChange({ siteCode: e.target.value, laneCode: '', deviceCode: '' })}
-          className="h-10 rounded-lg border border-input bg-background px-3 text-sm"
-          disabled={loading}
-        >
-          <option value="">Chọn site</option>
-          {sites.map((site) => (
-            <option key={site.siteCode} value={site.siteCode}>
-              {site.siteCode}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={value.laneCode}
-          onChange={(e) => onChange({ laneCode: e.target.value, deviceCode: '' })}
-          className="h-10 rounded-lg border border-input bg-background px-3 text-sm"
-          disabled={loading}
-        >
-          <option value="">Chọn lane</option>
-          {laneOptions.map((lane) => (
-            <option key={`${lane.gateCode}:${lane.laneCode}`} value={lane.laneCode}>
-              {lane.gateCode} · {lane.laneCode} · {lane.direction}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={value.direction}
-          onChange={(e) => onChange({ direction: e.target.value === 'EXIT' ? 'EXIT' : 'ENTRY' })}
-          className="h-10 rounded-lg border border-input bg-background px-3 text-sm"
-          disabled={loading}
-        >
-          <option value="ENTRY">ENTRY</option>
-          <option value="EXIT">EXIT</option>
-        </select>
-
-        <select
-          value={value.deviceCode}
-          onChange={(e) => onChange({ deviceCode: e.target.value })}
-          className="h-10 rounded-lg border border-input bg-background px-3 text-sm"
-          disabled={loading}
-        >
-          <option value="">Chọn device</option>
-          {deviceOptions.map((device) => (
-            <option key={device.deviceCode} value={device.deviceCode}>
-              {device.deviceCode} · {device.deviceRole || device.deviceType}
-            </option>
-          ))}
-        </select>
-
-        <Input
-          value={value.deviceSecret}
-          onChange={(e) => onChange({ deviceSecret: e.target.value })}
-          placeholder="deviceSecret"
+          onChange={(next) => onChange({ siteCode: next, laneCode: '', deviceCode: '' })}
+          options={buildSiteOptions(sites)}
           disabled={loading}
         />
 
+        <Select
+          value={value.laneCode}
+          onChange={(next) => onChange({ laneCode: next, deviceCode: '' })}
+          options={buildLaneOptions(laneOptions)}
+          disabled={loading}
+        />
+
+        <Select
+          value={value.direction}
+          onChange={(next) => onChange({ direction: next === 'EXIT' ? 'EXIT' : 'ENTRY' })}
+          options={buildDirectionOptions()}
+          disabled={loading}
+        />
+
+        <Select
+          value={value.deviceCode}
+          onChange={(next) => onChange({ deviceCode: next })}
+          options={buildDeviceOptions(deviceOptions)}
+          disabled={loading}
+        />
+
+        <Input value={value.deviceSecret} onChange={(e) => onChange({ deviceSecret: e.target.value })} placeholder="Device secret" disabled={loading} />
+
         <div className="flex gap-2">
-          <Input
-            value={value.token}
-            onChange={(e) => onChange({ token: e.target.value })}
-            placeholder="pair token"
-            disabled={loading}
-          />
+          <Input value={value.token} onChange={(e) => onChange({ token: e.target.value })} placeholder="Mã ghép thiết bị" disabled={loading} />
           <Button type="button" variant="outline" onClick={onGenerateToken} disabled={loading}>
-            Token
+            Tạo mã
           </Button>
         </div>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
         <Button type="button" variant="ghost" onClick={onClear} disabled={loading}>
-          Clear form
+          Xóa biểu mẫu
         </Button>
       </div>
     </div>

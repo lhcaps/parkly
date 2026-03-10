@@ -38,12 +38,12 @@ class RouteErrorBoundary extends React.Component<{ children: React.ReactNode }, 
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <AlertCircle className="h-5 w-5 text-destructive" />
-                Route crash guard
+                Không thể mở màn hình này
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                App đã chặn một runtime crash để tránh chết trắng toàn bộ màn hình. Đây là guardrail cuối chu kỳ để regression không làm gãy cả shell.
+                Giao diện đã chặn lỗi ở cấp route để tránh trắng toàn bộ console. Bạn có thể quay về màn hình chính hoặc mở phần cài đặt để kiểm tra token và API.
               </p>
 
               <div className="rounded-2xl border border-destructive/25 bg-destructive/10 px-4 py-4 text-sm text-destructive">
@@ -52,17 +52,17 @@ class RouteErrorBoundary extends React.Component<{ children: React.ReactNode }, 
 
               <div className="flex flex-wrap gap-2">
                 <Button asChild>
-                  <Link to="/overview">Go Overview</Link>
+                  <Link to="/overview">Về overview</Link>
                 </Button>
                 <Button asChild variant="outline">
                   <Link to="/settings">
                     <Settings className="h-4 w-4" />
-                    Open Settings
+                    Mở settings
                   </Link>
                 </Button>
                 <Button type="button" variant="ghost" onClick={() => window.location.reload()}>
                   <RefreshCcw className="h-4 w-4" />
-                  Reload app
+                  Tải lại ứng dụng
                 </Button>
               </div>
             </CardContent>

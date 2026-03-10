@@ -1,6 +1,8 @@
-﻿import { Filter, Search } from 'lucide-react'
+﻿import { Search } from 'lucide-react'
+import { FilterCard } from '@/components/ops/console'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select, type SelectOption } from '@/components/ui/select'
 import type { Direction } from '@/lib/contracts/common'
 import type { SessionState } from '@/lib/contracts/sessions'
 import type { LaneRow, SiteRow } from '@/lib/contracts/topology'
@@ -16,6 +18,70 @@ const SESSION_STATES: SessionState[] = [
   'TIMEOUT',
   'CANCELLED',
   'ERROR',
+]
+
+function buildSiteOptions(sites: SiteRow[]): SelectOption[] {
+  return [
+    { value: '', label: 'All sites', description: 'Tất cả site đang cấu hình' },
+    ...sites.map<SelectOption>((site) => ({
+      value: site.siteCode,
+      label: site.siteCode,
+      description: site.name,
+      badge: site.isActive ? 'active' : 'off',
+      badgeVariant: site.isActive ? 'success' : 'neutral',
+    })),
+  ]
+}
+
+function buildLaneOptions(lanes: LaneRow[]): SelectOption[] {
+  return [
+    { value: '', label: 'All lanes', description: 'Tất cả lane trong scope hiện tại' },
+    ...lanes.map<SelectOption>((lane) => ({
+      value: lane.laneCode,
+      label: lane.laneCode,
+      description: `${lane.gateCode} · ${lane.label}`,
+      badge: lane.direction,
+      badgeVariant: lane.direction === 'ENTRY' ? 'success' : 'warning',
+    })),
+  ]
+}
+
+function buildStatusOptions(): SelectOption[] {
+  return [
+    { value: '', label: 'All status', description: 'Không giới hạn trạng thái session' },
+    ...SESSION_STATES.map<SelectOption>((item) => ({
+      value: item,
+      label: item,
+      description:
+        item === 'WAITING_DECISION'
+          ? 'Đang chờ quyết định'
+          : item === 'WAITING_PAYMENT'
+            ? 'Đang giữ để xử lý thanh toán'
+            : item === 'PASSED'
+              ? 'Đã qua barrier'
+              : item === 'DENIED'
+                ? 'Bị từ chối'
+                : 'Trạng thái session',
+      badge:
+        item === 'APPROVED' || item === 'PASSED'
+          ? 'ok'
+          : item === 'DENIED' || item === 'ERROR'
+            ? 'risk'
+            : 'flow',
+      badgeVariant:
+        item === 'APPROVED' || item === 'PASSED'
+          ? 'success'
+          : item === 'DENIED' || item === 'ERROR'
+            ? 'error'
+            : 'neutral',
+    })),
+  ]
+}
+
+const DIRECTION_OPTIONS: SelectOption[] = [
+  { value: '', label: 'All directions', description: 'Không giới hạn chiều di chuyển' },
+  { value: 'ENTRY', label: 'ENTRY', description: 'Luồng xe vào', badge: 'in', badgeVariant: 'success' },
+  { value: 'EXIT', label: 'EXIT', description: 'Luồng xe ra', badge: 'out', badgeVariant: 'warning' },
 ]
 
 export function SessionFilterBar({
@@ -60,63 +126,54 @@ export function SessionFilterBar({
   onReset: () => void
 }) {
   return (
-    <div className="rounded-3xl border border-border/80 bg-card/95 p-4 shadow-[0_18px_60px_rgba(0,0,0,0.12)]">
-      <div className="mb-4 flex items-center gap-2">
-        <Filter className="h-4 w-4 text-primary" />
-        <p className="text-sm font-medium">Session filters</p>
-      </div>
-
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
-        <select
+    <FilterCard
+      title="Bộ lọc session"
+      description="Lọc theo site, lane, hướng và trạng thái để vào đúng phiên cần truy vết."
+      actions={
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={onRefresh} disabled={loading}>
+            Refresh
+          </Button>
+          <Button variant="ghost" size="sm" onClick={onReset} disabled={loading}>
+            Reset filters
+          </Button>
+        </div>
+      }
+    >
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[220px_220px_220px_220px_minmax(260px,1fr)_220px_220px]">
+        <Select
           value={siteCode}
-          onChange={(e) => onSiteCodeChange(e.target.value)}
-          className="h-10 rounded-lg border border-input bg-background px-3 text-sm"
-        >
-          <option value="">All sites</option>
-          {sites.map((site) => (
-            <option key={site.siteCode} value={site.siteCode}>
-              {site.siteCode}
-            </option>
-          ))}
-        </select>
+          onChange={onSiteCodeChange}
+          options={buildSiteOptions(sites)}
+          placeholder="Chọn site"
+          disabled={loading}
+        />
 
-        <select
+        <Select
           value={laneCode}
-          onChange={(e) => onLaneCodeChange(e.target.value)}
-          className="h-10 rounded-lg border border-input bg-background px-3 text-sm"
-        >
-          <option value="">All lanes</option>
-          {lanes.map((lane) => (
-            <option key={`${lane.gateCode}:${lane.laneCode}:${lane.deviceCode}`} value={lane.laneCode}>
-              {lane.gateCode}  {lane.laneCode}
-            </option>
-          ))}
-        </select>
+          onChange={onLaneCodeChange}
+          options={buildLaneOptions(lanes)}
+          placeholder="Chọn lane"
+          disabled={loading}
+        />
 
-        <select
+        <Select
           value={status}
-          onChange={(e) => onStatusChange(e.target.value as SessionState | '')}
-          className="h-10 rounded-lg border border-input bg-background px-3 text-sm"
-        >
-          <option value="">All status</option>
-          {SESSION_STATES.map((item) => (
-            <option key={item} value={item}>
-              {item}
-            </option>
-          ))}
-        </select>
+          onChange={(value) => onStatusChange(value as SessionState | '')}
+          options={buildStatusOptions()}
+          placeholder="Chọn trạng thái"
+          disabled={loading}
+        />
 
-        <select
+        <Select
           value={direction}
-          onChange={(e) => onDirectionChange(e.target.value as Direction | '')}
-          className="h-10 rounded-lg border border-input bg-background px-3 text-sm"
-        >
-          <option value="">All directions</option>
-          <option value="ENTRY">ENTRY</option>
-          <option value="EXIT">EXIT</option>
-        </select>
+          onChange={(value) => onDirectionChange(value as Direction | '')}
+          options={DIRECTION_OPTIONS}
+          placeholder="Chọn hướng"
+          disabled={loading}
+        />
 
-        <div className="relative md:col-span-2">
+        <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
@@ -129,15 +186,6 @@ export function SessionFilterBar({
         <Input type="datetime-local" value={from} onChange={(e) => onFromChange(e.target.value)} />
         <Input type="datetime-local" value={to} onChange={(e) => onToChange(e.target.value)} />
       </div>
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" onClick={onRefresh} disabled={loading}>
-          Refresh
-        </Button>
-        <Button variant="ghost" size="sm" onClick={onReset} disabled={loading}>
-          Reset filters
-        </Button>
-      </div>
-    </div>
+    </FilterCard>
   )
 }

@@ -5,23 +5,23 @@ import {
   Camera,
   ClipboardCheck,
   Cpu,
+  History,
   LayoutGrid,
   RadioTower,
   Settings,
   Smartphone,
-  History,
 } from 'lucide-react'
-import { ReviewQueuePage } from '@/pages/ReviewQueuePage'
-import { SessionsPage } from '@/pages/SessionsPage'
-import { LaneMonitorPage } from '@/pages/LaneMonitorPage'
-import { DeviceHealthPage } from '@/pages/DeviceHealthPage'
-import { OutboxMonitorPage } from '@/pages/OutboxMonitorPage'
-import { SettingsPage } from '@/pages/SettingsPage'
-import { MobileCapturePage } from '@/pages/MobileCapturePage'
-import { OverviewPage } from '@/pages/OverviewPage'
-import { RunLanePage } from '@/pages/RunLanePage'
 import { CaptureDebugPage } from '@/pages/CaptureDebugPage'
+import { DeviceHealthPage } from '@/pages/DeviceHealthPage'
+import { LaneMonitorPage } from '@/pages/LaneMonitorPage'
 import { MobileCameraPairPage } from '@/pages/MobileCameraPairPage'
+import { MobileCapturePage } from '@/pages/MobileCapturePage'
+import { OutboxMonitorPage } from '@/pages/OutboxMonitorPage'
+import { OverviewPage } from '@/pages/OverviewPage'
+import { ReviewQueuePage } from '@/pages/ReviewQueuePage'
+import { RunLanePage } from '@/pages/RunLanePage'
+import { SessionsPage } from '@/pages/SessionsPage'
+import { SettingsPage } from '@/pages/SettingsPage'
 
 export type AppNavGroupKey = 'Operations' | 'Monitoring' | 'Capture' | 'System'
 
@@ -30,7 +30,6 @@ export type AppNavItem = {
   label: string
   shortLabel: string
   description: string
-  badge?: string
   group: AppNavGroupKey
   icon: typeof Activity
   element: ReactElement
@@ -43,8 +42,7 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
     path: '/overview',
     label: 'Overview',
     shortLabel: 'Overview',
-    description: 'Điểm vào điều hành theo task: lane, queue, health và outbox.',
-    badge: 'default',
+    description: 'Điểm vào nhanh cho điều phối ca trực, queue và cảnh báo hệ thống.',
     group: 'Operations',
     icon: LayoutGrid,
     element: <OverviewPage />,
@@ -53,8 +51,7 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
     path: '/run-lane',
     label: 'Run Lane',
     shortLabel: 'Run Lane',
-    description: 'Run Lane v3 với scoped store, layout 3 cột và điểm vào cho preview/submit authoritative.',
-    badge: 'entry',
+    description: 'Xử lý một lượt xe theo lane, từ ảnh vào tới kết quả quyết định.',
     group: 'Operations',
     icon: ArrowRightLeft,
     element: <RunLanePage />,
@@ -63,8 +60,7 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
     path: '/review-queue',
     label: 'Review Queue',
     shortLabel: 'Review',
-    description: 'Claim review, manual approve/reject và audit trail.',
-    badge: 'amber',
+    description: 'Xử lý các trường hợp cần xác nhận thủ công và hành động tiếp theo.',
     group: 'Operations',
     icon: ClipboardCheck,
     element: <ReviewQueuePage />,
@@ -73,7 +69,7 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
     path: '/session-history',
     label: 'Session History',
     shortLabel: 'Sessions',
-    description: 'Timeline của session, decision, barrier và bằng chứng.',
+    description: 'Tra cứu phiên, quyết định, barrier và bằng chứng theo dòng thời gian.',
     group: 'Operations',
     icon: History,
     element: <SessionsPage />,
@@ -82,7 +78,7 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
     path: '/lane-monitor',
     label: 'Lane Monitor',
     shortLabel: 'Lane Monitor',
-    description: 'Realtime lane cards, barrier state và session mới nhất.',
+    description: 'Theo dõi sức khỏe lane, barrier và trạng thái phiên mới nhất.',
     group: 'Monitoring',
     icon: Activity,
     element: <LaneMonitorPage />,
@@ -91,7 +87,7 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
     path: '/device-health',
     label: 'Device Health',
     shortLabel: 'Devices',
-    description: 'Heartbeat aging, online/degraded/offline theo thiết bị.',
+    description: 'Theo dõi heartbeat và suy giảm thiết bị theo site và lane.',
     group: 'Monitoring',
     icon: Cpu,
     element: <DeviceHealthPage />,
@@ -100,7 +96,7 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
     path: '/sync-outbox',
     label: 'Sync Outbox',
     shortLabel: 'Outbox',
-    description: 'Outbox feed, retry state và backlog đồng bộ.',
+    description: 'Quan sát hàng đợi đồng bộ, retry và lỗi downstream.',
     group: 'Monitoring',
     icon: RadioTower,
     element: <OutboxMonitorPage />,
@@ -109,7 +105,7 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
     path: '/mobile-camera-pair',
     label: 'Mobile Camera Pair',
     shortLabel: 'Pair Mobile',
-    description: 'Ghép điện thoại thành camera edge và tạo link cấu hình nhanh.',
+    description: 'Ghép điện thoại vào lane để gửi ảnh và heartbeat từ thiết bị di động.',
     group: 'Capture',
     icon: Smartphone,
     element: <MobileCameraPairPage />,
@@ -117,8 +113,8 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
   {
     path: '/capture-debug',
     label: 'Capture Debug',
-    shortLabel: 'Capture Debug',
-    description: 'Quan sát ALPR capture feed, heartbeat và debug edge camera.',
+    shortLabel: 'Capture',
+    description: 'Theo dõi feed capture và kết quả ALPR để xử lý sự cố ingest.',
     group: 'Capture',
     icon: Camera,
     element: <CaptureDebugPage />,
@@ -127,7 +123,7 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
     path: '/settings',
     label: 'Settings',
     shortLabel: 'Settings',
-    description: 'Auth token, environment và hướng dẫn vận hành console.',
+    description: 'Thiết lập truy cập, ngữ cảnh mặc định và chẩn đoán cục bộ.',
     group: 'System',
     icon: Settings,
     element: <SettingsPage />,
@@ -136,7 +132,7 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
     path: '/mobile-capture',
     label: 'Mobile Capture',
     shortLabel: 'Mobile Capture',
-    description: 'Trang standalone trên điện thoại để chụp và gửi capture.',
+    description: 'Màn hình di động để chụp và gửi capture.',
     group: 'Capture',
     icon: Smartphone,
     element: <MobileCapturePage />,
@@ -169,4 +165,3 @@ export function getRouteMeta(pathname: string) {
 export function getNavItemsByGroup(group: AppNavGroupKey) {
   return SHELL_ROUTES.filter((item) => item.group === group)
 }
-

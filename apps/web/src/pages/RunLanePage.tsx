@@ -1,6 +1,8 @@
 ﻿import { useCallback, useEffect, useRef } from 'react'
-import { ArrowRightLeft, LayoutPanelTop, ScanSearch, Workflow } from 'lucide-react'
+import { ArrowRightLeft, ScanSearch, Workflow } from 'lucide-react'
+import { PageHeader } from '@/components/ops/console'
 import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
 import { LaneContextPanel } from '@/features/run-lane/components/LaneContextPanel'
 import { CapturePreviewPanel } from '@/features/run-lane/components/CapturePreviewPanel'
 import { SubmitResultPanel } from '@/features/run-lane/components/SubmitResultPanel'
@@ -56,7 +58,7 @@ function RunLaneScreen() {
       }
     }
 
-    bootstrapSites()
+    void bootstrapSites()
 
     return () => {
       active = false
@@ -70,44 +72,46 @@ function RunLaneScreen() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-[28px] border border-border/80 bg-card/95 p-5 shadow-[0_24px_80px_rgba(0,0,0,0.2)] sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-4xl">
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="entry">PR-08</Badge>
-              <Badge variant="secondary">scoped store</Badge>
-              <Badge variant="outline">3-column lane workflow</Badge>
-            </div>
-            <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">Run Lane đã tách khỏi GatePage monolith</h2>
-            <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-              Page mới dựng theo workflow vận hành: lane context bên trái, capture/preview ở giữa, submit/result bên phải. Ở PR này chỉ mount skeleton + scoped store, chưa nối preview và submit thật.
-            </p>
-          </div>
+      <PageHeader
+        eyebrow="Operations"
+        title="Run Lane"
+        description="Màn hình thao tác tập trung cho một lane. Chọn ngữ cảnh ở cột trái, xem preview ở giữa và chốt kết quả ở cột phải."
+        badges={[
+          { label: 'workflow', variant: 'secondary' },
+          { label: '3-column', variant: 'outline' },
+        ]}
+      />
 
-          <div className="grid min-w-[240px] gap-3 sm:grid-cols-3 lg:w-[420px] lg:grid-cols-1 xl:w-[480px] xl:grid-cols-3">
-            <div className="rounded-2xl border border-border/80 bg-background/40 p-4">
-              <div className="mb-2 flex items-center gap-2 text-[11px] font-mono-data uppercase tracking-[0.18em] text-muted-foreground">
-                <Workflow className="h-3.5 w-3.5" />
-                Scoped flow
-              </div>
-              <p className="text-sm font-medium">Provider chỉ cấp store instance, panel subscribe selector hẹp.</p>
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="border-border/80 bg-card/95">
+          <CardContent className="flex items-start gap-3 pt-5">
+            <Workflow className="mt-0.5 h-5 w-5 text-primary" />
+            <div>
+              <p className="font-medium">Lane context</p>
+              <p className="mt-1 text-sm text-muted-foreground">Chốt site, gate, lane và topology trước khi gửi dữ liệu xử lý.</p>
             </div>
-            <div className="rounded-2xl border border-border/80 bg-background/40 p-4">
-              <div className="mb-2 flex items-center gap-2 text-[11px] font-mono-data uppercase tracking-[0.18em] text-muted-foreground">
-                <ScanSearch className="h-3.5 w-3.5" />
-                Capture first
-              </div>
-              <p className="text-sm font-medium">Capture placeholder có local preview để QA flow trước khi nối ALPR.</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/80 bg-card/95">
+          <CardContent className="flex items-start gap-3 pt-5">
+            <ScanSearch className="mt-0.5 h-5 w-5 text-primary" />
+            <div>
+              <p className="font-medium">Capture preview</p>
+              <p className="mt-1 text-sm text-muted-foreground">Xem ảnh local, preview backend và plate override trong cùng một nhịp thao tác.</p>
             </div>
-            <div className="rounded-2xl border border-border/80 bg-background/40 p-4">
-              <div className="mb-2 flex items-center gap-2 text-[11px] font-mono-data uppercase tracking-[0.18em] text-muted-foreground">
-                <LayoutPanelTop className="h-3.5 w-3.5" />
-                Result slot
-              </div>
-              <p className="text-sm font-medium">Đã chừa panel phải cho decision/session/event của PR-10.</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/80 bg-card/95">
+          <CardContent className="flex items-start gap-3 pt-5">
+            <ArrowRightLeft className="mt-0.5 h-5 w-5 text-primary" />
+            <div>
+              <p className="font-medium">Submit result</p>
+              <p className="mt-1 text-sm text-muted-foreground">Nhìn rõ session, decision và action tiếp theo ngay sau khi submit.</p>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(290px,0.95fr)_minmax(420px,1.35fr)_minmax(320px,0.95fr)]">
@@ -118,11 +122,11 @@ function RunLaneScreen() {
 
       <div className="rounded-3xl border border-border/80 bg-card/90 p-4">
         <div className="flex flex-wrap items-center gap-2">
-          <ArrowRightLeft className="h-4 w-4 text-primary" />
-          <p className="text-sm font-medium">Manual QA focus cho PR-08</p>
+          <Badge variant="outline">operator flow</Badge>
+          <p className="text-sm font-medium">Dùng Run Lane khi cần xử lý một lượt xe từ đầu tới cuối trên cùng một màn hình.</p>
         </div>
         <p className="mt-2 text-sm text-muted-foreground">
-          Route <span className="font-mono-data">/run-lane</span> bây giờ không còn render thẳng <span className="font-mono-data">GatePage</span>. Đó là điểm quan trọng nhất để cắt monolith và chuẩn bị cho preview concurrency ở PR-09.
+          Review Queue phù hợp cho các ca đang chờ xác nhận thủ công. Session History phù hợp để tra cứu và truy vết sau xử lý.
         </p>
       </div>
     </div>

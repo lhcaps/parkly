@@ -1,5 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
 import { Check, ClipboardCopy, Loader2, Smartphone, Wifi } from 'lucide-react'
+import { PageHeader } from '@/components/ops/console'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { MobilePairForm, type MobilePairDraft } from '@/features/mobile-pair/components/MobilePairForm'
@@ -148,25 +149,15 @@ export function MobileCameraPairPage() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-border/80 bg-card/95 p-5 shadow-[0_18px_60px_rgba(0,0,0,0.18)] sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-4xl">
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="secondary">capture surfaces</Badge>
-              <Badge variant="outline">desktop pair</Badge>
-              <Badge variant="outline">QR + link</Badge>
-            </div>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight">Mobile Camera Pair</h1>
-            <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-              Page này tách riêng flow pair trên desktop: chọn lane/device, tạo token, render QR, copy link và quản lý active pair list. Nó không trộn với capture debug hay mobile capture surface nữa.
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-border/80 bg-background/40 p-4 text-sm text-muted-foreground">
-            Dùng page này trên desktop. Điện thoại chỉ mở route <span className="font-mono-data">/mobile-capture</span>.
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Capture"
+        title="Mobile Camera Pair"
+        description="Tạo pair link cho điện thoại, render QR và quản lý danh sách pair đã tạo trên browser hiện tại."
+        badges={[
+          { label: 'desktop pair', variant: 'secondary' },
+          { label: 'QR + link', variant: 'outline' },
+        ]}
+      />
 
       {message ? (
         <div className="rounded-2xl border border-border/80 bg-card/95 px-4 py-3 text-sm text-foreground">
