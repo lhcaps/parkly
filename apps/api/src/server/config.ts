@@ -68,6 +68,14 @@ export const config = (() => {
     REDIS_REQUIRED: z.enum(['ON', 'OFF']).default('OFF'),
     REDIS_TLS: z.enum(['ON', 'OFF']).default('OFF'),
 
+    S3_ENDPOINT: optionalStringEnv,
+    S3_REGION: optionalStringEnv,
+    S3_ACCESS_KEY: optionalStringEnv,
+    S3_SECRET_KEY: optionalStringEnv,
+    S3_BUCKET_MEDIA: optionalStringEnv,
+    S3_FORCE_PATH_STYLE: z.enum(['ON', 'OFF']).default('ON'),
+    S3_USE_SSL: z.enum(['ON', 'OFF']).default('OFF'),
+
     PREVIEW_CACHE_BACKEND: z.enum(['OFF', 'REDIS']).default('OFF'),
     PREVIEW_CACHE_DEDUPE_TTL_MS: z.coerce.number().int().positive().optional(),
     PREVIEW_CACHE_RESPONSE_TTL_MS: z.coerce.number().int().positive().optional(),
@@ -79,6 +87,8 @@ export const config = (() => {
     UPLOAD_DIR: z.string().default('uploads'),
     UPLOAD_PUBLIC_PATH: z.string().default('/uploads'),
     UPLOAD_MAX_MB: z.coerce.number().int().positive().default(5),
+    MEDIA_STORAGE_DRIVER: z.enum(['LOCAL', 'MINIO']).default('LOCAL'),
+    MEDIA_PRESIGN_TTL_SEC: z.coerce.number().int().positive().optional(),
 
     ALPR_MODE: z.enum(['MOCK', 'TESSERACT', 'DISABLED']).default('MOCK'),
     ALPR_PROVIDER_ORDER: optionalStringEnv,
@@ -133,6 +143,14 @@ export const config = (() => {
     REDIS_REQUIRED: process.env.REDIS_REQUIRED,
     REDIS_TLS: process.env.REDIS_TLS,
 
+    S3_ENDPOINT: process.env.S3_ENDPOINT,
+    S3_REGION: process.env.S3_REGION,
+    S3_ACCESS_KEY: process.env.S3_ACCESS_KEY,
+    S3_SECRET_KEY: process.env.S3_SECRET_KEY,
+    S3_BUCKET_MEDIA: process.env.S3_BUCKET_MEDIA,
+    S3_FORCE_PATH_STYLE: process.env.S3_FORCE_PATH_STYLE,
+    S3_USE_SSL: process.env.S3_USE_SSL,
+
     PREVIEW_CACHE_BACKEND: process.env.PREVIEW_CACHE_BACKEND,
     PREVIEW_CACHE_DEDUPE_TTL_MS: process.env.PREVIEW_CACHE_DEDUPE_TTL_MS,
     PREVIEW_CACHE_RESPONSE_TTL_MS: process.env.PREVIEW_CACHE_RESPONSE_TTL_MS,
@@ -144,6 +162,8 @@ export const config = (() => {
     UPLOAD_DIR: process.env.UPLOAD_DIR,
     UPLOAD_PUBLIC_PATH: process.env.UPLOAD_PUBLIC_PATH,
     UPLOAD_MAX_MB: process.env.UPLOAD_MAX_MB,
+    MEDIA_STORAGE_DRIVER: process.env.MEDIA_STORAGE_DRIVER,
+    MEDIA_PRESIGN_TTL_SEC: process.env.MEDIA_PRESIGN_TTL_SEC,
 
     ALPR_MODE: process.env.ALPR_MODE,
     ALPR_PROVIDER_ORDER: process.env.ALPR_PROVIDER_ORDER,
@@ -222,6 +242,16 @@ export const config = (() => {
       tls: parsed.REDIS_TLS === 'ON',
     },
 
+    s3: {
+      endpoint: parsed.S3_ENDPOINT ?? 'http://127.0.0.1:9000',
+      region: parsed.S3_REGION ?? 'us-east-1',
+      accessKey: parsed.S3_ACCESS_KEY ?? 'minioadmin',
+      secretKey: parsed.S3_SECRET_KEY ?? 'minioadmin123',
+      bucket: parsed.S3_BUCKET_MEDIA ?? 'parkly-media',
+      forcePathStyle: parsed.S3_FORCE_PATH_STYLE === 'ON',
+      useSsl: parsed.S3_USE_SSL === 'ON',
+    },
+
     previewCache: {
       backend: parsed.PREVIEW_CACHE_BACKEND,
       dedupeTtlMs: previewDedupeTtlMs,
@@ -238,6 +268,11 @@ export const config = (() => {
       dir: parsed.UPLOAD_DIR,
       publicPath: parsed.UPLOAD_PUBLIC_PATH.startsWith('/') ? parsed.UPLOAD_PUBLIC_PATH : `/${parsed.UPLOAD_PUBLIC_PATH}`,
       maxBytes: parsed.UPLOAD_MAX_MB * 1024 * 1024,
+    },
+
+    media: {
+      driver: parsed.MEDIA_STORAGE_DRIVER as 'LOCAL' | 'MINIO',
+      presignTtlSec: parsed.MEDIA_PRESIGN_TTL_SEC ?? intFromEnv('MEDIA_PRESIGN_TTL_SEC', 300),
     },
 
     alpr: {

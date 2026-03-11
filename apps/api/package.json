@@ -39,7 +39,9 @@
     "test:pr06": "node --import tsx --test src/tests/pr06-decision-engine.test.ts",
     "test:pr10": "node --import tsx --test src/tests/pr10-mobile-pairing-redis.test.ts",
     "test:pr11": "node --import tsx --test src/tests/pr11-alpr-preview-redis-cache.test.ts",
-    "test:pr12": "node --import tsx --test src/tests/pr12-outbox-bullmq.test.ts"
+    "test:pr12": "node --import tsx --test src/tests/pr12-outbox-bullmq.test.ts",
+    "storage:smoke": "tsx src/scripts/object-storage-smoke.ts",
+    "test:pr13": "node --import tsx --test src/tests/pr13-minio-media-pipeline.test.ts"
   },
   "dependencies": {
     "@parkly/contracts": "workspace:*",
@@ -63,7 +65,9 @@
     "zod": "^4.3.6",
     "zod-to-json-schema": "^3.24.6",
     "ioredis": "^5.8.1",
-    "bullmq": "^5.56.0"
+    "bullmq": "^5.56.0",
+    "@aws-sdk/client-s3": "^3.848.0",
+    "@aws-sdk/s3-request-presigner": "^3.848.0"
   },
   "devDependencies": {
     "@prisma/config": "^7.4.1",

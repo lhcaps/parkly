@@ -190,6 +190,12 @@ export function registerGateCaptureRoutes(api: Router) {
 
       assertNoClientCanonicalPlateFields(req.body, 'POST /api/gate-reads/alpr');
 
+      const rawPayloadRecord = body.rawPayload && typeof body.rawPayload === 'object' && !Array.isArray(body.rawPayload)
+        ? body.rawPayload as Record<string, unknown>
+        : {}
+
+      const sourceMediaId = rawPayloadRecord.sourceMediaId ?? rawPayloadRecord.mediaId ?? null
+
       const auth = verifyDeviceSignature({
         surface: 'POST /api/gate-reads/alpr',
         readType: 'ALPR',
@@ -229,6 +235,7 @@ export function registerGateCaptureRoutes(api: Router) {
           occurredAt,
           plateRaw: body.plateRaw,
           imageUrl: body.imageUrl,
+          sourceMediaId: sourceMediaId == null ? undefined : String(sourceMediaId),
           ocrConfidence: body.ocrConfidence,
           rawPayload: normalizeCaptureRawPayload(body.rawPayload, {
             authority: 'DEVICE_SIGNATURE',

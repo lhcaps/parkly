@@ -2,6 +2,7 @@ import { buildPlateCanonical } from '@parkly/gate-core';
 
 import { ApiError } from '../../../server/http';
 import { describeStoredUpload } from '../../../server/services/local-alpr.service';
+import { resolveMediaViewById } from '../../../server/services/media-presign.service';
 import {
   persistGateReadEvent,
   resolveLaneContext,
@@ -18,6 +19,7 @@ export async function ingestAlprRead(input: {
   occurredAt: Date;
   plateRaw?: string;
   imageUrl?: string;
+  sourceMediaId?: string | number | bigint | null;
   ocrConfidence?: number;
   rawPayload?: unknown;
 }) {
@@ -37,6 +39,19 @@ export async function ingestAlprRead(input: {
     });
   }
 
+  const rawPayloadRecord =
+    input.rawPayload && typeof input.rawPayload === 'object' && !Array.isArray(input.rawPayload)
+      ? (input.rawPayload as Record<string, any>)
+      : null;
+
+  const sourceMediaId = input.sourceMediaId == null ? null : String(input.sourceMediaId);
+  const mediaView = sourceMediaId
+    ? await resolveMediaViewById(sourceMediaId).catch(() => null)
+    : null;
+
+  const effectiveImageUrl = input.imageUrl ?? mediaView?.viewUrl ?? null;
+  const storedUpload = sourceMediaId ? null : describeStoredUpload(effectiveImageUrl);
+
   const session = await resolveOrCreateSession({
     siteId: context.siteId,
     laneId: context.laneId,
@@ -48,8 +63,6 @@ export async function ingestAlprRead(input: {
     reviewRequired: plateCanonical.reviewRequired,
     presenceActive: true,
   });
-
-  const storedUpload = describeStoredUpload(input.imageUrl ?? null)
 
   const persisted = await persistGateReadEvent({
     sessionId: session.sessionId,
@@ -64,7 +77,8 @@ export async function ingestAlprRead(input: {
     ocrConfidence: input.ocrConfidence ?? null,
     payloadJson: {
       source: 'CAPTURE_API',
-      imageUrl: input.imageUrl ?? null,
+      imageUrl: effectiveImageUrl,
+      sourceMediaId,
       rawPayload: input.rawPayload ?? null,
       plateEngine: {
         authority: 'BACKEND',
@@ -72,24 +86,26 @@ export async function ingestAlprRead(input: {
       },
     },
     rawOcrText:
-      (input.rawPayload as any)?.rawOcrText ??
-      (input.rawPayload as any)?.ocr?.rawText ??
-      (input.rawPayload as any)?.alpr?.rawText ??
+      rawPayloadRecord?.rawOcrText ??
+      rawPayloadRecord?.ocr?.rawText ??
+      rawPayloadRecord?.alpr?.rawText ??
       null,
     cameraFrameRef:
-      (input.rawPayload as any)?.cameraFrameRef ??
-      (input.rawPayload as any)?.frameRef ??
-      (input.rawPayload as any)?.evidence?.cameraFrameRef ??
+      rawPayloadRecord?.cameraFrameRef ??
+      rawPayloadRecord?.frameRef ??
+      rawPayloadRecord?.evidence?.cameraFrameRef ??
       null,
     cropRef:
-      (input.rawPayload as any)?.cropRef ??
-      (input.rawPayload as any)?.evidence?.cropRef ??
+      rawPayloadRecord?.cropRef ??
+      rawPayloadRecord?.evidence?.cropRef ??
       null,
     sourceDeviceCode: context.deviceCode,
     sourceCaptureTs: input.occurredAt,
+    sourceMediaId,
     media: storedUpload
       ? {
           storageKind: storedUpload.storageKind,
+          storageProvider: storedUpload.storageKind === 'UPLOAD' ? 'LOCAL' : 'URL',
           mediaUrl: storedUpload.mediaUrl,
           filePath: storedUpload.filePath,
           mimeType: storedUpload.mimeType,
@@ -116,11 +132,13 @@ export async function ingestAlprRead(input: {
     sessionId: session.sessionId,
     sessionStatus: session.sessionStatus,
     readEventId: persisted.readEventId,
+    mediaId: persisted.sourceMediaId ? String(persisted.sourceMediaId) : sourceMediaId,
+    viewUrl: mediaView?.viewUrl ?? effectiveImageUrl,
     changed: persisted.changed,
     alreadyExists: !persisted.changed,
     ...plateCanonical,
     plate: plateCanonical,
-    imageUrl: input.imageUrl ?? null,
+    imageUrl: effectiveImageUrl,
     ocrConfidence: input.ocrConfidence ?? null,
     rfidUid: null,
     sensorState: null,

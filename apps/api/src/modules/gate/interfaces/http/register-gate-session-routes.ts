@@ -27,6 +27,7 @@ import { claimGateReview, listGateReviewQueue } from '../../application/review/c
 import { manualApproveGateSession } from '../../application/review/manual-approve';
 import { manualRejectGateSession } from '../../application/review/manual-reject';
 import { manualOpenBarrierForSession } from '../../application/review/manual-open-barrier';
+import { resolveMediaViewById } from '../../../../server/services/media-presign.service';
 
 const IsoDateTime = z.string().datetime().optional();
 const SessionDirection = z.enum(['ENTRY', 'EXIT']);
@@ -230,7 +231,56 @@ export function registerGateSessionRoutes(api: Router) {
   api.get('/gate-sessions/:sessionId', requireAuth(['ADMIN', 'OPS', 'GUARD', 'WORKER']), async (req: Request, res: Response, next: NextFunction) => {
     try {
       const data = await getGateSessionDetail(String(req.params.sessionId));
-      res.json(ok((req as any).id, data));
+
+      const reads = await Promise.all((data.reads ?? []).map(async (read: any) => {
+        const mediaId = read?.evidence?.media?.mediaId ?? read?.evidence?.sourceMediaId ?? null;
+        if (!mediaId) return read;
+        const resolved = await resolveMediaViewById(String(mediaId)).catch(() => null);
+        if (!resolved?.viewUrl) return read;
+        return {
+          ...read,
+          evidence: {
+            ...read.evidence,
+            media: {
+              ...(read.evidence?.media ?? {}),
+              mediaId: String(mediaId),
+              mediaUrl: resolved.viewUrl,
+              viewUrl: resolved.viewUrl,
+              expiresAt: resolved.expiresAt,
+              storageProvider: resolved.storageProvider,
+              bucketName: resolved.bucketName,
+              objectKey: resolved.objectKey,
+              objectEtag: resolved.objectEtag,
+            },
+          },
+        };
+      }));
+
+      const mediaUrlById = new Map(
+        reads
+          .map((read: any) => {
+            const media = read?.evidence?.media ?? null;
+            return media?.mediaId && media?.mediaUrl ? [String(media.mediaId), String(media.mediaUrl)] : null;
+          })
+          .filter(Boolean) as Array<[string, string]>
+      );
+
+      const timeline = Array.isArray(data.timeline)
+        ? data.timeline.map((item: any) => {
+            if (item?.kind !== 'READ') return item;
+            const mediaId = item?.payload?.sourceMediaId ? String(item.payload.sourceMediaId) : null;
+            const mediaUrl = mediaId ? (mediaUrlById.get(mediaId) ?? item?.payload?.mediaUrl ?? null) : item?.payload?.mediaUrl ?? null;
+            return {
+              ...item,
+              payload: {
+                ...item.payload,
+                mediaUrl,
+              },
+            };
+          })
+        : data.timeline;
+
+      res.json(ok((req as any).id, { ...data, reads, timeline }));
     } catch (e) {
       next(e);
     }

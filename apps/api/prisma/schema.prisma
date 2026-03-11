@@ -416,8 +416,12 @@ model gate_read_media {
   lane_id          BigInt?
   device_id        BigInt?
   storage_kind     gate_read_media_storage_kind @default(UNKNOWN)
+  storage_provider String                       @default("LOCAL") @db.VarChar(32)
   media_url        String?                      @db.VarChar(1024)
   file_path        String?                      @db.VarChar(1024)
+  bucket_name      String?                      @db.VarChar(255)
+  object_key       String?                      @db.VarChar(1024)
+  object_etag      String?                      @db.VarChar(255)
   mime_type        String?                      @db.VarChar(128)
   sha256           String?                      @db.VarChar(64)
   width_px         Int?
@@ -431,6 +435,8 @@ model gate_read_media {
   parking_sites    parking_sites                @relation(fields: [site_id], references: [site_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_read_media_site")
 
   @@index([site_id, created_at], map: "ix_gate_read_media_site_created")
+  @@index([bucket_name, object_key], map: "ix_gate_read_media_bucket_key")
+  @@index([storage_provider, created_at], map: "ix_gate_read_media_provider")
   @@index([site_id, device_id, captured_at], map: "ix_gate_read_media_site_device_time")
   @@index([lane_id, captured_at], map: "ix_gate_read_media_lane_time")
   @@index([sha256], map: "ix_gate_read_media_sha256")

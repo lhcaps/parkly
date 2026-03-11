@@ -45,6 +45,20 @@ REDIS_TLS=OFF
 
 Khi muốn API fail-fast nếu Redis chết, đặt `REDIS_REQUIRED=ON`.
 
+S3 / MinIO foundation PR-05 dùng các biến env sau:
+
+```dotenv
+S3_ENDPOINT=http://127.0.0.1:9000
+S3_REGION=us-east-1
+S3_ACCESS_KEY=minioadmin
+S3_SECRET_KEY=minioadmin123
+S3_BUCKET_MEDIA=parkly-media
+S3_FORCE_PATH_STYLE=ON
+S3_USE_SSL=OFF
+```
+
+Lưu ý bắt buộc với MinIO local: `S3_FORCE_PATH_STYLE=ON`. Sai flag này là lỗi phổ biến nhất khi presign hoặc HeadBucket.
+
 ## 4. Bootstrap database
 
 Từ root monorepo:
@@ -111,10 +125,12 @@ GET /api/ready
 GET /api/me
 GET /metrics
 GET /openapi.json
+pnpm storage:smoke
 ```
 
-`/api/health` trả dependency surface để nhìn nhanh trạng thái Redis.
-`/api/ready` dùng cho readiness semantics; khi `REDIS_REQUIRED=ON` và Redis không sẵn sàng thì endpoint này phải trả `503`.
+`/api/health` trả dependency surface để nhìn nhanh trạng thái Redis và object storage.
+`/api/ready` tiếp tục dùng readiness semantics cho dependency bắt buộc; ở PR-05 object storage đang dark-launch nên chưa block readiness mặc định.
+`pnpm storage:smoke` phải PASS đủ chuỗi `put-object -> head-object -> presign GET -> expiry -> delete`.
 
 ### 7.2 Gate operations
 
@@ -207,3 +223,21 @@ Kiểm tra:
 - `GET /api/health` để xem `dependencies.redis`
 - `GET /api/ready` để xác nhận service còn ready hay không theo policy `REDIS_REQUIRED`
 - `REDIS_URL`, `REDIS_DB`, `REDIS_TLS`, `REDIS_PREFIX` trong `.env`
+
+## 12. Object storage / MinIO smoke
+
+Từ `apps/api`:
+
+```bash
+pnpm storage:smoke
+```
+
+Kết quả PASS tối thiểu phải chứng minh được:
+
+- upload object vào bucket `parkly-media`
+- head-object đọc lại được metadata
+- presigned GET dùng được trước TTL
+- URL hết hạn đúng TTL
+- delete xong thì head-object không còn thấy object
+
+Nếu lỗi presign hoặc HeadBucket, kiểm tra đầu tiên là `S3_FORCE_PATH_STYLE=ON` và bucket đã được bootstrap bởi `minio-init`.

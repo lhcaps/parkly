@@ -29,8 +29,12 @@ export type SessionLink = {
 
 export type GateReadMediaInput = {
   storageKind?: 'UPLOAD' | 'URL' | 'INLINE' | 'MOCK' | 'UNKNOWN';
+  storageProvider?: 'LOCAL' | 'MINIO' | 'URL' | 'UNKNOWN';
   mediaUrl?: string | null;
   filePath?: string | null;
+  bucketName?: string | null;
+  objectKey?: string | null;
+  objectEtag?: string | null;
   mimeType?: string | null;
   sha256?: string | null;
   widthPx?: number | null;
@@ -58,6 +62,7 @@ export type PersistGateReadInput = {
   cropRef?: string | null;
   sourceDeviceCode?: string | null;
   sourceCaptureTs?: Date | null;
+  sourceMediaId?: string | number | bigint | null;
   media?: GateReadMediaInput | null;
   requestId: string;
   idempotencyKey: string;
@@ -87,6 +92,8 @@ export type LaneDeviceTopologyRow = {
   isRequired: boolean;
   deviceLocationHint: string | null;
 };
+
+type DbLike = any;
 
 function deriveSessionStatusFromCapturedRead(args: {
   currentStatus: string;
@@ -124,7 +131,7 @@ function deriveSessionStatusFromCapturedRead(args: {
 function jsonSafe(value: unknown): Prisma.InputJsonValue | null {
   if (value === undefined) return null;
   return JSON.parse(
-    JSON.stringify(value, (_k, v) => (typeof v === 'bigint' ? v.toString() : v))
+    JSON.stringify(value, (_k, v) => (typeof v === 'bigint' ? v.toString() : v)),
   ) as Prisma.InputJsonValue;
 }
 
@@ -150,31 +157,61 @@ function isDuplicateKeyError(err: unknown): boolean {
   return msg.includes('Duplicate entry') || msg.includes('1062') || msg.includes('ER_DUP_ENTRY');
 }
 
-async function insertReadMedia(args: {
+function normalizePositiveBigInt(value: unknown): bigint | null {
+  if (value == null) return null;
+  const text = String(value).trim();
+  if (!text) return null;
+  try {
+    const parsed = BigInt(text);
+    return parsed > 0n ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+async function selectLastInsertId(db: DbLike, label: string): Promise<bigint> {
+  const idRows = (await db.$queryRaw(
+    Prisma.sql`SELECT LAST_INSERT_ID() AS id`
+  )) as Array<{ id: unknown }>;
+  const resolved = normalizePositiveBigInt(idRows[0]?.id);
+  if (resolved == null) {
+    throw new Error(`Failed to resolve ${label} via LAST_INSERT_ID()`);
+  }
+  return resolved;
+}
+
+async function insertReadMediaTx(db: DbLike, args: {
   siteId: bigint;
-  laneId: bigint;
-  deviceId: bigint;
+  laneId: bigint | null;
+  deviceId: bigint | null;
   media: GateReadMediaInput;
 }): Promise<bigint | null> {
   const hasAnyValue = Boolean(
     args.media.mediaUrl ||
-      args.media.filePath ||
-      args.media.mimeType ||
-      args.media.sha256 ||
-      args.media.widthPx != null ||
-      args.media.heightPx != null ||
-      args.media.metadataJson != null
+    args.media.filePath ||
+    args.media.bucketName ||
+    args.media.objectKey ||
+    args.media.objectEtag ||
+    args.media.mimeType ||
+    args.media.sha256 ||
+    args.media.widthPx != null ||
+    args.media.heightPx != null ||
+    args.media.metadataJson != null
   );
   if (!hasAnyValue) return null;
 
-  await prisma.$executeRaw(Prisma.sql`
+  await db.$executeRaw(Prisma.sql`
     INSERT INTO gate_read_media(
       site_id,
       lane_id,
       device_id,
       storage_kind,
+      storage_provider,
       media_url,
       file_path,
+      bucket_name,
+      object_key,
+      object_etag,
       mime_type,
       sha256,
       width_px,
@@ -183,11 +220,15 @@ async function insertReadMedia(args: {
       captured_at
     ) VALUES (
       ${args.siteId},
-      ${args.laneId},
-      ${args.deviceId},
+      ${args.laneId ?? null},
+      ${args.deviceId ?? null},
       ${args.media.storageKind ?? 'UNKNOWN'},
+      ${args.media.storageProvider ?? 'UNKNOWN'},
       ${args.media.mediaUrl ?? null},
       ${args.media.filePath ?? null},
+      ${args.media.bucketName ?? null},
+      ${args.media.objectKey ?? null},
+      ${args.media.objectEtag ?? null},
       ${args.media.mimeType ?? null},
       ${args.media.sha256 ?? null},
       ${args.media.widthPx ?? null},
@@ -197,8 +238,22 @@ async function insertReadMedia(args: {
     )
   `);
 
-  const idRows = await prisma.$queryRaw<{ id: any }[]>(Prisma.sql`SELECT LAST_INSERT_ID() AS id`);
-  return idRows[0]?.id != null ? BigInt(idRows[0].id) : null;
+  return await selectLastInsertId(db, 'media_id');
+}
+
+export async function createGateReadMediaRecord(args: {
+  siteId: bigint;
+  laneId: bigint | null;
+  deviceId: bigint | null;
+  media: GateReadMediaInput;
+}) {
+  return prisma.$transaction(async (tx) => {
+    const inserted = await insertReadMediaTx(tx, args);
+    if (inserted == null) {
+      throw new Error('Failed to insert gate_read_media');
+    }
+    return inserted;
+  });
 }
 
 export async function resolveLaneContext(args: {
@@ -212,10 +267,10 @@ export async function resolveLaneContext(args: {
   const deviceCode = String(args.deviceCode ?? '').trim() || null;
 
   if (!siteCode) {
-    throw new ApiError({ code: 'BAD_REQUEST', message: 'siteCode là bắt buộc' });
+    throw new ApiError({ code: 'BAD_REQUEST', message: 'siteCode lÃ  báº¯t buá»™c' });
   }
   if (!laneCode && !deviceCode) {
-    throw new ApiError({ code: 'BAD_REQUEST', message: 'Cần ít nhất laneCode hoặc deviceCode để resolve lane context' });
+    throw new ApiError({ code: 'BAD_REQUEST', message: 'Cáº§n Ã­t nháº¥t laneCode hoáº·c deviceCode Ä‘á»ƒ resolve lane context' });
   }
 
   const rows = await prisma.$queryRaw<any[]>(Prisma.sql`
@@ -253,7 +308,7 @@ export async function resolveLaneContext(args: {
   if (!row) {
     throw new ApiError({
       code: 'NOT_FOUND',
-      message: 'Không resolve được lane/device từ master data',
+      message: 'KhÃ´ng resolve Ä‘Æ°á»£c lane/device tá»« master data',
       details: { siteCode, laneCode, deviceCode },
     });
   }
@@ -262,10 +317,23 @@ export async function resolveLaneContext(args: {
   if (args.expectedDirection && args.expectedDirection !== direction) {
     throw new ApiError({
       code: 'BAD_REQUEST',
-      message: 'direction không khớp lane direction',
+      message: 'direction khÃ´ng khá»›p lane direction',
       details: {
         expectedDirection: args.expectedDirection,
         laneDirection: direction,
+        laneCode: row.lane_code,
+        deviceCode: row.device_code,
+      },
+    });
+  }
+
+  const deviceId = normalizePositiveBigInt(row.device_id);
+  if (deviceId == null) {
+    throw new ApiError({
+      code: 'NOT_FOUND',
+      message: 'Lane Ä‘Ã£ resolve nhÆ°ng khÃ´ng cÃ³ device mapping há»£p lá»‡',
+      details: {
+        siteCode,
         laneCode: row.lane_code,
         deviceCode: row.device_code,
       },
@@ -280,7 +348,7 @@ export async function resolveLaneContext(args: {
     gateCode: String(row.gate_code),
     direction,
     laneStatus: String(row.lane_status),
-    deviceId: BigInt(row.device_id),
+    deviceId,
     deviceCode: String(row.device_code),
     deviceType: String(row.device_type),
     deviceRole: row.device_role != null ? String(row.device_role) : null,
@@ -305,36 +373,101 @@ export async function resolveOrCreateSession(args: {
 
   const reuseWindowSeconds = Math.max(5, Number(process.env.GATE_SESSION_REUSE_WINDOW_SECONDS ?? 45));
 
-  await prisma.$executeRaw(Prisma.sql`
-    UPDATE gate_passage_sessions
-    SET
-      status = 'TIMEOUT',
-      resolved_at = COALESCE(resolved_at, ${occurredAt}),
-      closed_at = COALESCE(closed_at, ${occurredAt}),
-      updated_at = CURRENT_TIMESTAMP
-    WHERE site_id = ${args.siteId}
-      AND lane_id = ${args.laneId}
-      AND status IN ('OPEN', 'WAITING_READ', 'WAITING_DECISION', 'APPROVED', 'WAITING_PAYMENT')
-      AND COALESCE(last_read_at, opened_at) < DATE_SUB(${occurredAt}, INTERVAL ${reuseWindowSeconds} SECOND)
-  `);
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw(Prisma.sql`
+      UPDATE gate_passage_sessions
+      SET
+        status = 'TIMEOUT',
+        resolved_at = COALESCE(resolved_at, ${occurredAt}),
+        closed_at = COALESCE(closed_at, ${occurredAt}),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE site_id = ${args.siteId}
+        AND lane_id = ${args.laneId}
+        AND status IN ('OPEN', 'WAITING_READ', 'WAITING_DECISION', 'APPROVED', 'WAITING_PAYMENT')
+        AND COALESCE(last_read_at, opened_at) < DATE_SUB(${occurredAt}, INTERVAL ${reuseWindowSeconds} SECOND)
+    `);
 
-  const rows = await prisma.$queryRaw<any[]>(Prisma.sql`
-    SELECT session_id, status
-    FROM gate_passage_sessions
-    WHERE site_id = ${args.siteId}
-      AND lane_id = ${args.laneId}
-      AND status IN ('OPEN', 'WAITING_READ', 'WAITING_DECISION', 'APPROVED', 'WAITING_PAYMENT')
-      AND COALESCE(last_read_at, opened_at) >= DATE_SUB(${occurredAt}, INTERVAL ${reuseWindowSeconds} SECOND)
-    ORDER BY COALESCE(last_read_at, opened_at) DESC, session_id DESC
-    LIMIT 1
-  `);
+    const rows = await tx.$queryRaw<any[]>(Prisma.sql`
+      SELECT session_id, status
+      FROM gate_passage_sessions
+      WHERE site_id = ${args.siteId}
+        AND lane_id = ${args.laneId}
+        AND status IN ('OPEN', 'WAITING_READ', 'WAITING_DECISION', 'APPROVED', 'WAITING_PAYMENT')
+        AND COALESCE(last_read_at, opened_at) >= DATE_SUB(${occurredAt}, INTERVAL ${reuseWindowSeconds} SECOND)
+      ORDER BY COALESCE(last_read_at, opened_at) DESC, session_id DESC
+      LIMIT 1
+    `);
 
-  const existing = rows[0];
-  if (existing?.session_id != null) {
-    const sessionId = BigInt(existing.session_id);
-    const currentStatus = String(existing.status ?? 'OPEN');
+    const existing = rows[0];
+    if (existing?.session_id != null) {
+      const sessionId = BigInt(existing.session_id);
+      const currentStatus = String(existing.status ?? 'OPEN');
+      const nextStatus = deriveSessionStatusFromCapturedRead({
+        currentStatus,
+        readType: args.readType,
+        sensorState: args.sensorState,
+        plateCompact: args.plateCompact,
+        rfidUid: args.rfidUid,
+        presenceActive: args.presenceActive,
+      });
+
+      await tx.$executeRaw(Prisma.sql`
+        UPDATE gate_passage_sessions
+        SET
+          status = ${nextStatus},
+          last_read_at = ${occurredAt},
+          resolved_at = CASE
+            WHEN ${nextStatus} IN ('OPEN', 'WAITING_READ') THEN resolved_at
+            ELSE COALESCE(resolved_at, ${occurredAt})
+          END,
+          plate_compact = COALESCE(${args.plateCompact ?? null}, plate_compact),
+          rfid_uid = COALESCE(${args.rfidUid ?? null}, rfid_uid),
+          review_required = CASE
+            WHEN ${nextStatus} = 'WAITING_DECISION' THEN 1
+            ELSE 0
+          END,
+          presence_active = CASE
+            WHEN ${args.presenceActive === undefined ? null : args.presenceActive ? 1 : 0} IS NULL THEN presence_active
+            ELSE ${args.presenceActive === undefined ? null : args.presenceActive ? 1 : 0}
+          END,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE session_id = ${sessionId}
+      `);
+
+      if (nextStatus === 'WAITING_DECISION' && currentStatus !== 'WAITING_DECISION') {
+        await tx.gate_decisions.create({
+          data: {
+            session_id: sessionId,
+            site_id: args.siteId,
+            lane_id: args.laneId,
+            decision_code: 'REVIEW_REQUIRED',
+            final_action: 'REVIEW',
+            reason_code: args.reviewRequired ? 'PLATE_REVIEW_REQUIRED' : 'CAPTURE_READ_READY_FOR_DECISION',
+            reason_detail: args.readType ? `Capture ${args.readType} Ä‘Ã£ vÃ o session orchestration` : 'Capture read Ä‘Ã£ vÃ o session orchestration',
+            input_snapshot_json: jsonSafe({
+              readType: args.readType ?? null,
+              sensorState: args.sensorState ?? null,
+              plateCompact: args.plateCompact ?? null,
+              rfidUid: args.rfidUid ?? null,
+              presenceActive: args.presenceActive ?? null,
+            }),
+            threshold_snapshot_json: jsonSafe({
+              orchestrator: 'PR05_CAPTURE',
+              source: 'resolveOrCreateSession',
+            }),
+          },
+        });
+      }
+
+      return {
+        sessionId,
+        sessionStatus: nextStatus,
+        created: false,
+      };
+    }
+
     const nextStatus = deriveSessionStatusFromCapturedRead({
-      currentStatus,
+      currentStatus: 'OPEN',
       readType: args.readType,
       sensorState: args.sensorState,
       plateCompact: args.plateCompact,
@@ -342,31 +475,40 @@ export async function resolveOrCreateSession(args: {
       presenceActive: args.presenceActive,
     });
 
-    await prisma.$executeRaw(Prisma.sql`
-      UPDATE gate_passage_sessions
-      SET
-        status = ${nextStatus},
-        last_read_at = ${occurredAt},
-        resolved_at = CASE
-          WHEN ${nextStatus} IN ('OPEN', 'WAITING_READ') THEN resolved_at
-          ELSE COALESCE(resolved_at, ${occurredAt})
-        END,
-        plate_compact = COALESCE(${args.plateCompact ?? null}, plate_compact),
-        rfid_uid = COALESCE(${args.rfidUid ?? null}, rfid_uid),
-        review_required = CASE
-          WHEN ${nextStatus} = 'WAITING_DECISION' THEN 1
-          ELSE 0
-        END,
-        presence_active = CASE
-          WHEN ${args.presenceActive === undefined ? null : args.presenceActive ? 1 : 0} IS NULL THEN presence_active
-          ELSE ${args.presenceActive === undefined ? null : args.presenceActive ? 1 : 0}
-        END,
-        updated_at = CURRENT_TIMESTAMP
-      WHERE session_id = ${sessionId}
+    await tx.$executeRaw(Prisma.sql`
+      INSERT INTO gate_passage_sessions(
+        site_id,
+        lane_id,
+        direction,
+        status,
+        correlation_id,
+        opened_at,
+        last_read_at,
+        resolved_at,
+        plate_compact,
+        rfid_uid,
+        presence_active,
+        review_required
+      ) VALUES (
+        ${args.siteId},
+        ${args.laneId},
+        ${args.direction},
+        ${nextStatus},
+        ${args.requestId},
+        ${occurredAt},
+        ${occurredAt},
+        ${nextStatus === 'OPEN' || nextStatus === 'WAITING_READ' ? null : occurredAt},
+        ${args.plateCompact ?? null},
+        ${args.rfidUid ?? null},
+        ${args.presenceActive ? 1 : 0},
+        ${nextStatus === 'WAITING_DECISION' ? 1 : 0}
+      )
     `);
 
-    if (nextStatus === 'WAITING_DECISION' && currentStatus !== 'WAITING_DECISION') {
-      await prisma.gate_decisions.create({
+    const sessionId = await selectLastInsertId(tx, 'session_id');
+
+    if (nextStatus === 'WAITING_DECISION') {
+      await tx.gate_decisions.create({
         data: {
           session_id: sessionId,
           site_id: args.siteId,
@@ -374,7 +516,7 @@ export async function resolveOrCreateSession(args: {
           decision_code: 'REVIEW_REQUIRED',
           final_action: 'REVIEW',
           reason_code: args.reviewRequired ? 'PLATE_REVIEW_REQUIRED' : 'CAPTURE_READ_READY_FOR_DECISION',
-          reason_detail: args.readType ? `Capture ${args.readType} đã vào session orchestration` : 'Capture read đã vào session orchestration',
+          reason_detail: args.readType ? `Capture ${args.readType} má»Ÿ má»›i session vÃ  chá» quyáº¿t Ä‘á»‹nh` : 'Capture read má»Ÿ má»›i session vÃ  chá» quyáº¿t Ä‘á»‹nh',
           input_snapshot_json: jsonSafe({
             readType: args.readType ?? null,
             sensorState: args.sensorState ?? null,
@@ -393,86 +535,9 @@ export async function resolveOrCreateSession(args: {
     return {
       sessionId,
       sessionStatus: nextStatus,
-      created: false,
+      created: true,
     };
-  }
-
-  const nextStatus = deriveSessionStatusFromCapturedRead({
-    currentStatus: 'OPEN',
-    readType: args.readType,
-    sensorState: args.sensorState,
-    plateCompact: args.plateCompact,
-    rfidUid: args.rfidUid,
-    presenceActive: args.presenceActive,
   });
-
-  await prisma.$executeRaw(Prisma.sql`
-    INSERT INTO gate_passage_sessions(
-      site_id,
-      lane_id,
-      direction,
-      status,
-      correlation_id,
-      opened_at,
-      last_read_at,
-      resolved_at,
-      plate_compact,
-      rfid_uid,
-      presence_active,
-      review_required
-    ) VALUES (
-      ${args.siteId},
-      ${args.laneId},
-      ${args.direction},
-      ${nextStatus},
-      ${args.requestId},
-      ${occurredAt},
-      ${occurredAt},
-      ${nextStatus === 'OPEN' || nextStatus === 'WAITING_READ' ? null : occurredAt},
-      ${args.plateCompact ?? null},
-      ${args.rfidUid ?? null},
-      ${args.presenceActive ? 1 : 0},
-      ${nextStatus === 'WAITING_DECISION' ? 1 : 0}
-    )
-  `);
-
-  const idRows = await prisma.$queryRaw<{ id: any }[]>(Prisma.sql`SELECT LAST_INSERT_ID() AS id`);
-  if (!idRows[0]?.id) {
-    throw new Error('Failed to resolve session_id via LAST_INSERT_ID()');
-  }
-
-  const sessionId = BigInt(idRows[0].id);
-
-  if (nextStatus === 'WAITING_DECISION') {
-    await prisma.gate_decisions.create({
-      data: {
-        session_id: sessionId,
-        site_id: args.siteId,
-        lane_id: args.laneId,
-        decision_code: 'REVIEW_REQUIRED',
-        final_action: 'REVIEW',
-        reason_code: args.reviewRequired ? 'PLATE_REVIEW_REQUIRED' : 'CAPTURE_READ_READY_FOR_DECISION',
-        reason_detail: args.readType ? `Capture ${args.readType} mở mới session và chờ quyết định` : 'Capture read mở mới session và chờ quyết định',
-        input_snapshot_json: jsonSafe({
-          readType: args.readType ?? null,
-          sensorState: args.sensorState ?? null,
-          plateCompact: args.plateCompact ?? null,
-          rfidUid: args.rfidUid ?? null,
-          presenceActive: args.presenceActive ?? null,
-        }),
-        threshold_snapshot_json: jsonSafe({
-          orchestrator: 'PR05_CAPTURE',
-          source: 'resolveOrCreateSession',
-        }),
-      },
-    });
-  }
-
-  return {
-    sessionId,
-    sessionStatus: nextStatus,
-    created: true,
-  };
 }
 
 export async function persistGateReadEvent(args: PersistGateReadInput): Promise<PersistGateReadResult> {
@@ -480,81 +545,84 @@ export async function persistGateReadEvent(args: PersistGateReadInput): Promise<
   occurredAt.setMilliseconds(0);
   const sourceCaptureTs = asNullableDate(args.sourceCaptureTs ?? occurredAt) ?? occurredAt;
 
+  const explicitSourceMediaId = normalizePositiveBigInt(args.sourceMediaId);
+  if (args.sourceMediaId != null && explicitSourceMediaId == null) {
+    throw new Error(`Invalid sourceMediaId: ${String(args.sourceMediaId)}`);
+  }
+
   try {
-    await prisma.$executeRaw(Prisma.sql`
-      INSERT INTO gate_read_events(
-        session_id,
-        site_id,
-        lane_id,
-        device_id,
-        read_type,
-        direction,
-        occurred_at,
-        plate_raw,
-        plate_compact,
-        ocr_confidence,
-        rfid_uid,
-        sensor_state,
-        payload_json,
-        raw_ocr_text,
-        camera_frame_ref,
-        crop_ref,
-        source_device_code,
-        source_capture_ts,
-        request_id,
-        idempotency_key
-      ) VALUES (
-        ${args.sessionId},
-        ${args.siteId},
-        ${args.laneId},
-        ${args.deviceId},
-        ${args.readType},
-        ${args.direction},
-        ${occurredAt},
-        ${args.plateRaw ?? null},
-        ${args.plateCompact ?? null},
-        ${args.ocrConfidence ?? null},
-        ${args.rfidUid ?? null},
-        ${args.sensorState ?? null},
-        ${jsonSafe(args.payloadJson)},
-        ${asNullableString(args.rawOcrText, 64)},
-        ${asNullableString(args.cameraFrameRef, 255)},
-        ${asNullableString(args.cropRef, 255)},
-        ${asNullableString(args.sourceDeviceCode, 64)},
-        ${sourceCaptureTs},
-        ${args.requestId},
-        ${args.idempotencyKey}
-      )
-    `);
+    return await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw(Prisma.sql`
+        INSERT INTO gate_read_events(
+          session_id,
+          site_id,
+          lane_id,
+          device_id,
+          read_type,
+          direction,
+          occurred_at,
+          plate_raw,
+          plate_compact,
+          ocr_confidence,
+          rfid_uid,
+          sensor_state,
+          payload_json,
+          raw_ocr_text,
+          camera_frame_ref,
+          crop_ref,
+          source_device_code,
+          source_capture_ts,
+          request_id,
+          idempotency_key
+        ) VALUES (
+          ${args.sessionId},
+          ${args.siteId},
+          ${args.laneId},
+          ${args.deviceId},
+          ${args.readType},
+          ${args.direction},
+          ${occurredAt},
+          ${args.plateRaw ?? null},
+          ${args.plateCompact ?? null},
+          ${args.ocrConfidence ?? null},
+          ${args.rfidUid ?? null},
+          ${args.sensorState ?? null},
+          ${jsonSafe(args.payloadJson)},
+          ${asNullableString(args.rawOcrText, 64)},
+          ${asNullableString(args.cameraFrameRef, 255)},
+          ${asNullableString(args.cropRef, 255)},
+          ${asNullableString(args.sourceDeviceCode, 64)},
+          ${sourceCaptureTs},
+          ${args.requestId},
+          ${args.idempotencyKey}
+        )
+      `);
 
-    const idRows = await prisma.$queryRaw<{ id: any }[]>(Prisma.sql`SELECT LAST_INSERT_ID() AS id`);
-    if (!idRows[0]?.id) {
-      throw new Error('Failed to resolve read_event_id via LAST_INSERT_ID()');
-    }
-    const readEventId = BigInt(idRows[0].id);
+      const readEventId = await selectLastInsertId(tx, 'read_event_id');
 
-    let sourceMediaId: bigint | null = null;
-    if (args.media) {
-      sourceMediaId = await insertReadMedia({
-        siteId: args.siteId,
-        laneId: args.laneId,
-        deviceId: args.deviceId,
-        media: {
-          ...args.media,
-          capturedAt: args.media.capturedAt ?? sourceCaptureTs,
-        },
-      });
+      let sourceMediaId: bigint | null = explicitSourceMediaId;
+      if (sourceMediaId == null && args.media) {
+        sourceMediaId = await insertReadMediaTx(tx, {
+          siteId: args.siteId,
+          laneId: args.laneId,
+          deviceId: args.deviceId,
+          media: {
+            ...args.media,
+            capturedAt: args.media.capturedAt ?? sourceCaptureTs,
+          },
+        });
+      }
 
       if (sourceMediaId != null) {
-        await prisma.$executeRaw(Prisma.sql`
+        await tx.$executeRaw(Prisma.sql`
           UPDATE gate_read_events
           SET source_media_id = ${sourceMediaId}
           WHERE read_event_id = ${readEventId}
         `);
       }
-    }
 
-    return { changed: true, readEventId, sourceMediaId };
+      return { changed: true, readEventId, sourceMediaId };
+    });
   } catch (err) {
     if (!isDuplicateKeyError(err)) throw err;
 
@@ -584,7 +652,7 @@ export async function listLaneDeviceTopology(args: {
 }): Promise<LaneDeviceTopologyRow[]> {
   const siteCode = String(args.siteCode ?? '').trim();
   const laneCode = String(args.laneCode ?? '').trim() || null;
-  if (!siteCode) throw new ApiError({ code: 'BAD_REQUEST', message: 'siteCode là bắt buộc' });
+  if (!siteCode) throw new ApiError({ code: 'BAD_REQUEST', message: 'siteCode lÃ  báº¯t buá»™c' });
 
   const rows = await prisma.$queryRaw<any[]>(Prisma.sql`
     SELECT

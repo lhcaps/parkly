@@ -17,6 +17,7 @@ import { config, type AppRole } from './config';
 import { prisma } from '../lib/prisma';
 import { closeMongo } from '../lib/mongo';
 import { closeRedis, ensureRedisStartupReadiness, getRedisHealth } from '../lib/redis';
+import { getObjectStorageHealth } from '../lib/object-storage';
 
 import { ApiError, defaultMessageForCode, fail, ok, statusToCode } from './http';
 import { getRequestActor, requireAuth } from './auth';
@@ -72,6 +73,9 @@ import { openOrReuseSessionAndResolve } from '../modules/gate/application/resolv
 import { resolveLaneFlowAuthority } from './services/lane-flow-authority';
 import { claimIdempotency, markIdempotencyFailed, markIdempotencySucceeded } from './services/idempotency.service';
 import { resolveAlprPreviewCached } from './services/alpr-preview-cache';
+import { storeUploadedMedia } from './services/media-storage.service';
+import { resolveMediaViewById } from './services/media-presign.service';
+import { createGateReadMediaRecord, resolveLaneContext } from '../modules/gate/infrastructure/gate-read-events.repo';
 
 declare global {
   // eslint-disable-next-line no-var
@@ -679,6 +683,7 @@ export async function buildApp() {
 
   async function buildDependencyStatus() {
     const redis = await getRedisHealth();
+    const objectStorage = await getObjectStorageHealth();
     const ready = !redis.required || redis.available;
 
     return {
@@ -688,6 +693,7 @@ export async function buildApp() {
       ts: new Date().toISOString(),
       dependencies: {
         redis,
+        objectStorage,
       },
     };
   }
@@ -1403,6 +1409,7 @@ export async function buildApp() {
       try {
         setStatus('Ã„Âang upload Ã¡ÂºÂ£nh vÃƒÂ  gÃ¡Â»Â­i ALPR capture...');
         let imageUrl = undefined;
+        let mediaId = undefined;
         if (file) {
           const fd = new FormData();
           fd.append('file', file);
@@ -1415,11 +1422,12 @@ export async function buildApp() {
             throw new Error((err.code || 'ERROR') + ': ' + (err.message || 'Upload failed'));
           }
           imageUrl = uploadJson.data.imageUrl;
+          mediaId = uploadJson.data.mediaId;
         }
         const result = await api('/api/mobile-capture/alpr?pairToken=' + encodeURIComponent(pairToken), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageUrl, plateHint: plateHint || undefined })
+          body: JSON.stringify({ imageUrl, mediaId, plateHint: plateHint || undefined })
         });
         await pulseHeartbeat();
         const plate = result.capture?.plate?.plateDisplay || result.recognition?.plate?.plateDisplay || result.recognition?.recognizedPlate || 'OK';
@@ -1464,24 +1472,33 @@ export async function buildApp() {
         });
       }
 
-      const stamp = new Date().toISOString().replace(/[-:]/g, '').replace('T', '_').slice(0, 15);
-      const filename = `${stamp}_${uuidv4().slice(0, 8)}.${extFromMime(mime)}`;
-      const outPath = path.join(uploadDirAbs, filename);
-      await fs.writeFile(outPath, f.buffer);
-
-      const imageUrl = `${config.upload.publicPath.replace(/\/$/, '')}/${filename}`;
+      const stored = await storeUploadedMedia({
+        buffer: f.buffer,
+        mimeType: mime,
+        originalName: f.originalname ?? null,
+        metadata: {
+          surface: 'POST /api/media/upload',
+        },
+      });
 
       const rid = (req as any).id;
       res.json(
         ok(rid, {
-          imageUrl,
-          filePath: filename,
-          filename,
-          originalName: f.originalname ?? null,
-          size: f.size,
-          mime,
-          sha256: sha256(f.buffer),
-          storageKind: 'UPLOAD',
+          imageUrl: stored.viewUrl ?? stored.mediaUrl,
+          viewUrl: stored.viewUrl ?? stored.mediaUrl,
+          filePath: stored.filePath,
+          filename: stored.filename,
+          originalName: stored.originalName,
+          size: stored.sizeBytes,
+          mime: stored.mimeType,
+          sha256: stored.sha256,
+          storageKind: stored.storageKind,
+          storageProvider: stored.storageProvider,
+          bucketName: stored.bucketName,
+          objectKey: stored.objectKey,
+          objectEtag: stored.objectEtag,
+          widthPx: stored.widthPx,
+          heightPx: stored.heightPx,
         })
       );
     } catch (e) {
@@ -1580,23 +1597,70 @@ export async function buildApp() {
         throw new ApiError({ code: 'BAD_REQUEST', message: 'Unsupported mime type', details: { allowed: Array.from(ALLOWED_MIME), got: mime } });
       }
 
-      const stamp = new Date().toISOString().replace(/[-:]/g, '').replace('T', '_').slice(0, 15);
-      const filename = `${stamp}_${uuidv4().slice(0, 8)}.${extFromMime(mime)}`;
-      const outPath = path.join(uploadDirAbs, filename);
-      await fs.writeFile(outPath, f.buffer);
-      const imageUrl = `${config.upload.publicPath.replace(/\/$/, '')}/${filename}`;
+      const laneContext = await resolveLaneContext({
+        siteCode: pairing.siteCode,
+        laneCode: pairing.laneCode,
+        deviceCode: pairing.deviceCode,
+        expectedDirection: pairing.direction,
+      });
+
+      const stored = await storeUploadedMedia({
+        buffer: f.buffer,
+        mimeType: mime,
+        originalName: f.originalname ?? null,
+        siteCode: pairing.siteCode,
+        laneCode: pairing.laneCode,
+        deviceCode: pairing.deviceCode,
+        capturedAt: new Date(),
+        metadata: {
+          source: 'MOBILE_CAPTURE_PAIR',
+          pairToken: pairing.pairToken,
+        },
+      });
+
+      const mediaId = await createGateReadMediaRecord({
+        siteId: laneContext.siteId,
+        laneId: laneContext.laneId,
+        deviceId: laneContext.deviceId,
+        media: {
+          storageKind: stored.storageKind,
+          storageProvider: stored.storageProvider,
+          mediaUrl: stored.mediaUrl,
+          filePath: stored.filePath,
+          bucketName: stored.bucketName,
+          objectKey: stored.objectKey,
+          objectEtag: stored.objectEtag,
+          mimeType: stored.mimeType,
+          sha256: stored.sha256,
+          widthPx: stored.widthPx,
+          heightPx: stored.heightPx,
+          metadataJson: stored.metadataJson,
+          capturedAt: new Date(),
+        },
+      });
+
+      const view = await resolveMediaViewById(String(mediaId));
 
       const rid = (req as any).id;
       res.json(ok(rid, {
         pairing,
-        imageUrl,
-        filePath: filename,
-        filename,
-        originalName: f.originalname ?? null,
-        size: f.size,
-        mime,
-        sha256: sha256(f.buffer),
-        storageKind: 'UPLOAD',
+        mediaId: String(mediaId),
+        imageUrl: view?.viewUrl ?? stored.viewUrl ?? stored.mediaUrl,
+        viewUrl: view?.viewUrl ?? stored.viewUrl ?? stored.mediaUrl,
+        expiresAt: view?.expiresAt ?? null,
+        filePath: stored.filePath,
+        filename: stored.filename,
+        originalName: stored.originalName,
+        size: stored.sizeBytes,
+        mime: stored.mimeType,
+        sha256: stored.sha256,
+        storageKind: stored.storageKind,
+        storageProvider: stored.storageProvider,
+        bucketName: stored.bucketName,
+        objectKey: stored.objectKey,
+        objectEtag: stored.objectEtag,
+        widthPx: stored.widthPx,
+        heightPx: stored.heightPx,
       }));
     } catch (e) {
       next(e);
@@ -1643,10 +1707,17 @@ export async function buildApp() {
         throw new ApiError({ code: 'NOT_FOUND', message: 'Pair token mobile camera khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡' });
       }
       const body = (req.body && typeof req.body === 'object' && !Array.isArray(req.body)) ? req.body as Record<string, unknown> : {};
+      const mediaId = body.mediaId == null ? null : String(body.mediaId).trim();
+      const mediaView = mediaId ? await resolveMediaViewById(mediaId).catch(() => null) : null;
+      const imageUrl = typeof body.imageUrl === 'string' && body.imageUrl.trim()
+        ? body.imageUrl
+        : mediaView?.viewUrl ?? null;
+
       const recognition = await recognizeLocalPlate({
-        imageUrl: typeof body.imageUrl === 'string' ? body.imageUrl : null,
+        imageUrl,
         plateHint: typeof body.plateHint === 'string' ? body.plateHint : null,
       });
+
       const capture = await ingestAlprRead({
         requestId: `mobile-alpr:${randomUUID()}`,
         idempotencyKey: `mobile-alpr:${Date.now()}:${pairing.deviceCode}`,
@@ -1656,18 +1727,20 @@ export async function buildApp() {
         direction: pairing.direction,
         occurredAt: new Date(),
         plateRaw: recognition.recognizedPlate,
-        imageUrl: typeof body.imageUrl === 'string' ? body.imageUrl : undefined,
+        imageUrl: imageUrl ?? undefined,
+        sourceMediaId: mediaId ?? undefined,
         ocrConfidence: recognition.confidence,
         rawPayload: {
           source: 'MOBILE_CAPTURE_PAIR',
           pairToken: pairing.pairToken,
+          mediaId,
           imagePath: recognition.imagePath,
           rawOcrText: recognition.rawText,
           originalFilename: recognition.originalFilename,
         },
       });
       const rid = (req as any).id;
-      res.json(ok(rid, { pairing, recognition, capture }));
+      res.json(ok(rid, { pairing, mediaId, viewUrl: mediaView?.viewUrl ?? imageUrl, recognition, capture }));
     } catch (e) {
       next(e);
     }
