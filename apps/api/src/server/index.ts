@@ -20,6 +20,8 @@ async function main() {
           prefix: config.prefix,
           docs: '/docs',
           authMode: config.authMode,
+          redisRequired: config.redis.required,
+          redisPrefix: config.redis.prefix,
         },
         null,
         2

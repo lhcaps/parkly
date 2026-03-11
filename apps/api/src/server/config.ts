@@ -33,7 +33,6 @@ const optionalUrlEnv = z.preprocess(emptyStringToUndefined, z.string().url().opt
 const optionalStringEnv = z.preprocess(emptyStringToUndefined, z.string().optional())
 
 export type AppRole = 'ADMIN' | 'OPS' | 'GUARD' | 'CASHIER' | 'WORKER'
-
 export type AlprMode = 'MOCK' | 'TESSERACT' | 'DISABLED'
 export type AlprProviderName = 'LOCAL' | 'HTTP' | 'OCRSPACE' | 'PLATE_RECOGNIZER'
 
@@ -60,6 +59,20 @@ export const config = (() => {
     API_CORS_ORIGINS: optionalStringEnv,
     API_RATE_LIMIT_MAX: z.coerce.number().int().positive().optional(),
     API_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().optional(),
+    API_RATE_LIMIT_BACKEND: z.enum(['MEMORY', 'REDIS']).default('MEMORY'),
+    API_RATE_LIMIT_PREFIX: optionalStringEnv,
+
+    REDIS_URL: optionalStringEnv,
+    REDIS_PREFIX: optionalStringEnv,
+    REDIS_DB: z.coerce.number().int().min(0).optional(),
+    REDIS_REQUIRED: z.enum(['ON', 'OFF']).default('OFF'),
+    REDIS_TLS: z.enum(['ON', 'OFF']).default('OFF'),
+
+    PREVIEW_CACHE_BACKEND: z.enum(['OFF', 'REDIS']).default('OFF'),
+    PREVIEW_CACHE_DEDUPE_TTL_MS: z.coerce.number().int().positive().optional(),
+    PREVIEW_CACHE_RESPONSE_TTL_MS: z.coerce.number().int().positive().optional(),
+    PREVIEW_CACHE_POLL_INTERVAL_MS: z.coerce.number().int().positive().optional(),
+    PREVIEW_CACHE_DEBUG_HEADERS: z.enum(['ON', 'OFF']).default('OFF'),
 
     OUTBOX_WORKER_INTERVAL_MS: z.coerce.number().int().positive().optional(),
 
@@ -111,6 +124,20 @@ export const config = (() => {
     API_CORS_ORIGINS: process.env.API_CORS_ORIGINS,
     API_RATE_LIMIT_MAX: process.env.API_RATE_LIMIT_MAX,
     API_RATE_LIMIT_WINDOW_MS: process.env.API_RATE_LIMIT_WINDOW_MS,
+    API_RATE_LIMIT_BACKEND: process.env.API_RATE_LIMIT_BACKEND,
+    API_RATE_LIMIT_PREFIX: process.env.API_RATE_LIMIT_PREFIX,
+
+    REDIS_URL: process.env.REDIS_URL,
+    REDIS_PREFIX: process.env.REDIS_PREFIX,
+    REDIS_DB: process.env.REDIS_DB,
+    REDIS_REQUIRED: process.env.REDIS_REQUIRED,
+    REDIS_TLS: process.env.REDIS_TLS,
+
+    PREVIEW_CACHE_BACKEND: process.env.PREVIEW_CACHE_BACKEND,
+    PREVIEW_CACHE_DEDUPE_TTL_MS: process.env.PREVIEW_CACHE_DEDUPE_TTL_MS,
+    PREVIEW_CACHE_RESPONSE_TTL_MS: process.env.PREVIEW_CACHE_RESPONSE_TTL_MS,
+    PREVIEW_CACHE_POLL_INTERVAL_MS: process.env.PREVIEW_CACHE_POLL_INTERVAL_MS,
+    PREVIEW_CACHE_DEBUG_HEADERS: process.env.PREVIEW_CACHE_DEBUG_HEADERS,
 
     OUTBOX_WORKER_INTERVAL_MS: process.env.OUTBOX_WORKER_INTERVAL_MS,
 
@@ -154,6 +181,10 @@ export const config = (() => {
     .map((item) => item.toUpperCase())
     .filter((item): item is AlprProviderName => item === 'LOCAL' || item === 'HTTP' || item === 'OCRSPACE' || item === 'PLATE_RECOGNIZER')
 
+  const redisPrefix = parsed.REDIS_PREFIX ?? `parkly:${process.env.NODE_ENV ?? 'development'}`
+  const previewDedupeTtlMs = parsed.PREVIEW_CACHE_DEDUPE_TTL_MS ?? intFromEnv('PREVIEW_CACHE_DEDUPE_TTL_MS', 3_000)
+  const previewResponseTtlMsRaw = parsed.PREVIEW_CACHE_RESPONSE_TTL_MS ?? intFromEnv('PREVIEW_CACHE_RESPONSE_TTL_MS', 2_000)
+
   return {
     host: parsed.API_HOST,
     port: parsed.API_PORT,
@@ -179,6 +210,24 @@ export const config = (() => {
     rateLimit: {
       max: parsed.API_RATE_LIMIT_MAX ?? intFromEnv('API_RATE_LIMIT_MAX', 200),
       windowMs: parsed.API_RATE_LIMIT_WINDOW_MS ?? intFromEnv('API_RATE_LIMIT_WINDOW_MS', 60_000),
+      backend: parsed.API_RATE_LIMIT_BACKEND,
+      prefix: parsed.API_RATE_LIMIT_PREFIX ?? `${redisPrefix}:rate-limit`,
+    },
+
+    redis: {
+      url: parsed.REDIS_URL ?? 'redis://127.0.0.1:6379',
+      prefix: redisPrefix,
+      db: parsed.REDIS_DB ?? intFromEnv('REDIS_DB', 0),
+      required: parsed.REDIS_REQUIRED === 'ON',
+      tls: parsed.REDIS_TLS === 'ON',
+    },
+
+    previewCache: {
+      backend: parsed.PREVIEW_CACHE_BACKEND,
+      dedupeTtlMs: previewDedupeTtlMs,
+      responseTtlMs: Math.min(previewDedupeTtlMs, Math.max(100, previewResponseTtlMsRaw)),
+      pollIntervalMs: parsed.PREVIEW_CACHE_POLL_INTERVAL_MS ?? intFromEnv('PREVIEW_CACHE_POLL_INTERVAL_MS', 120),
+      debugHeaders: parsed.PREVIEW_CACHE_DEBUG_HEADERS === 'ON',
     },
 
     worker: {

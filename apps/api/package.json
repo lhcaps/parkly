@@ -26,14 +26,20 @@
     "flyway:conf": "tsx scripts/gen-flyway-conf.ts",
     "dev": "tsx src/server/index.ts",
     "worker:dev": "tsx src/worker/index.ts",
+    "platform:up": "docker compose -f ../../infra/docker/docker-compose.platform.yml up -d",
+    "platform:down": "docker compose -f ../../infra/docker/docker-compose.platform.yml down",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test:pr01": "node --import tsx --test src/tests/pr01-redis-foundation.test.ts",
     "db:whoami:app": "tsx src/scripts/db-whoami-app.ts",
     "prisma:generate": "prisma generate",
     "predev": "pnpm -s prisma:generate",
     "preworker:dev": "pnpm -s prisma:generate",
     "test:pr02": "node --import tsx --test src/tests/pr02-shared-plate-core.test.ts",
     "test:pr04": "node --import tsx --test src/tests/pr04-capture-auth-idempotency.test.ts",
-    "test:pr06": "node --import tsx --test src/tests/pr06-decision-engine.test.ts"
+    "test:pr06": "node --import tsx --test src/tests/pr06-decision-engine.test.ts",
+    "test:pr10": "node --import tsx --test src/tests/pr10-mobile-pairing-redis.test.ts",
+    "test:pr11": "node --import tsx --test src/tests/pr11-alpr-preview-redis-cache.test.ts",
+    "test:pr12": "node --import tsx --test src/tests/pr12-outbox-bullmq.test.ts"
   },
   "dependencies": {
     "@parkly/contracts": "workspace:*",
@@ -55,7 +61,9 @@
     "swagger-ui-express": "^5.0.1",
     "uuid": "^13.0.0",
     "zod": "^4.3.6",
-    "zod-to-json-schema": "^3.24.6"
+    "zod-to-json-schema": "^3.24.6",
+    "ioredis": "^5.8.1",
+    "bullmq": "^5.56.0"
   },
   "devDependencies": {
     "@prisma/config": "^7.4.1",

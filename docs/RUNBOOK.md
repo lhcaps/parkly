@@ -14,11 +14,38 @@ Runbook này dùng cho 3 việc:
 
 - Node.js 20+
 - pnpm 9+
+- Docker Desktop hoặc Docker Engine + Compose plugin
 - MySQL 8.0
 - PowerShell 7+ trên Windows hoặc PowerShell Core trên macOS/Linux
 - Flyway CLI khả dụng trong `PATH`
 
-## 3. Bootstrap database
+## 3. Bootstrap platform services
+
+Spin-up Redis + MinIO local bằng một lệnh từ root monorepo:
+
+```bash
+docker compose -f infra/docker/docker-compose.platform.yml up -d
+```
+
+Kiểm tra nhanh:
+
+```bash
+docker compose -f infra/docker/docker-compose.platform.yml ps
+```
+
+Redis foundation PR-01 dùng các biến env sau:
+
+```dotenv
+REDIS_URL=redis://127.0.0.1:6379
+REDIS_PREFIX=parkly:development
+REDIS_DB=0
+REDIS_REQUIRED=OFF
+REDIS_TLS=OFF
+```
+
+Khi muốn API fail-fast nếu Redis chết, đặt `REDIS_REQUIRED=ON`.
+
+## 4. Bootstrap database
 
 Từ root monorepo:
 
@@ -40,7 +67,7 @@ pnpm db:migrate
 pnpm prisma:pull
 ```
 
-## 4. Chạy services
+## 5. Chạy services
 
 API:
 
@@ -63,7 +90,7 @@ cd apps/web
 pnpm dev
 ```
 
-## 5. Tokens mặc định
+## 6. Tokens mặc định
 
 Dùng đúng token theo role để test quyền:
 
@@ -74,18 +101,22 @@ Dùng đúng token theo role để test quyền:
 
 UI Operations Console dùng `OPS` hoặc `ADMIN` là hợp lý nhất.
 
-## 6. Smoke checklist sau khi boot
+## 7. Smoke checklist sau khi boot
 
-### 6.1 API
+### 7.1 API
 
 ```bash
 GET /api/health
+GET /api/ready
 GET /api/me
 GET /metrics
 GET /openapi.json
 ```
 
-### 6.2 Gate operations
+`/api/health` trả dependency surface để nhìn nhanh trạng thái Redis.
+`/api/ready` dùng cho readiness semantics; khi `REDIS_REQUIRED=ON` và Redis không sẵn sàng thì endpoint này phải trả `503`.
+
+### 7.2 Gate operations
 
 ```bash
 GET /api/gate-sessions?limit=20
@@ -94,7 +125,7 @@ GET /api/devices
 GET /api/outbox?limit=20
 ```
 
-### 6.3 SSE
+### 7.3 SSE
 
 Mở 3 stream này bằng browser tab, curl `-N`, hoặc trực tiếp từ web console:
 
@@ -104,7 +135,7 @@ Mở 3 stream này bằng browser tab, curl `-N`, hoặc trực tiếp từ web 
 /api/stream/outbox
 ```
 
-## 7. Evidence pack
+## 8. Evidence pack
 
 Script evidence pack duy nhất nằm tại:
 
@@ -124,7 +155,7 @@ Ví dụ chạy một scenario:
 pwsh -File .\apps\api\src\scripts\evidence\evidence-pack.ps1 -BaseUrl http://127.0.0.1:3000 -Token <OPS_OR_ADMIN_TOKEN> -Scenario anti-passback-blocked
 ```
 
-## 8. Trình tự evidence đề xuất
+## 9. Trình tự evidence đề xuất
 
 1. Console Overview
 2. Lane Monitor
@@ -134,7 +165,7 @@ pwsh -File .\apps\api\src\scripts\evidence\evidence-pack.ps1 -BaseUrl http://127
 6. Outbox Monitor
 7. chạy evidence pack cho ENTRY / REVIEW / OUTBOX / BARRIER TIMEOUT
 
-## 9. Khi có lỗi
+## 10. Khi có lỗi
 
 ### Prisma pull fail vì relation thiếu
 
@@ -161,9 +192,18 @@ Kiểm tra:
 - `GET /api/stream/outbox`
 - `POST /api/outbox/drain`
 
-## 10. Layout tài liệu sau hardening
+## 11. Layout tài liệu sau hardening
 
 - `docs/RUNBOOK.md`: dựng máy sạch và vận hành
 - `docs/API.md`: surface API thật đang sống
 - `docs/EVIDENCE.md`: checklist và script evidence
 - `docs/archive/*`: patch notes cũ và ghi chú lịch sử
+
+### Redis optional mode không lên
+
+Kiểm tra:
+
+- `docker compose -f infra/docker/docker-compose.platform.yml up -d redis`
+- `GET /api/health` để xem `dependencies.redis`
+- `GET /api/ready` để xác nhận service còn ready hay không theo policy `REDIS_REQUIRED`
+- `REDIS_URL`, `REDIS_DB`, `REDIS_TLS`, `REDIS_PREFIX` trong `.env`
