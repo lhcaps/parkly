@@ -562,6 +562,7 @@ export async function listGateSessions(args: {
   from?: Date;
   to?: Date;
   limit?: number;
+  cursor?: bigint;
 }) {
   const limit = Math.min(200, Math.max(1, args.limit ?? 50));
   const rows = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(
@@ -597,6 +598,7 @@ export async function listGateSessions(args: {
         AND (? IS NULL OR gps.direction = ?)
         AND (? IS NULL OR gps.opened_at >= ?)
         AND (? IS NULL OR gps.opened_at <= ?)
+        AND (? IS NULL OR gps.session_id < ?)
       ORDER BY gps.session_id DESC
       LIMIT ?
     `,
@@ -612,7 +614,9 @@ export async function listGateSessions(args: {
     args.from ?? null,
     args.to ?? null,
     args.to ?? null,
-    limit
+    args.cursor != null ? String(args.cursor) : null,
+    args.cursor != null ? String(args.cursor) : null,
+    limit,
   );
 
   const normalize = (row: Record<string, unknown>) => {
@@ -641,7 +645,10 @@ export async function listGateSessions(args: {
     };
   };
 
-  return rows.map(normalize);
+  const items = rows.map(normalize);
+  const nextCursor = items.length === limit ? items[items.length - 1]?.sessionId ?? null : null;
+
+  return { items, nextCursor };
 }
 
 export async function getGateSessionDetail(sessionIdInput: string | number | bigint) {

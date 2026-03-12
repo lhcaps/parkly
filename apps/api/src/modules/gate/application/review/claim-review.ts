@@ -84,9 +84,10 @@ export async function listGateReviewQueue(args?: {
   siteCode?: string
   status?: 'OPEN' | 'CLAIMED' | 'RESOLVED' | 'CANCELLED'
   limit?: number
-}): Promise<ReviewQueueRow[]> {
+  cursor?: bigint
+}): Promise<{ items: ReviewQueueRow[]; nextCursor: string | null }> {
   const limit = Math.min(200, Math.max(1, args?.limit ?? 50))
-  const params: string[] = []
+  const params: Array<string | number> = []
   const where: string[] = []
 
   if (args?.siteCode?.trim()) {
@@ -99,6 +100,11 @@ export async function listGateReviewQueue(args?: {
     params.push(args.status.trim())
   } else {
     where.push("gmr.status IN ('OPEN', 'CLAIMED')")
+  }
+
+  if (args?.cursor != null) {
+    where.push('gmr.review_id < ?')
+    params.push(String(args.cursor))
   }
 
   const rows = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(
@@ -118,13 +124,13 @@ export async function listGateReviewQueue(args?: {
       FROM gate_manual_reviews gmr
       INNER JOIN parking_sites ps ON ps.site_id = gmr.site_id
       ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-      ORDER BY FIELD(gmr.status, 'CLAIMED', 'OPEN', 'RESOLVED', 'CANCELLED'), gmr.created_at ASC, gmr.review_id ASC
+      ORDER BY gmr.review_id DESC
       LIMIT ${limit}
     `,
     ...params,
   )
 
-  return Promise.all(
+  const items = await Promise.all(
     rows.map(async (row) => {
       const sessionId = BigInt(String(row.sessionId))
       return {
@@ -144,6 +150,11 @@ export async function listGateReviewQueue(args?: {
       }
     }),
   )
+
+  return {
+    items,
+    nextCursor: items.length === limit ? items[items.length - 1]?.reviewId ?? null : null,
+  }
 }
 
 export async function claimGateReview(args: {

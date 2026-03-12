@@ -59,6 +59,7 @@ import {
   type SiteRow,
 } from '@parkly/contracts';
 import { registerGateSessionRoutes } from '../modules/gate/interfaces/http/register-gate-session-routes';
+import { registerGateOpsQueryRoutes } from '../modules/gate/interfaces/http/register-gate-ops-query-routes';
 import { assertNoClientCanonicalPlateFields, deriveAuthoritativePlateResult } from './plate-authority';
 import { registerGateCaptureRoutes } from '../modules/gate/interfaces/http/register-gate-capture-routes';
 import { registerLaneStatusStream } from '../modules/gate/interfaces/sse/register-lane-status-stream';
@@ -657,6 +658,8 @@ export async function buildApp() {
       '/stream/lane-status': {},
       '/stream/device-health': {},
       '/stream/outbox': {},
+      '/ops/lane-status': {},
+      '/ops/device-health': {},
       '/reports/summary': {},
       '/gate-sessions/open': {},
       '/gate-sessions/resolve': {},
@@ -724,6 +727,7 @@ export async function buildApp() {
   });
 
   registerGateSessionRoutes(api);
+  registerGateOpsQueryRoutes(api);
   registerGateCaptureRoutes(api);
   registerLaneStatusStream(api);
   registerDeviceHealthStream(api);

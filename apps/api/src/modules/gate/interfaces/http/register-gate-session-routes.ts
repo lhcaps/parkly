@@ -49,12 +49,14 @@ const SessionListQuery = z.object({
   from: z.string().datetime().optional(),
   to: z.string().datetime().optional(),
   limit: z.coerce.number().int().positive().max(200).optional(),
+  cursor: z.string().trim().optional(),
 });
 
 const ReviewQueueQuery = z.object({
   siteCode: z.string().trim().min(1).optional(),
   status: z.enum(['OPEN', 'CLAIMED', 'RESOLVED', 'CANCELLED']).optional(),
   limit: z.coerce.number().int().positive().max(200).optional(),
+  cursor: z.string().trim().optional(),
 });
 
 function requestHash(payload: unknown): string {
@@ -299,9 +301,18 @@ export function registerGateSessionRoutes(api: Router) {
         from: parsed.data.from ? new Date(parsed.data.from) : undefined,
         to: parsed.data.to ? new Date(parsed.data.to) : undefined,
         limit: parsed.data.limit,
+        cursor: parsed.data.cursor ? BigInt(parsed.data.cursor) : undefined,
       });
 
-      res.json(ok((req as any).id, { rows: data }));
+      res.json(ok((req as any).id, {
+        rows: data.items,
+        nextCursor: data.nextCursor,
+        pageInfo: {
+          limit: parsed.data.limit ?? 50,
+          nextCursor: data.nextCursor,
+          sort: 'sessionId:desc',
+        },
+      }));
     } catch (e) {
       next(e);
     }
@@ -317,13 +328,14 @@ export function registerGateSessionRoutes(api: Router) {
         siteCode: parsed.data.siteCode,
         status: parsed.data.status,
         limit: parsed.data.limit,
+        cursor: parsed.data.cursor ? BigInt(parsed.data.cursor) : undefined,
       });
 
       if (parsed.data.siteCode) {
-        setReviewQueueSize({ siteCode: parsed.data.siteCode, count: data.length });
+        setReviewQueueSize({ siteCode: parsed.data.siteCode, count: data.items.length });
       } else {
         const counts = new Map<string, number>();
-        for (const row of data) counts.set(row.session.siteCode, (counts.get(row.session.siteCode) ?? 0) + 1);
+        for (const row of data.items) counts.set(row.session.siteCode, (counts.get(row.session.siteCode) ?? 0) + 1);
         for (const [siteCode, count] of counts.entries()) setReviewQueueSize({ siteCode, count });
       }
 
@@ -332,10 +344,19 @@ export function registerGateSessionRoutes(api: Router) {
         correlationId: (req as any).correlationId,
         siteCode: parsed.data.siteCode ?? null,
         status: parsed.data.status ?? null,
-        returned: data.length,
+        cursor: parsed.data.cursor ?? null,
+        returned: data.items.length,
       }, 'gate_review_queue_list');
 
-      res.json(ok((req as any).id, { rows: data }));
+      res.json(ok((req as any).id, {
+        rows: data.items,
+        nextCursor: data.nextCursor,
+        pageInfo: {
+          limit: parsed.data.limit ?? 50,
+          nextCursor: data.nextCursor,
+          sort: 'reviewId:desc',
+        },
+      }));
     } catch (e) {
       next(e);
     }
