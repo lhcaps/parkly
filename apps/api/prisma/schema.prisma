@@ -1,0 +1,1207 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+/// Partition table note: Prisma có hạn chế với partition tables.
+/// Trong đồ án, dùng Flyway làm nguồn migration (SQL thuần), Prisma dùng để generate client.
+model gate_events {
+  event_id          BigInt                @default(autoincrement())
+  site_id           BigInt
+  device_id         BigInt
+  direction         gate_events_direction
+  event_time        DateTime              @db.DateTime(0)
+  rfid_uid          String?               @db.VarChar(64)
+  license_plate_raw String?               @db.VarChar(32)
+  image_url         String?               @db.VarChar(1024)
+  ticket_id         BigInt?
+  idempotency_key   String                @db.VarChar(64)
+
+  @@id([event_id, event_time])
+  @@unique([site_id, idempotency_key, event_time], map: "uq_gate_events_idem")
+  @@index([site_id, event_time], map: "ix_gate_events_site_time")
+  @@index([site_id, direction, event_time], map: "ix_gate_events_site_dir_time")
+  @@index([site_id, rfid_uid, event_time], map: "ix_gate_events_site_rfid_time")
+  @@index([site_id, license_plate_raw, event_time], map: "ix_gate_events_site_plate_time")
+  @@index([ticket_id], map: "ix_gate_events_ticket")
+}
+
+model audit_logs {
+  audit_id       BigInt   @id @default(autoincrement())
+  site_id        BigInt?
+  actor_user_id  BigInt?
+  action         String   @db.VarChar(64)
+  entity_table   String   @db.VarChar(64)
+  entity_id      String   @db.VarChar(64)
+  before_json    Json?
+  after_json     Json?
+  actor_json     Json?
+  request_id     String?  @db.VarChar(64)
+  correlation_id String?  @db.VarChar(64)
+  occurred_at    DateTime @default(now()) @db.DateTime(0)
+  created_at     DateTime @default(now()) @db.DateTime(0)
+
+  @@index([action, created_at], map: "ix_audit_action_created")
+  @@index([actor_user_id, created_at], map: "ix_audit_actor_created")
+  @@index([created_at], map: "ix_audit_created")
+  @@index([entity_table, entity_id], map: "ix_audit_entity")
+  @@index([site_id, created_at], map: "ix_audit_site_created")
+  @@index([correlation_id], map: "ix_audit_correlation_id")
+  @@index([occurred_at, audit_id], map: "ix_audit_occurred_id")
+  @@index([request_id], map: "ix_audit_request_id")
+}
+
+model parking_sites {
+  site_id                   BigInt                      @id @default(autoincrement())
+  site_code                 String                      @unique(map: "uq_site_code") @db.VarChar(32)
+  name                      String                      @db.VarChar(255)
+  timezone                  String                      @default("Asia/Ho_Chi_Minh") @db.VarChar(64)
+  is_active                 Boolean                     @default(true)
+  created_at                DateTime                    @default(now()) @db.DateTime(0)
+  credentials               credentials[]
+  device_heartbeats         device_heartbeats[]
+  gate_active_presence      gate_active_presence[]
+  gate_barrier_commands     gate_barrier_commands[]
+  gate_decisions            gate_decisions[]
+  gate_devices              gate_devices[]
+  gate_incidents            gate_incidents[]
+  gate_lanes                gate_lanes[]
+  gate_manual_reviews       gate_manual_reviews[]
+  gate_passage_sessions     gate_passage_sessions[]
+  gate_read_events          gate_read_events[]
+  gate_read_media           gate_read_media[]
+  internal_presence_events  internal_presence_events[]
+  payments                  payments[]
+  shift_closures            shift_closures[]
+  spot_occupancy_projection spot_occupancy_projection[]
+  spots                     spots[]
+  subscription_spots        subscription_spots[]
+  subscription_vehicles     subscription_vehicles[]
+  subscriptions             subscriptions[]
+  tariffs                   tariffs[]
+  tickets                   tickets[]
+  user_site_scopes          user_site_scopes[]
+  zones                     zones[]
+}
+
+model zones {
+  zone_id                   BigInt                      @id @default(autoincrement())
+  site_id                   BigInt
+  code                      String                      @db.VarChar(32)
+  name                      String                      @db.VarChar(255)
+  vehicle_type              zones_vehicle_type?
+  internal_presence_events  internal_presence_events[]
+  spot_occupancy_projection spot_occupancy_projection[]
+  spots                     spots[]
+  parking_sites             parking_sites               @relation(fields: [site_id], references: [site_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_zones_site")
+
+  @@unique([site_id, code], map: "uq_zone_code")
+  @@index([site_id], map: "ix_zones_site")
+  @@index([site_id, vehicle_type], map: "ix_zones_site_vehicle")
+}
+
+model gate_event_outbox {
+  outbox_id        BigInt                   @id @default(autoincrement())
+  site_id          BigInt
+  event_id         BigInt
+  event_time       DateTime                 @db.DateTime(0)
+  mongo_collection String                   @default("device_events") @db.VarChar(64)
+  payload_json     Json
+  status           gate_event_outbox_status @default(PENDING)
+  sent_at          DateTime?                @db.DateTime(0)
+  attempts         Int                      @default(0)
+  last_error       String?                  @db.Text
+  mongo_doc_id     String?                  @db.VarChar(64)
+  created_at       DateTime                 @default(now()) @db.DateTime(0)
+  updated_at       DateTime                 @default(now()) @updatedAt @db.DateTime(0)
+  next_retry_at    DateTime?                @db.DateTime(0)
+
+  @@unique([site_id, event_id, event_time], map: "uq_outbox_event")
+  @@index([status, next_retry_at], map: "ix_outbox_next_retry")
+  @@index([status, created_at], map: "ix_outbox_status_created")
+}
+
+model customers {
+  customer_id   BigInt           @id @default(autoincrement())
+  full_name     String           @db.VarChar(255)
+  phone         String?          @unique(map: "uq_customer_phone") @db.VarChar(20)
+  email         String?          @unique(map: "uq_customer_email") @db.VarChar(255)
+  status        customers_status @default(ACTIVE)
+  created_at    DateTime         @default(now()) @db.DateTime(0)
+  subscriptions subscriptions[]
+  vehicles      vehicles[]
+
+  @@index([status], map: "ix_customers_status")
+}
+
+model gate_devices {
+  device_id             BigInt                   @id @default(autoincrement())
+  site_id               BigInt
+  device_code           String                   @db.VarChar(32)
+  device_type           gate_devices_device_type
+  direction             gate_devices_direction
+  location_hint         String?                  @db.VarChar(255)
+  device_heartbeats     device_heartbeats[]
+  gate_barrier_commands gate_barrier_commands[]
+  parking_sites         parking_sites            @relation(fields: [site_id], references: [site_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_devices_site")
+  gate_incidents        gate_incidents[]
+  lane_mappings         gate_lane_devices?       @relation("lane_device_device")
+  primary_for_lanes     gate_lanes[]             @relation("lane_primary_device")
+  gate_read_events      gate_read_events[]
+  gate_read_media       gate_read_media[]
+
+  @@unique([site_id, device_code], map: "uq_device_code")
+  @@index([site_id], map: "ix_devices_site")
+  @@index([site_id, direction], map: "ix_devices_site_dir")
+  @@index([site_id, device_type], map: "ix_devices_site_type")
+}
+
+model payments {
+  payment_id    BigInt          @id @default(autoincrement())
+  site_id       BigInt
+  ticket_id     BigInt
+  amount        Decimal         @db.Decimal(12, 2)
+  method        payments_method
+  status        payments_status @default(PAID)
+  paid_at       DateTime        @default(now()) @db.DateTime(0)
+  paid_date     DateTime?       @db.Date
+  parking_sites parking_sites   @relation(fields: [site_id], references: [site_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_payments_site")
+  tickets       tickets         @relation(fields: [ticket_id], references: [ticket_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_payments_ticket")
+
+  @@index([site_id, method], map: "ix_payments_site_method")
+  @@index([site_id, paid_at], map: "ix_payments_site_paidat")
+  @@index([site_id, status], map: "ix_payments_site_status")
+  @@index([site_id, status, paid_date], map: "ix_payments_site_status_paiddate")
+  @@index([ticket_id], map: "ix_payments_ticket")
+}
+
+model shift_closure_breakdowns {
+  closure_id     BigInt
+  method         shift_closure_breakdowns_method
+  amount         Decimal                         @db.Decimal(12, 2)
+  txn_count      Int
+  shift_closures shift_closures                  @relation(fields: [closure_id], references: [closure_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_shift_break_closure")
+
+  @@id([closure_id, method])
+}
+
+model shift_closures {
+  closure_id               BigInt                     @id @default(autoincrement())
+  site_id                  BigInt
+  shift_code               String                     @db.VarChar(32)
+  start_time               DateTime                   @db.DateTime(0)
+  end_time                 DateTime                   @db.DateTime(0)
+  closed_by_user_id        BigInt
+  total_tickets            Int
+  total_amount             Decimal                    @db.Decimal(12, 2)
+  created_at               DateTime                   @default(now()) @db.DateTime(0)
+  shift_closure_breakdowns shift_closure_breakdowns[]
+  parking_sites            parking_sites              @relation(fields: [site_id], references: [site_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_shift_site")
+
+  @@unique([site_id, shift_code], map: "uq_shift_code")
+  @@index([site_id, created_at], map: "ix_shift_site_created")
+  @@index([site_id, start_time], map: "ix_shift_site_start")
+}
+
+model tariff_rules {
+  rule_id    BigInt                 @id @default(autoincrement())
+  tariff_id  BigInt
+  rule_type  tariff_rules_rule_type
+  param_json Json
+  priority   Int
+  tariffs    tariffs                @relation(fields: [tariff_id], references: [tariff_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rules_tariff")
+
+  @@index([tariff_id], map: "ix_rules_tariff")
+  @@index([tariff_id, priority], map: "ix_rules_tariff_priority")
+  @@index([rule_type], map: "ix_rules_type")
+}
+
+model tariffs {
+  tariff_id     BigInt               @id @default(autoincrement())
+  site_id       BigInt
+  name          String               @db.VarChar(255)
+  applies_to    tariffs_applies_to
+  vehicle_type  tariffs_vehicle_type
+  is_active     Boolean              @default(true)
+  valid_from    DateTime             @db.DateTime(0)
+  tariff_rules  tariff_rules[]
+  parking_sites parking_sites        @relation(fields: [site_id], references: [site_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tariffs_site")
+
+  @@index([site_id, is_active], map: "ix_tariffs_site_active")
+  @@index([site_id, applies_to], map: "ix_tariffs_site_apply")
+  @@index([site_id, valid_from], map: "ix_tariffs_site_validfrom")
+  @@index([site_id, vehicle_type], map: "ix_tariffs_site_vehicle")
+}
+
+model tickets {
+  ticket_id             BigInt                  @id @default(autoincrement())
+  site_id               BigInt
+  ticket_code           String                  @db.VarChar(32)
+  vehicle_id            BigInt
+  credential_id         BigInt?
+  entry_time            DateTime                @db.DateTime(0)
+  exit_time             DateTime?               @db.DateTime(0)
+  status                tickets_status          @default(OPEN)
+  open_flag             Int?                    @db.TinyInt
+  gate_active_presence  gate_active_presence[]
+  gate_passage_sessions gate_passage_sessions[]
+  payments              payments[]
+  credentials           credentials?            @relation(fields: [credential_id], references: [credential_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tickets_credential")
+  parking_sites         parking_sites           @relation(fields: [site_id], references: [site_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tickets_site")
+  vehicles              vehicles                @relation(fields: [vehicle_id], references: [vehicle_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tickets_vehicle")
+
+  @@unique([site_id, ticket_code], map: "uq_ticket_code")
+  @@unique([site_id, vehicle_id, open_flag], map: "uq_ticket_open")
+  @@index([credential_id], map: "fk_tickets_credential")
+  @@index([vehicle_id], map: "fk_tickets_vehicle")
+  @@index([site_id, credential_id], map: "ix_tickets_site_cred")
+  @@index([site_id, entry_time], map: "ix_tickets_site_entry")
+  @@index([site_id, exit_time], map: "ix_tickets_site_exit")
+  @@index([site_id, status], map: "ix_tickets_site_status")
+  @@index([site_id, vehicle_id], map: "ix_tickets_site_vehicle")
+}
+
+model vehicles {
+  vehicle_id            BigInt                  @id @default(autoincrement())
+  license_plate         String                  @unique(map: "uq_vehicles_plate") @db.VarChar(20)
+  vehicle_type          vehicles_vehicle_type
+  owner_customer_id     BigInt?
+  created_at            DateTime                @default(now()) @db.DateTime(0)
+  subscription_vehicles subscription_vehicles[]
+  tickets               tickets[]
+  customers             customers?              @relation(fields: [owner_customer_id], references: [customer_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_vehicles_owner")
+
+  @@index([owner_customer_id], map: "ix_vehicles_owner")
+  @@index([license_plate], map: "ix_vehicles_plate")
+  @@index([vehicle_type], map: "ix_vehicles_type")
+}
+
+model credentials {
+  credential_id   BigInt                      @id @default(autoincrement())
+  site_id         BigInt
+  subscription_id BigInt?
+  rfid_uid        String                      @db.VarChar(64)
+  status          credentials_status          @default(ACTIVE)
+  last_direction  credentials_last_direction?
+  last_event_time DateTime?                   @db.DateTime(0)
+  parking_sites   parking_sites               @relation(fields: [site_id], references: [site_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_credentials_site")
+  subscriptions   subscriptions?              @relation(fields: [subscription_id], references: [subscription_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_credentials_subscription")
+  tickets         tickets[]
+
+  @@unique([site_id, rfid_uid], map: "uq_credential_uid")
+  @@index([site_id], map: "ix_cred_site")
+  @@index([site_id, last_direction], map: "ix_cred_site_lastdir")
+  @@index([site_id, status], map: "ix_cred_site_status")
+  @@index([subscription_id], map: "ix_cred_sub")
+}
+
+model gate_lanes {
+  lane_id               BigInt                  @id @default(autoincrement())
+  site_id               BigInt
+  gate_code             String                  @db.VarChar(32)
+  lane_code             String                  @db.VarChar(32)
+  name                  String                  @db.VarChar(255)
+  direction             gate_lanes_direction
+  status                gate_lanes_status       @default(ACTIVE)
+  sort_order            Int                     @default(0)
+  primary_device_id     BigInt?
+  created_at            DateTime                @default(now()) @db.DateTime(0)
+  updated_at            DateTime                @default(now()) @updatedAt @db.DateTime(0)
+  gate_barrier_commands gate_barrier_commands[]
+  gate_decisions        gate_decisions[]
+  gate_incidents        gate_incidents[]
+  lane_devices          gate_lane_devices[]     @relation("lane_device_lane")
+  primary_device        gate_devices?           @relation("lane_primary_device", fields: [primary_device_id], references: [device_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_lanes_primary_device")
+  parking_sites         parking_sites           @relation(fields: [site_id], references: [site_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_lanes_site")
+  gate_manual_reviews   gate_manual_reviews[]
+  gate_passage_sessions gate_passage_sessions[]
+  gate_read_events      gate_read_events[]
+  gate_read_media       gate_read_media[]
+
+  @@unique([site_id, lane_code], map: "uq_gate_lanes_code")
+  @@index([site_id], map: "ix_gate_lanes_site")
+  @@index([site_id, gate_code], map: "ix_gate_lanes_site_gate")
+  @@index([site_id, direction], map: "ix_gate_lanes_site_direction")
+  @@index([site_id, status], map: "ix_gate_lanes_site_status")
+  @@index([primary_device_id], map: "fk_gate_lanes_primary_device")
+}
+
+model gate_lane_devices {
+  lane_device_id BigInt                        @id @default(autoincrement())
+  lane_id        BigInt
+  device_id      BigInt                        @unique(map: "uq_gate_lane_devices_device")
+  device_role    gate_lane_devices_device_role
+  is_primary     Boolean                       @default(false)
+  is_required    Boolean                       @default(true)
+  sort_order     Int                           @default(0)
+  created_at     DateTime                      @default(now()) @db.DateTime(0)
+  gate_devices   gate_devices                  @relation("lane_device_device", fields: [device_id], references: [device_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_lane_devices_device")
+  gate_lanes     gate_lanes                    @relation("lane_device_lane", fields: [lane_id], references: [lane_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_lane_devices_lane")
+
+  @@unique([lane_id, device_id], map: "uq_gate_lane_devices_lane_device")
+  @@index([lane_id, device_role], map: "ix_gate_lane_devices_lane_role")
+  @@index([lane_id, is_primary], map: "ix_gate_lane_devices_lane_primary")
+}
+
+model gate_passage_sessions {
+  session_id            BigInt                          @id @default(autoincrement())
+  site_id               BigInt
+  lane_id               BigInt
+  direction             gate_passage_sessions_direction
+  status                gate_passage_sessions_status    @default(OPEN)
+  ticket_id             BigInt?
+  correlation_id        String?                         @db.VarChar(64)
+  opened_at             DateTime                        @default(now()) @db.DateTime(0)
+  last_read_at          DateTime?                       @db.DateTime(0)
+  resolved_at           DateTime?                       @db.DateTime(0)
+  closed_at             DateTime?                       @db.DateTime(0)
+  plate_compact         String?                         @db.VarChar(32)
+  rfid_uid              String?                         @db.VarChar(64)
+  presence_active       Boolean                         @default(false)
+  review_required       Boolean                         @default(false)
+  created_at            DateTime                        @default(now()) @db.DateTime(0)
+  updated_at            DateTime                        @default(now()) @updatedAt @db.DateTime(0)
+  gate_active_presence  gate_active_presence[]
+  gate_barrier_commands gate_barrier_commands[]
+  gate_decisions        gate_decisions[]
+  gate_incidents        gate_incidents[]
+  gate_manual_reviews   gate_manual_reviews[]
+  gate_lanes            gate_lanes                      @relation(fields: [lane_id], references: [lane_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_sessions_lane")
+  parking_sites         parking_sites                   @relation(fields: [site_id], references: [site_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_sessions_site")
+  tickets               tickets?                        @relation(fields: [ticket_id], references: [ticket_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_sessions_ticket")
+  gate_read_events      gate_read_events[]
+
+  @@index([site_id, lane_id, status], map: "ix_gate_sessions_site_lane_status")
+  @@index([site_id, opened_at], map: "ix_gate_sessions_site_opened")
+  @@index([site_id, plate_compact], map: "ix_gate_sessions_site_plate")
+  @@index([site_id, rfid_uid], map: "ix_gate_sessions_site_rfid")
+  @@index([ticket_id], map: "ix_gate_sessions_ticket")
+  @@index([correlation_id], map: "ix_gate_sessions_corr")
+  @@index([lane_id], map: "fk_gate_sessions_lane")
+}
+
+model gate_read_events {
+  read_event_id                 BigInt                         @id @default(autoincrement())
+  session_id                    BigInt?
+  site_id                       BigInt
+  lane_id                       BigInt
+  device_id                     BigInt
+  read_type                     gate_read_events_read_type
+  direction                     gate_read_events_direction
+  occurred_at                   DateTime                       @default(now()) @db.DateTime(0)
+  plate_raw                     String?                        @db.VarChar(32)
+  plate_compact                 String?                        @db.VarChar(32)
+  rfid_uid                      String?                        @db.VarChar(64)
+  sensor_state                  gate_read_events_sensor_state?
+  payload_json                  Json?
+  source_media_id               BigInt?
+  raw_ocr_text                  String?                        @db.Text
+  ocr_confidence                Decimal?                       @db.Decimal(5, 4)
+  camera_frame_ref              String?                        @db.VarChar(255)
+  crop_ref                      String?                        @db.VarChar(255)
+  source_device_code            String?                        @db.VarChar(64)
+  source_capture_ts             DateTime?
+  request_id                    String?                        @db.VarChar(64)
+  idempotency_key               String?                        @db.VarChar(64)
+  created_at                    DateTime                       @default(now()) @db.DateTime(0)
+  gate_active_presence_evidence gate_active_presence[]         @relation("gate_presence_evidence_read")
+  gate_devices                  gate_devices                   @relation(fields: [device_id], references: [device_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_reads_device")
+  gate_lanes                    gate_lanes                     @relation(fields: [lane_id], references: [lane_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_reads_lane")
+  gate_passage_sessions         gate_passage_sessions?         @relation(fields: [session_id], references: [session_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_reads_session")
+  parking_sites                 parking_sites                  @relation(fields: [site_id], references: [site_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_reads_site")
+  gate_read_media               gate_read_media?               @relation(fields: [source_media_id], references: [media_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_reads_source_media")
+
+  @@unique([site_id, idempotency_key], map: "uq_gate_reads_site_idem")
+  @@index([session_id], map: "ix_gate_reads_session")
+  @@index([site_id, lane_id, occurred_at], map: "ix_gate_reads_site_lane_time")
+  @@index([site_id, read_type, occurred_at], map: "ix_gate_reads_site_type_time")
+  @@index([device_id, occurred_at], map: "ix_gate_reads_device_time")
+  @@index([lane_id], map: "fk_gate_reads_lane")
+  @@index([source_media_id], map: "ix_gate_reads_media")
+  @@index([source_device_code, source_capture_ts], map: "ix_gate_reads_source_device_time")
+}
+
+model gate_read_media {
+  media_id         BigInt                       @id @default(autoincrement())
+  site_id          BigInt
+  lane_id          BigInt?
+  device_id        BigInt?
+  storage_kind     gate_read_media_storage_kind @default(UNKNOWN)
+  storage_provider String                       @default("LOCAL") @db.VarChar(32)
+  media_url        String?                      @db.VarChar(1024)
+  file_path        String?                      @db.VarChar(1024)
+  bucket_name      String?                      @db.VarChar(255)
+  object_key       String?                      @db.VarChar(1024)
+  object_etag      String?                      @db.VarChar(255)
+  mime_type        String?                      @db.VarChar(128)
+  sha256           String?                      @db.VarChar(64)
+  width_px         Int?
+  height_px        Int?
+  metadata_json    Json?
+  captured_at      DateTime?                    @db.DateTime(0)
+  created_at       DateTime                     @default(now()) @db.DateTime(0)
+  gate_read_events gate_read_events[]
+  gate_devices     gate_devices?                @relation(fields: [device_id], references: [device_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_read_media_device")
+  gate_lanes       gate_lanes?                  @relation(fields: [lane_id], references: [lane_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_read_media_lane")
+  parking_sites    parking_sites                @relation(fields: [site_id], references: [site_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_read_media_site")
+
+  @@index([site_id, created_at], map: "ix_gate_read_media_site_created")
+  @@index([bucket_name, object_key(length: 255)], map: "ix_gate_read_media_bucket_key")
+  @@index([storage_provider, created_at], map: "ix_gate_read_media_provider")
+  @@index([site_id, device_id, captured_at], map: "ix_gate_read_media_site_device_time")
+  @@index([lane_id, captured_at], map: "ix_gate_read_media_lane_time")
+  @@index([sha256], map: "ix_gate_read_media_sha256")
+  @@index([device_id], map: "fk_gate_read_media_device")
+}
+
+model internal_presence_events {
+  presence_event_id   BigInt                          @id @default(autoincrement())
+  schema_version      String                          @db.VarChar(32)
+  intake_status       internal_presence_events_status @default(ACCEPTED)
+  reject_reason_code  String?                         @db.VarChar(64)
+  idempotency_key     String                          @unique(map: "uq_internal_presence_events_idem") @db.VarChar(128)
+  trace_id            String?                         @unique(map: "uq_internal_presence_events_trace") @db.VarChar(128)
+  camera_code         String                          @db.VarChar(64)
+  zone_code           String                          @db.VarChar(32)
+  spot_code           String                          @db.VarChar(32)
+  plate_compact       String?                         @db.VarChar(32)
+  confidence          Decimal?                        @db.Decimal(6, 4)
+  captured_at         DateTime                        @db.DateTime(0)
+  snapshot_object_key String?                         @db.VarChar(255)
+  model_version       String?                         @db.VarChar(64)
+  site_id             BigInt?
+  zone_id             BigInt?
+  spot_id             BigInt?
+  redis_stream_id     String?                         @db.VarChar(64)
+  raw_event_json      Json
+  created_at          DateTime                        @default(now()) @db.DateTime(0)
+  updated_at          DateTime                        @default(now()) @updatedAt @db.DateTime(0)
+  parking_sites       parking_sites?                  @relation(fields: [site_id], references: [site_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_internal_presence_events_site")
+  spots               spots?                          @relation(fields: [spot_id], references: [spot_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_internal_presence_events_spot")
+  zones               zones?                          @relation(fields: [zone_id], references: [zone_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_internal_presence_events_zone")
+
+  @@index([site_id, captured_at], map: "ix_internal_presence_events_site_time")
+  @@index([site_id, spot_id, captured_at], map: "ix_internal_presence_events_site_spot_time")
+  @@index([site_id, plate_compact, captured_at], map: "ix_internal_presence_events_site_plate_time")
+  @@index([zone_id, captured_at], map: "ix_internal_presence_events_zone_time")
+  @@index([intake_status, created_at], map: "ix_internal_presence_events_status_time")
+  @@index([spot_id], map: "fk_internal_presence_events_spot")
+  @@index([trace_id], map: "ix_internal_presence_events_trace")
+}
+
+model gate_active_presence {
+  presence_id            BigInt                      @id @default(autoincrement())
+  site_id                BigInt
+  session_id             BigInt?
+  ticket_id              BigInt?
+  plate_compact          String?                     @db.VarChar(32)
+  rfid_uid               String?                     @db.VarChar(64)
+  entry_lane_code        String                      @db.VarChar(32)
+  entered_at             DateTime                    @db.DateTime(0)
+  last_seen_at           DateTime                    @db.DateTime(0)
+  evidence_read_event_id BigInt?
+  status                 gate_active_presence_status @default(ACTIVE)
+  cleared_at             DateTime?                   @db.DateTime(0)
+  created_at             DateTime                    @default(now()) @db.DateTime(0)
+  updated_at             DateTime                    @default(now()) @updatedAt @db.DateTime(0)
+  active_flag            Int?                        @db.TinyInt
+  evidence_read          gate_read_events?           @relation("gate_presence_evidence_read", fields: [evidence_read_event_id], references: [read_event_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_presence_read")
+  gate_passage_sessions  gate_passage_sessions?      @relation(fields: [session_id], references: [session_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_presence_session")
+  parking_sites          parking_sites               @relation(fields: [site_id], references: [site_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_presence_site")
+  tickets                tickets?                    @relation(fields: [ticket_id], references: [ticket_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_presence_ticket")
+
+  @@unique([site_id, ticket_id, active_flag], map: "uq_gate_presence_active_ticket")
+  @@unique([site_id, plate_compact, active_flag], map: "uq_gate_presence_active_plate")
+  @@unique([site_id, rfid_uid, active_flag], map: "uq_gate_presence_active_rfid")
+  @@index([site_id, status], map: "ix_gate_presence_site_status")
+  @@index([site_id, last_seen_at], map: "ix_gate_presence_site_last_seen")
+  @@index([session_id], map: "ix_gate_presence_session")
+  @@index([ticket_id], map: "ix_gate_presence_ticket")
+  @@index([evidence_read_event_id], map: "fk_gate_presence_read")
+}
+
+model gate_decisions {
+  decision_id             BigInt                       @id @default(autoincrement())
+  session_id              BigInt
+  site_id                 BigInt
+  lane_id                 BigInt
+  decision_code           gate_decisions_decision_code
+  final_action            gate_decisions_final_action
+  reason_code             String                       @db.VarChar(64)
+  reason_detail           String?                      @db.VarChar(255)
+  input_snapshot_json     Json?
+  threshold_snapshot_json Json?
+  created_at              DateTime                     @default(now()) @db.DateTime(0)
+  gate_lanes              gate_lanes                   @relation(fields: [lane_id], references: [lane_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_decisions_lane")
+  gate_passage_sessions   gate_passage_sessions        @relation(fields: [session_id], references: [session_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_decisions_session")
+  parking_sites           parking_sites                @relation(fields: [site_id], references: [site_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_decisions_site")
+
+  @@index([session_id], map: "ix_gate_decisions_session")
+  @@index([site_id, lane_id, created_at], map: "ix_gate_decisions_site_lane_time")
+  @@index([decision_code, created_at], map: "ix_gate_decisions_code_time")
+  @@index([lane_id], map: "fk_gate_decisions_lane")
+}
+
+model gate_barrier_commands {
+  command_id            BigInt                             @id @default(autoincrement())
+  session_id            BigInt?
+  site_id               BigInt
+  lane_id               BigInt
+  device_id             BigInt?
+  command_type          gate_barrier_commands_command_type
+  status                gate_barrier_commands_status       @default(PENDING)
+  request_id            String?                            @db.VarChar(64)
+  reason_code           String?                            @db.VarChar(64)
+  payload_json          Json?
+  issued_at             DateTime                           @default(now()) @db.DateTime(0)
+  ack_at                DateTime?                          @db.DateTime(0)
+  created_at            DateTime                           @default(now()) @db.DateTime(0)
+  updated_at            DateTime                           @default(now()) @updatedAt @db.DateTime(0)
+  gate_devices          gate_devices?                      @relation(fields: [device_id], references: [device_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_barrier_commands_device")
+  gate_lanes            gate_lanes                         @relation(fields: [lane_id], references: [lane_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_barrier_commands_lane")
+  gate_passage_sessions gate_passage_sessions?             @relation(fields: [session_id], references: [session_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_barrier_commands_session")
+  parking_sites         parking_sites                      @relation(fields: [site_id], references: [site_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_barrier_commands_site")
+
+  @@index([session_id], map: "ix_gate_barrier_commands_session")
+  @@index([lane_id, status], map: "ix_gate_barrier_commands_lane_status")
+  @@index([site_id, status], map: "ix_gate_barrier_commands_site_status")
+  @@index([device_id], map: "ix_gate_barrier_commands_device")
+}
+
+model gate_manual_reviews {
+  review_id             BigInt                     @id @default(autoincrement())
+  session_id            BigInt
+  site_id               BigInt
+  lane_id               BigInt
+  status                gate_manual_reviews_status @default(OPEN)
+  queue_reason_code     String                     @db.VarChar(64)
+  claimed_by_user_id    BigInt?
+  claimed_at            DateTime?                  @db.DateTime(0)
+  resolved_by_user_id   BigInt?
+  resolved_at           DateTime?                  @db.DateTime(0)
+  note                  String?                    @db.Text
+  snapshot_json         Json?
+  created_at            DateTime                   @default(now()) @db.DateTime(0)
+  updated_at            DateTime                   @default(now()) @updatedAt @db.DateTime(0)
+  claimed_by            users?                     @relation("gate_manual_reviews_claimed_by", fields: [claimed_by_user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_reviews_claimed_by")
+  gate_lanes            gate_lanes                 @relation(fields: [lane_id], references: [lane_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_reviews_lane")
+  resolved_by           users?                     @relation("gate_manual_reviews_resolved_by", fields: [resolved_by_user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_reviews_resolved_by")
+  gate_passage_sessions gate_passage_sessions      @relation(fields: [session_id], references: [session_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_reviews_session")
+  parking_sites         parking_sites              @relation(fields: [site_id], references: [site_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_reviews_site")
+
+  @@index([status, created_at], map: "ix_gate_reviews_status_created")
+  @@index([site_id, lane_id], map: "ix_gate_reviews_site_lane")
+  @@index([claimed_by_user_id], map: "ix_gate_reviews_claimed_by")
+  @@index([resolved_by_user_id], map: "ix_gate_reviews_resolved_by")
+  @@index([lane_id], map: "fk_gate_reviews_lane")
+  @@index([session_id], map: "fk_gate_reviews_session")
+}
+
+model device_heartbeats {
+  heartbeat_id     BigInt                   @id @default(autoincrement())
+  site_id          BigInt
+  device_id        BigInt
+  status           device_heartbeats_status @default(ONLINE)
+  reported_at      DateTime                 @db.DateTime(0)
+  received_at      DateTime                 @default(now()) @db.DateTime(0)
+  latency_ms       Int?
+  firmware_version String?                  @db.VarChar(64)
+  ip_address       String?                  @db.VarChar(64)
+  payload_json     Json?
+  gate_devices     gate_devices             @relation(fields: [device_id], references: [device_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_device_heartbeats_device")
+  parking_sites    parking_sites            @relation(fields: [site_id], references: [site_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_device_heartbeats_site")
+
+  @@index([site_id, device_id, reported_at], map: "ix_device_heartbeats_site_device_time")
+  @@index([site_id, status], map: "ix_device_heartbeats_site_status")
+  @@index([device_id, reported_at], map: "ix_device_heartbeats_device_time")
+}
+
+model gate_incidents {
+  incident_id           BigInt                  @id @default(autoincrement())
+  session_id            BigInt?
+  site_id               BigInt
+  lane_id               BigInt?
+  device_id             BigInt?
+  severity              gate_incidents_severity
+  status                gate_incidents_status   @default(OPEN)
+  incident_type         String                  @db.VarChar(64)
+  title                 String                  @db.VarChar(255)
+  detail                String?                 @db.Text
+  source_key            String?
+  snapshot_json         Json?
+  created_at            DateTime                @default(now()) @db.DateTime(0)
+  updated_at            DateTime                @default(now()) @updatedAt @db.DateTime(0)
+  resolved_at           DateTime?               @db.DateTime(0)
+  resolution_action     String?                 @db.VarChar(64)
+  resolved_by_user_id   BigInt?
+  resolved_by_role      String?                 @db.VarChar(32)
+  evidence_media_id     BigInt?
+  last_signal_at        DateTime?               @db.DateTime(0)
+  gate_incident_history gate_incident_history[]
+  gate_devices          gate_devices?           @relation(fields: [device_id], references: [device_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_incidents_device")
+  gate_lanes            gate_lanes?             @relation(fields: [lane_id], references: [lane_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_incidents_lane")
+  gate_passage_sessions gate_passage_sessions?  @relation(fields: [session_id], references: [session_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_incidents_session")
+  parking_sites         parking_sites           @relation(fields: [site_id], references: [site_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_incidents_site")
+
+  @@index([status, created_at], map: "ix_gate_incidents_status_created")
+  @@index([site_id, lane_id], map: "ix_gate_incidents_site_lane")
+  @@index([site_id, device_id], map: "ix_gate_incidents_site_device")
+  @@index([severity, created_at], map: "ix_gate_incidents_severity_created")
+  @@index([device_id], map: "fk_gate_incidents_device")
+  @@index([lane_id], map: "fk_gate_incidents_lane")
+  @@index([session_id], map: "fk_gate_incidents_session")
+  @@index([source_key], map: "ix_gate_incidents_source_key")
+  @@index([status, updated_at], map: "ix_gate_incidents_status_updated")
+  @@index([site_id, status, created_at], map: "ix_gate_incidents_site_status_created")
+  @@index([resolved_by_user_id], map: "ix_gate_incidents_resolved_by_user")
+}
+
+model gate_incident_history {
+  history_id           BigInt                 @id @default(autoincrement())
+  incident_id          BigInt
+  action_code          String                 @db.VarChar(64)
+  previous_status      gate_incidents_status?
+  next_status          gate_incidents_status?
+  actor_role           String?                @db.VarChar(32)
+  actor_user_id        BigInt?
+  note                 String?                @db.Text
+  evidence_media_id    BigInt?
+  snapshot_before_json Json?
+  snapshot_after_json  Json?
+  created_at           DateTime               @default(now()) @db.DateTime(0)
+  gate_incidents       gate_incidents         @relation(fields: [incident_id], references: [incident_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_gate_incident_history_incident")
+
+  @@index([incident_id, created_at], map: "ix_gate_incident_history_incident")
+  @@index([action_code, created_at], map: "ix_gate_incident_history_action")
+  @@index([actor_user_id, created_at], map: "ix_gate_incident_history_actor")
+}
+
+model flyway_schema_history {
+  installed_rank Int      @id
+  version        String?  @db.VarChar(50)
+  description    String   @db.VarChar(200)
+  type           String   @db.VarChar(20)
+  script         String   @db.VarChar(1000)
+  checksum       Int?
+  installed_by   String   @db.VarChar(100)
+  installed_on   DateTime @default(now()) @db.Timestamp(0)
+  execution_time Int
+  success        Boolean
+
+  @@index([success], map: "flyway_schema_history_s_idx")
+}
+
+model roles {
+  role_id    BigInt       @id @default(autoincrement())
+  role_code  String       @unique(map: "uq_roles_code") @db.VarChar(32)
+  name       String       @db.VarChar(255)
+  user_roles user_roles[]
+}
+
+model spots {
+  spot_id                   BigInt                      @id @default(autoincrement())
+  site_id                   BigInt
+  zone_id                   BigInt
+  code                      String                      @db.VarChar(32)
+  status                    spots_status                @default(FREE)
+  last_updated_at           DateTime                    @default(now()) @db.DateTime(0)
+  internal_presence_events  internal_presence_events[]
+  spot_occupancy_projection spot_occupancy_projection[]
+  parking_sites             parking_sites               @relation(fields: [site_id], references: [site_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_spots_site")
+  zones                     zones                       @relation(fields: [zone_id], references: [zone_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_spots_zone")
+  subscription_spots        subscription_spots[]
+
+  @@unique([site_id, code], map: "uq_spot_code")
+  @@index([site_id], map: "ix_spots_site")
+  @@index([site_id, status], map: "ix_spots_site_status")
+  @@index([zone_id], map: "ix_spots_zone")
+}
+
+model subscriptions {
+  subscription_id       BigInt                  @id @default(autoincrement())
+  site_id               BigInt
+  customer_id           BigInt
+  plan_type             subscriptions_plan_type
+  start_date            DateTime                @db.Date
+  end_date              DateTime                @db.Date
+  status                subscriptions_status    @default(ACTIVE)
+  credentials           credentials[]
+  subscription_spots    subscription_spots[]
+  subscription_vehicles subscription_vehicles[]
+  customers             customers               @relation(fields: [customer_id], references: [customer_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_subscriptions_customer")
+  parking_sites         parking_sites           @relation(fields: [site_id], references: [site_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_subscriptions_site")
+
+  @@index([customer_id], map: "ix_sub_customer")
+  @@index([site_id], map: "ix_sub_site")
+  @@index([site_id, end_date], map: "ix_sub_site_end")
+  @@index([site_id, plan_type], map: "ix_sub_site_plan")
+  @@index([site_id, start_date], map: "ix_sub_site_start")
+  @@index([site_id, status], map: "ix_sub_site_status")
+}
+
+model user_roles {
+  user_id BigInt
+  role_id BigInt
+  roles   roles  @relation(fields: [role_id], references: [role_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_user_roles_role")
+  users   users  @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_user_roles_user")
+
+  @@id([user_id, role_id])
+  @@index([role_id], map: "fk_user_roles_role")
+}
+
+model user_site_scopes {
+  user_id       BigInt
+  site_id       BigInt
+  scope_level   user_site_scopes_scope_level
+  parking_sites parking_sites                @relation(fields: [site_id], references: [site_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_scope_site")
+  users         users                        @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_scope_user")
+
+  @@id([user_id, site_id])
+  @@index([site_id, scope_level], map: "ix_scope_site")
+}
+
+model users {
+  user_id            BigInt                @id @default(autoincrement())
+  username           String                @unique(map: "uq_users_username") @db.VarChar(64)
+  password_hash      String                @db.VarChar(255)
+  status             users_status          @default(ACTIVE)
+  created_at         DateTime              @default(now()) @db.DateTime(0)
+  auth_user_sessions auth_user_sessions[]
+  claimed_reviews    gate_manual_reviews[] @relation("gate_manual_reviews_claimed_by")
+  resolved_reviews   gate_manual_reviews[] @relation("gate_manual_reviews_resolved_by")
+  user_roles         user_roles[]
+  user_site_scopes   user_site_scopes[]
+}
+
+model api_idempotency {
+  scope           String                 @db.VarChar(64)
+  idempotency_key String                 @db.VarChar(64)
+  request_hash    String?                @db.VarChar(64)
+  status          api_idempotency_status @default(IN_PROGRESS)
+  response_json   Json?
+  created_at      DateTime               @default(now()) @db.DateTime(0)
+  updated_at      DateTime               @default(now()) @db.DateTime(0)
+
+  @@id([scope, idempotency_key])
+  @@index([created_at], map: "ix_api_idem_created")
+}
+
+model spot_occupancy_projection {
+  projection_id                BigInt                                     @id @default(autoincrement())
+  site_id                      BigInt
+  zone_id                      BigInt?
+  spot_id                      BigInt
+  zone_code                    String?                                    @db.VarChar(32)
+  spot_code                    String                                     @db.VarChar(32)
+  occupancy_status             spot_occupancy_projection_occupancy_status
+  source_presence_event_id     BigInt?
+  matched_gate_presence_id     BigInt?
+  matched_subscription_id      BigInt?
+  matched_subscription_spot_id BigInt?
+  observed_plate_compact       String?                                    @db.VarChar(32)
+  expected_plate_compact       String?                                    @db.VarChar(32)
+  reason_code                  String                                     @db.VarChar(64)
+  reason_detail                String                                     @db.VarChar(255)
+  stale_at                     DateTime?                                  @db.DateTime(0)
+  snapshot_json                Json?
+  created_at                   DateTime                                   @default(now()) @db.DateTime(0)
+  updated_at                   DateTime                                   @default(now()) @updatedAt @db.DateTime(0)
+  parking_sites                parking_sites                              @relation(fields: [site_id], references: [site_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_spot_occupancy_projection_site")
+  spots                        spots                                      @relation(fields: [spot_id], references: [spot_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_spot_occupancy_projection_spot")
+  zones                        zones?                                     @relation(fields: [zone_id], references: [zone_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_spot_occupancy_projection_zone")
+
+  @@unique([site_id, spot_id], map: "uq_spot_occupancy_projection_site_spot")
+  @@index([site_id, occupancy_status], map: "ix_spot_occupancy_projection_site_status")
+  @@index([site_id, zone_code, occupancy_status], map: "ix_spot_occupancy_projection_site_zone_status")
+  @@index([site_id, updated_at], map: "ix_spot_occupancy_projection_site_updated")
+  @@index([site_id, observed_plate_compact], map: "ix_spot_occupancy_projection_site_plate")
+  @@index([site_id, spot_code], map: "ix_spot_occupancy_projection_site_spot_code")
+  @@index([spot_id], map: "fk_spot_occupancy_projection_spot")
+  @@index([zone_id], map: "fk_spot_occupancy_projection_zone")
+}
+
+model subscription_spots {
+  subscription_spot_id BigInt                           @id @default(autoincrement())
+  subscription_id      BigInt
+  site_id              BigInt
+  spot_id              BigInt
+  assigned_mode        subscription_spots_assigned_mode @default(ASSIGNED)
+  status               subscription_spots_status        @default(ACTIVE)
+  is_primary           Boolean                          @default(false)
+  assigned_from        DateTime?                        @db.Date
+  assigned_until       DateTime?                        @db.Date
+  note                 String?                          @db.VarChar(255)
+  created_at           DateTime                         @default(now()) @db.DateTime(0)
+  updated_at           DateTime                         @default(now()) @db.DateTime(0)
+  parking_sites        parking_sites                    @relation(fields: [site_id], references: [site_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_subscription_spots_site")
+  spots                spots                            @relation(fields: [spot_id], references: [spot_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_subscription_spots_spot")
+  subscriptions        subscriptions                    @relation(fields: [subscription_id], references: [subscription_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_subscription_spots_subscription")
+
+  @@unique([subscription_id, spot_id], map: "uq_subscription_spot_link")
+  @@index([site_id, spot_id, status], map: "ix_subscription_spots_site_spot_status")
+  @@index([site_id, status], map: "ix_subscription_spots_site_status")
+  @@index([spot_id, status], map: "ix_subscription_spots_spot_status")
+  @@index([subscription_id, status], map: "ix_subscription_spots_subscription_status")
+}
+
+model subscription_vehicles {
+  subscription_vehicle_id BigInt                       @id @default(autoincrement())
+  subscription_id         BigInt
+  site_id                 BigInt
+  vehicle_id              BigInt
+  plate_compact           String                       @db.VarChar(20)
+  status                  subscription_vehicles_status @default(ACTIVE)
+  is_primary              Boolean                      @default(false)
+  valid_from              DateTime?                    @db.Date
+  valid_to                DateTime?                    @db.Date
+  note                    String?                      @db.VarChar(255)
+  created_at              DateTime                     @default(now()) @db.DateTime(0)
+  updated_at              DateTime                     @default(now()) @db.DateTime(0)
+  parking_sites           parking_sites                @relation(fields: [site_id], references: [site_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_subscription_vehicles_site")
+  subscriptions           subscriptions                @relation(fields: [subscription_id], references: [subscription_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_subscription_vehicles_subscription")
+  vehicles                vehicles                     @relation(fields: [vehicle_id], references: [vehicle_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_subscription_vehicles_vehicle")
+
+  @@unique([subscription_id, vehicle_id], map: "uq_subscription_vehicle_link")
+  @@index([site_id, plate_compact, status], map: "ix_subscription_vehicles_site_plate_status")
+  @@index([site_id, status], map: "ix_subscription_vehicles_site_status")
+  @@index([subscription_id, status], map: "ix_subscription_vehicles_subscription_status")
+  @@index([vehicle_id, status], map: "ix_subscription_vehicles_vehicle_status")
+}
+
+model auth_login_attempts {
+  attempt_key      String                          @id
+  bucket_kind      auth_login_attempts_bucket_kind
+  username         String                          @db.VarChar(64)
+  ip_address       String?                         @db.VarChar(64)
+  failure_count    Int                             @default(0)
+  first_failure_at DateTime?                       @db.DateTime(0)
+  last_failure_at  DateTime?                       @db.DateTime(0)
+  lockout_until    DateTime?                       @db.DateTime(0)
+  last_delay_ms    Int                             @default(0)
+  created_at       DateTime                        @default(now()) @db.DateTime(0)
+  updated_at       DateTime                        @default(now()) @db.DateTime(0)
+
+  @@index([ip_address, updated_at], map: "ix_auth_login_attempts_ip")
+  @@index([lockout_until, updated_at], map: "ix_auth_login_attempts_lockout")
+  @@index([username, updated_at], map: "ix_auth_login_attempts_username")
+}
+
+model auth_user_sessions {
+  session_id         String    @id @db.Char(36)
+  user_id            BigInt
+  role_code          String    @db.VarChar(32)
+  access_token_hash  String    @unique(map: "uq_auth_user_sessions_access_hash") @db.Char(64)
+  refresh_token_hash String    @unique(map: "uq_auth_user_sessions_refresh_hash") @db.Char(64)
+  access_expires_at  DateTime  @db.DateTime(0)
+  refresh_expires_at DateTime  @db.DateTime(0)
+  last_seen_at       DateTime? @db.DateTime(0)
+  last_refreshed_at  DateTime? @db.DateTime(0)
+  revoked_at         DateTime? @db.DateTime(0)
+  revoke_reason      String?   @db.VarChar(255)
+  last_ip_address    String?   @db.VarChar(64)
+  last_user_agent    String?   @db.VarChar(255)
+  created_at         DateTime  @default(now()) @db.DateTime(0)
+  updated_at         DateTime  @default(now()) @db.DateTime(0)
+  users              users     @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_auth_user_sessions_user")
+
+  @@index([access_expires_at], map: "ix_auth_user_sessions_access_expiry")
+  @@index([refresh_expires_at], map: "ix_auth_user_sessions_refresh_expiry")
+  @@index([role_code, revoked_at], map: "ix_auth_user_sessions_role_revoked")
+  @@index([user_id, created_at], map: "ix_auth_user_sessions_user_created")
+}
+
+enum internal_presence_events_status {
+  ACCEPTED
+  REJECTED
+}
+
+enum gate_events_direction {
+  ENTRY
+  EXIT
+}
+
+enum zones_vehicle_type {
+  MOTORBIKE
+  CAR
+}
+
+enum gate_event_outbox_status {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum shift_closure_breakdowns_method {
+  CASH
+  CARD
+  EWALLET
+}
+
+enum tariff_rules_rule_type {
+  FREE_MINUTES
+  HOURLY
+  DAILY_CAP
+  OVERNIGHT
+}
+
+enum vehicles_vehicle_type {
+  MOTORBIKE
+  CAR
+}
+
+enum gate_devices_device_type {
+  RFID_READER
+  CAMERA_ALPR
+  BARRIER
+  LOOP_SENSOR
+}
+
+enum tariffs_applies_to {
+  TICKET
+  SUBSCRIPTION
+}
+
+enum customers_status {
+  ACTIVE
+  SUSPENDED
+}
+
+enum gate_devices_direction {
+  ENTRY
+  EXIT
+}
+
+enum payments_method {
+  CASH
+  CARD
+  EWALLET
+}
+
+enum tariffs_vehicle_type {
+  MOTORBIKE
+  CAR
+}
+
+enum payments_status {
+  PAID
+  REFUNDED
+  VOID
+}
+
+enum tickets_status {
+  OPEN
+  CLOSED
+  CANCELLED
+}
+
+enum user_site_scopes_scope_level {
+  ADMIN
+  MANAGER
+  CASHIER
+  GUARD
+}
+
+enum subscriptions_plan_type {
+  MONTHLY
+  VIP
+}
+
+enum users_status {
+  ACTIVE
+  DISABLED
+}
+
+enum credentials_status {
+  ACTIVE
+  BLOCKED
+  LOST
+}
+
+enum spots_status {
+  FREE
+  OCCUPIED
+  OUT_OF_SERVICE
+}
+
+enum credentials_last_direction {
+  ENTRY
+  EXIT
+}
+
+enum gate_lanes_direction {
+  ENTRY
+  EXIT
+}
+
+enum gate_lanes_status {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+}
+
+enum gate_lane_devices_device_role {
+  PRIMARY
+  CAMERA
+  RFID
+  LOOP_SENSOR
+  BARRIER
+}
+
+enum gate_passage_sessions_direction {
+  ENTRY
+  EXIT
+}
+
+enum gate_passage_sessions_status {
+  OPEN
+  WAITING_READ
+  WAITING_DECISION
+  APPROVED
+  WAITING_PAYMENT
+  DENIED
+  PASSED
+  TIMEOUT
+  CANCELLED
+  ERROR
+}
+
+enum gate_read_events_read_type {
+  ALPR
+  RFID
+  SENSOR
+}
+
+enum gate_read_events_direction {
+  ENTRY
+  EXIT
+}
+
+enum gate_read_events_sensor_state {
+  PRESENT
+  CLEARED
+  TRIGGERED
+}
+
+enum gate_active_presence_status {
+  ACTIVE
+  EXITED
+  CLEARED
+  BLOCKED
+}
+
+enum gate_decisions_final_action {
+  APPROVE
+  REVIEW
+  DENY
+  PAYMENT_HOLD
+}
+
+enum gate_barrier_commands_command_type {
+  OPEN
+  CLOSE
+  HOLD_OPEN
+  LOCK
+}
+
+enum gate_barrier_commands_status {
+  PENDING
+  SENT
+  ACKED
+  NACKED
+  TIMEOUT
+  CANCELLED
+}
+
+enum gate_manual_reviews_status {
+  OPEN
+  CLAIMED
+  RESOLVED
+  CANCELLED
+}
+
+enum device_heartbeats_status {
+  ONLINE
+  DEGRADED
+  OFFLINE
+}
+
+enum gate_incidents_severity {
+  INFO
+  WARN
+  CRITICAL
+}
+
+enum gate_incidents_status {
+  OPEN
+  ACKED
+  RESOLVED
+  IGNORED
+}
+
+enum api_idempotency_status {
+  IN_PROGRESS
+  SUCCEEDED
+  FAILED
+}
+
+enum gate_read_media_storage_kind {
+  UPLOAD
+  URL
+  INLINE
+  MOCK
+  UNKNOWN
+}
+
+enum gate_decisions_decision_code {
+  AUTO_APPROVED
+  REVIEW_REQUIRED
+  AUTO_DENIED
+  PAYMENT_REQUIRED
+  TICKET_NOT_FOUND
+  PLATE_RFID_MISMATCH
+  ANTI_PASSBACK_BLOCKED
+  DEVICE_DEGRADED
+  SUBSCRIPTION_AUTO_APPROVED
+  SUBSCRIPTION_EXIT_BYPASS_PAYMENT
+  SUBSCRIPTION_REVIEW_REQUIRED
+}
+
+enum subscription_spots_assigned_mode {
+  ASSIGNED
+  PREFERRED
+}
+
+enum subscription_spots_status {
+  ACTIVE
+  SUSPENDED
+  RELEASED
+}
+
+enum subscription_vehicles_status {
+  ACTIVE
+  SUSPENDED
+  REMOVED
+}
+
+enum spot_occupancy_projection_occupancy_status {
+  EMPTY
+  OCCUPIED_MATCHED
+  OCCUPIED_UNKNOWN
+  OCCUPIED_VIOLATION
+  SENSOR_STALE
+}
+
+enum subscriptions_status {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  SUSPENDED
+}
+
+enum auth_login_attempts_bucket_kind {
+  USERNAME
+  USERNAME_IP
+}

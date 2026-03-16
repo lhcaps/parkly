@@ -1,0 +1,32 @@
+-- PR11 - Spot occupancy projection for reconciliation engine
+
+CREATE TABLE IF NOT EXISTS spot_occupancy_projection (
+  projection_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  site_id BIGINT NOT NULL,
+  zone_id BIGINT NULL,
+  spot_id BIGINT NOT NULL,
+  zone_code VARCHAR(32) NULL,
+  spot_code VARCHAR(32) NOT NULL,
+  occupancy_status ENUM('EMPTY','OCCUPIED_MATCHED','OCCUPIED_UNKNOWN','OCCUPIED_VIOLATION','SENSOR_STALE') NOT NULL,
+  source_presence_event_id BIGINT NULL,
+  matched_gate_presence_id BIGINT NULL,
+  matched_subscription_id BIGINT NULL,
+  matched_subscription_spot_id BIGINT NULL,
+  observed_plate_compact VARCHAR(32) NULL,
+  expected_plate_compact VARCHAR(32) NULL,
+  reason_code VARCHAR(64) NOT NULL,
+  reason_detail VARCHAR(255) NOT NULL,
+  stale_at DATETIME NULL,
+  snapshot_json JSON NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_spot_occupancy_projection_site FOREIGN KEY (site_id) REFERENCES parking_sites(site_id),
+  CONSTRAINT fk_spot_occupancy_projection_zone FOREIGN KEY (zone_id) REFERENCES zones(zone_id),
+  CONSTRAINT fk_spot_occupancy_projection_spot FOREIGN KEY (spot_id) REFERENCES spots(spot_id),
+  UNIQUE KEY uq_spot_occupancy_projection_site_spot (site_id, spot_id),
+  KEY ix_spot_occupancy_projection_site_status (site_id, occupancy_status),
+  KEY ix_spot_occupancy_projection_site_zone_status (site_id, zone_code, occupancy_status),
+  KEY ix_spot_occupancy_projection_site_updated (site_id, updated_at),
+  KEY ix_spot_occupancy_projection_site_plate (site_id, observed_plate_compact),
+  KEY ix_spot_occupancy_projection_site_spot_code (site_id, spot_code)
+) ENGINE=InnoDB;

@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Parkly Mobile Pair</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #08101a; color: #f3f5f7; }
+    .wrap { max-width: 920px; margin: 0 auto; padding: 20px; }
+    .card { background: #0f1624; border: 1px solid #22314a; border-radius: 18px; padding: 18px; margin-bottom: 16px; }
+    .grid { display: grid; gap: 12px; }
+    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .inp, .sel { width: 100%; border-radius: 12px; border: 1px solid #22314a; background: #0b111b; color: #f3f5f7; padding: 12px 14px; font-size: 14px; box-sizing: border-box; }
+    .btn { border: 0; border-radius: 12px; background: #f7b027; color: #111; font-weight: 700; padding: 12px 16px; font-size: 14px; cursor: pointer; }
+    .btn.secondary { background: transparent; color: #f3f5f7; border: 1px solid #22314a; }
+    .log { white-space: pre-wrap; word-break: break-word; border: 1px solid #22314a; border-radius: 12px; padding: 12px 14px; background: #0b111b; }
+    .muted { color: #91a0b4; }
+    .row { display:flex; gap: 12px; flex-wrap: wrap; }
+    img.qr { width: 280px; height: 280px; border-radius: 12px; border: 1px solid #22314a; background: white; }
+    @media (max-width: 720px) { .grid.two { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1 style="margin:0 0 8px;">Mobile camera pair console</h1>
+      <div class="muted">Trang này dùng trực tiếp backend API để tạo QR pair cho điện thoại. Không cần device secret trên mobile.</div>
+    </div>
+
+    <div class="card grid two">
+      <div><input id="apiBase" class="inp" placeholder="API base, ví dụ http://localhost:3000" /></div>
+      <div><input id="token" class="inp" placeholder="Admin / Ops token" /></div>
+      <div><input id="siteCode" class="inp" placeholder="SITE_DN_01" /></div>
+      <div><input id="laneCode" class="inp" placeholder="GATE_01_ENTRY" /></div>
+      <div><input id="deviceCode" class="inp" placeholder="GATE_01_ENTRY_CAMERA" /></div>
+      <div>
+        <select id="direction" class="sel">
+          <option value="ENTRY">ENTRY</option>
+          <option value="EXIT">EXIT</option>
+        </select>
+      </div>
+      <div class="row" style="grid-column:1/-1;">
+        <button id="pairBtn" class="btn">Tạo QR pair</button>
+        <button id="copyBtn" class="btn secondary">Copy link</button>
+      </div>
+    </div>
+
+    <div class="card grid two">
+      <div class="grid">
+        <img id="qr" class="qr" alt="QR" style="display:none" />
+        <div id="mobileUrl" class="log">Chưa có link.</div>
+      </div>
+      <div class="grid">
+        <div id="meta" class="log">Chưa có pair token.</div>
+        <div id="status" class="log">Sẵn sàng.</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const $ = (id) => document.getElementById(id)
+const apiBaseInput = $('apiBase')
+const tokenInput = $('token')
+const siteCodeInput = $('siteCode')
+const laneCodeInput = $('laneCode')
+const deviceCodeInput = $('deviceCode')
+const directionInput = $('direction')
+const pairBtn = $('pairBtn')
+const copyBtn = $('copyBtn')
+const qr = $('qr')
+const mobileUrlBox = $('mobileUrl')
+const metaBox = $('meta')
+const statusBox = $('status')
+
+apiBaseInput.value = localStorage.getItem('parkly_pair_api_base') || (location.origin.includes('3000') ? location.origin : 'http://localhost:3000')
+tokenInput.value = localStorage.getItem('parkly_pair_token') || 'admin_dev_token_change_me'
+siteCodeInput.value = localStorage.getItem('parkly_pair_site') || 'SITE_DN_01'
+laneCodeInput.value = localStorage.getItem('parkly_pair_lane') || 'GATE_01_ENTRY'
+deviceCodeInput.value = localStorage.getItem('parkly_pair_device') || 'GATE_01_ENTRY_CAMERA'
+directionInput.value = localStorage.getItem('parkly_pair_direction') || 'ENTRY'
+
+function setStatus(message) { statusBox.textContent = String(message || '') }
+function persist() {
+  localStorage.setItem('parkly_pair_api_base', apiBaseInput.value.trim())
+  localStorage.setItem('parkly_pair_token', tokenInput.value.trim())
+  localStorage.setItem('parkly_pair_site', siteCodeInput.value.trim())
+  localStorage.setItem('parkly_pair_lane', laneCodeInput.value.trim())
+  localStorage.setItem('parkly_pair_device', deviceCodeInput.value.trim())
+  localStorage.setItem('parkly_pair_direction', directionInput.value)
+}
+
+pairBtn.addEventListener('click', async () => {
+  persist()
+  const apiBase = apiBaseInput.value.trim().replace(/\/+$/, '')
+  const token = tokenInput.value.trim()
+  try {
+    pairBtn.disabled = true
+    setStatus('Đang tạo pair token và QR...')
+    const response = await fetch(apiBase + '/api/mobile-capture/pair', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token,
+      },
+      body: JSON.stringify({
+        siteCode: siteCodeInput.value.trim(),
+        laneCode: laneCodeInput.value.trim(),
+        deviceCode: deviceCodeInput.value.trim(),
+        direction: directionInput.value,
+      }),
+    })
+    const text = await response.text()
+    const json = JSON.parse(text)
+    if (!response.ok || json.error) {
+      const err = json.error || { code: 'ERROR', message: 'Tạo pair thất bại' }
+      throw new Error((err.code || 'ERROR') + ': ' + (err.message || 'Tạo pair thất bại'))
+    }
+    const data = json.data
+    qr.src = data.qrUrl
+    qr.style.display = 'block'
+    mobileUrlBox.textContent = data.mobileUrl
+    metaBox.textContent = JSON.stringify({
+      pairToken: data.pairToken,
+      siteCode: data.siteCode,
+      laneCode: data.laneCode,
+      deviceCode: data.deviceCode,
+      direction: data.direction,
+      expiresAt: data.expiresAt,
+    }, null, 2)
+    setStatus('Đã tạo QR pair. Quét bằng điện thoại để mở mobile camera.')
+  } catch (error) {
+    setStatus(error instanceof Error ? error.message : String(error))
+  } finally {
+    pairBtn.disabled = false
+  }
+})
+
+copyBtn.addEventListener('click', async () => {
+  await navigator.clipboard.writeText(mobileUrlBox.textContent || '')
+  setStatus('Đã copy mobile link.')
+})
+</script>
+</body>
+</html>

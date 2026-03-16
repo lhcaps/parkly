@@ -1,0 +1,42 @@
+{
+  "name": "web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:web": "vite",
+    "build": "tsc && vite build",
+    "build:web": "tsc && vite build",
+    "preview": "vite preview",
+    "serve:dist": "node ./scripts/smoke-web.mjs --serve-dist --hold-open",
+    "smoke:web": "node ./scripts/smoke-web.mjs",
+    "smoke:web:dist": "node ./scripts/smoke-web.mjs --serve-dist",
+    "evidence:web": "node ./scripts/collect-evidence.mjs"
+  },
+  "dependencies": {
+    "@parkly/contracts": "workspace:*",
+    "@parkly/gate-core": "workspace:*",
+    "@radix-ui/react-scroll-area": "^1.1.0",
+    "@radix-ui/react-separator": "^1.1.0",
+    "@radix-ui/react-slot": "^1.1.0",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.462.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.2",
+    "tailwind-merge": "^2.5.4",
+    "tailwindcss-animate": "^1.0.7"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.13",
+    "typescript": "^5.5.3",
+    "vite": "^5.4.8"
+  }
+}

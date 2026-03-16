@@ -1,0 +1,14 @@
+{
+  "checkedAt": "2026-03-14T05:41:48.069Z",
+  "releaseLabel": "backend-rc1",
+  "expected": {
+    "releaseLabel": "backend-rc1",
+    "smokeUser": "ops",
+    "smokeRole": "OPS",
+    "siteCode": "SITE_HCM_01",
+    "zoneCode": "VIP_A",
+    "spotCode": "HCM-VIP-01"
+  },
+  "ok": true,
+  "issues": []
+}

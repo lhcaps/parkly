@@ -1,0 +1,53 @@
+{
+  "version": "2026-03-pr24",
+  "backupId": "demo-backup-20260313T181029Z",
+  "createdAt": "2026-03-13T18:10:29.208Z",
+  "createdByProfile": "DEMO",
+  "deploymentLabel": "demo",
+  "backupKind": "FULL",
+  "backupRoot": "C:\\Users\\ADMIN\\Desktop\\Parkly\\parkly\\parkly\\apps\\api\\.backups",
+  "artifactDir": "C:\\Users\\ADMIN\\Desktop\\Parkly\\parkly\\parkly\\apps\\api\\.backups\\demo-backup-20260313T181029Z",
+  "retentionDays": 7,
+  "objectives": {
+    "rpoMinutes": 60,
+    "rtoMinutes": 15
+  },
+  "database": {
+    "engine": "mysql",
+    "database": "parking_mgmt",
+    "artifactPath": "C:\\Users\\ADMIN\\Desktop\\Parkly\\parkly\\parkly\\apps\\api\\.backups\\demo-backup-20260313T181029Z\\mysql\\parking_mgmt.sql",
+    "bytes": 466910,
+    "dumpCommand": [
+      "mysqldump",
+      "--host=127.0.0.1",
+      "--port=3306",
+      "--user=parking_root",
+      "--password=RootPassword@123",
+      "--single-transaction",
+      "--triggers",
+      "--skip-lock-tables",
+      "--set-gtid-purged=OFF",
+      "--hex-blob",
+      "--default-character-set=utf8mb4",
+      "--no-tablespaces",
+      "--databases",
+      "parking_mgmt"
+    ],
+    "notes": [
+      "backup DB mặc định bỏ qua routines; bật BACKUP_MYSQL_INCLUDE_ROUTINES=ON nếu user đủ privilege.",
+      "backup DB mặc định bỏ qua events; bật BACKUP_MYSQL_INCLUDE_EVENTS=ON nếu cần snapshot event scheduler.",
+      "--no-tablespaces đang bật để không đòi PROCESS privilege trên local MySQL 8."
+    ]
+  },
+  "media": {
+    "driver": "LOCAL",
+    "strategy": "LOCAL_SNAPSHOT",
+    "includedPaths": [
+      "C:\\Users\\ADMIN\\Desktop\\Parkly\\parkly\\parkly\\apps\\api\\uploads\\gate-media",
+      "C:\\Users\\ADMIN\\Desktop\\Parkly\\parkly\\parkly\\apps\\api\\.runtime\\observability"
+    ],
+    "notes": [
+      "local media driver đang bật nên backup sẽ snapshot thư mục local artifacts quan trọng."
+    ]
+  }
+}

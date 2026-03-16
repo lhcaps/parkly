@@ -1,0 +1,992 @@
+﻿import { prisma } from '../../../lib/prisma';
+import { ApiError } from '../../../server/http';
+import { buildPlateCanonical } from '@parkly/gate-core';
+import {
+  decisionActionToSessionStatus,
+  deriveStatusFromRead,
+  ensureSessionTransition,
+  getAllowedActions,
+  isActiveSessionStatus,
+  type SessionStatus,
+} from '../domain/session';
+import {
+  buildManualApproveDecision,
+  buildManualDenyDecision,
+  buildManualPaymentHoldDecision,
+  evaluateSessionDecision,
+  type DecisionEngineEvalResult,
+} from './decision-engine';
+import {
+  getSessionSummary,
+  openGateSession,
+  recordSessionReadEvent,
+  resolveDeviceForLane,
+  resolveLaneRef,
+  type ReadType,
+  type SensorState,
+  type SessionDirection,
+} from './open-session';
+import { markExitPassEffectsTx, processApprovedEntryTx } from './process-entry';
+import { processApprovedExitTx } from './process-exit';
+
+export type ResolveGateSessionInput = {
+  previewStatus?: 'STRICT_VALID' | 'REVIEW' | 'INVALID';
+  plateDecisionMode?: 'AUTHORITATIVE' | 'SOFT_REVIEW' | 'NO_PLATE';
+  authoritativeSource?: 'PLATE_CONFIRMED' | 'PREVIEW_SNAPSHOT' | 'NO_PLATE';
+  sessionId?: string | number | bigint;
+  siteCode?: string;
+  laneCode?: string;
+  direction?: SessionDirection;
+  occurredAt?: Date;
+  requestId?: string;
+  idempotencyKey?: string;
+  deviceCode?: string;
+  readType?: ReadType;
+  sensorState?: SensorState;
+  plateRaw?: string;
+  ocrConfidence?: number;
+  rfidUid?: string;
+  presenceActive?: boolean;
+  approved?: boolean;
+  denied?: boolean;
+  paymentRequired?: boolean;
+  reasonCode?: string;
+  reasonDetail?: string;
+  payload?: unknown;
+};
+
+export type ConfirmPassInput = {
+  sessionId: string | number | bigint;
+  occurredAt?: Date;
+  requestId?: string;
+  reasonCode?: string;
+  payload?: unknown;
+};
+
+export type CancelSessionInput = {
+  sessionId: string | number | bigint;
+  occurredAt?: Date;
+  requestId?: string;
+  reasonCode?: string;
+  note?: string;
+  payload?: unknown;
+};
+
+function jsonSafe(value: unknown) {
+  return JSON.parse(JSON.stringify(value ?? null, (_k, v) => (typeof v === 'bigint' ? v.toString() : v)));
+}
+
+function toBigIntId(value: string | number | bigint): bigint {
+  try {
+    return BigInt(value);
+  } catch {
+    throw new ApiError({ code: 'BAD_REQUEST', message: `sessionId khÃ´ng há»£p lá»‡: ${String(value)}` });
+  }
+}
+
+async function findActiveSessionForLane(args: {
+  siteCode: string;
+  laneCode: string;
+  direction?: SessionDirection;
+}) {
+  const lane = await resolveLaneRef({
+    siteCode: args.siteCode,
+    laneCode: args.laneCode,
+    direction: args.direction,
+  });
+
+  const session = await prisma.gate_passage_sessions.findFirst({
+    where: {
+      site_id: lane.siteId,
+      lane_id: lane.laneId,
+      status: { in: ['OPEN', 'WAITING_READ', 'WAITING_DECISION', 'APPROVED', 'WAITING_PAYMENT'] as any },
+    },
+    orderBy: [{ last_read_at: 'desc' }, { opened_at: 'desc' }, { session_id: 'desc' }],
+  });
+
+  if (!session) {
+    throw new ApiError({
+      code: 'NOT_FOUND',
+      message: `KhÃ´ng cÃ³ session active cho lane '${args.laneCode}'`,
+      details: args,
+    });
+  }
+
+  return { lane, session };
+}
+
+async function getSessionOrThrow(sessionId: bigint) {
+  const session = await prisma.gate_passage_sessions.findUnique({ where: { session_id: sessionId } });
+  if (!session) throw new ApiError({ code: 'NOT_FOUND', message: `KhÃ´ng tÃ¬m tháº¥y session ${String(sessionId)}` });
+  return session;
+}
+
+function inferPresenceActive(input: ResolveGateSessionInput, current: boolean): boolean {
+  if (typeof input.presenceActive === 'boolean') return input.presenceActive;
+  if (input.sensorState === 'CLEARED') return false;
+  if (input.sensorState === 'PRESENT' || input.sensorState === 'TRIGGERED') return true;
+  return current;
+}
+
+function hasManualDecisionOverride(input: ResolveGateSessionInput) {
+  return Boolean(input.approved || input.denied || input.paymentRequired);
+}
+
+function shouldRunDecisionEngine(input: ResolveGateSessionInput) {
+  if (hasManualDecisionOverride(input)) return true;
+  return input.readType === 'ALPR'
+    || input.readType === 'RFID'
+    || Boolean(input.plateRaw || input.rfidUid)
+    || input.previewStatus === 'STRICT_VALID'
+    || input.previewStatus === 'REVIEW'
+    || input.previewStatus === 'INVALID';
+}
+
+export async function resolveGateSession(input: ResolveGateSessionInput) {
+  const occurredAt = input.occurredAt ?? new Date();
+
+  const target = input.sessionId != null
+    ? { session: await getSessionOrThrow(toBigIntId(input.sessionId)), lane: null as any }
+    : await findActiveSessionForLane({
+        siteCode: String(input.siteCode ?? '').trim(),
+        laneCode: String(input.laneCode ?? '').trim(),
+        direction: input.direction,
+      });
+
+  const session = target.session;
+  const summary = target.lane == null ? await getSessionSummary(session.session_id) : null;
+  const lane = target.lane ?? (await resolveLaneRef({
+    siteCode: input.siteCode?.trim() || summary?.siteCode || '',
+    laneCode: input.laneCode?.trim() || summary?.laneCode || '',
+    direction: input.direction ?? (session.direction as SessionDirection),
+  }));
+
+  const plateCanonical = input.plateRaw ? buildPlateCanonical(input.plateRaw) : null;
+  const effectivePreviewStatus = input.previewStatus
+    ? (input.previewStatus === 'STRICT_VALID' ? 'STRICT_VALID' : input.previewStatus === 'INVALID' ? 'INVALID' : 'REVIEW')
+    : null;
+  const plateDecisionMode = input.plateDecisionMode
+    ?? (effectivePreviewStatus && effectivePreviewStatus !== 'STRICT_VALID' && !input.plateRaw ? 'SOFT_REVIEW' : input.plateRaw ? 'AUTHORITATIVE' : 'NO_PLATE');
+  const decisionPlateCanonical = plateDecisionMode === 'AUTHORITATIVE' ? plateCanonical : null;
+  const decisionPlateValidity = plateDecisionMode === 'SOFT_REVIEW'
+    ? 'REVIEW'
+    : effectivePreviewStatus ?? plateCanonical?.plateValidity ?? 'UNKNOWN';
+  const presenceActive = inferPresenceActive(input, session.presence_active);
+  const deviceId = await resolveDeviceForLane({
+    siteId: lane.siteId,
+    laneId: lane.laneId,
+    deviceCode: input.deviceCode,
+    primaryDeviceId: lane.primaryDeviceId,
+  });
+
+  let decision: DecisionEngineEvalResult | null = null;
+  let nextStatus = deriveStatusFromRead({
+    currentStatus: session.status as SessionStatus,
+    readType: input.readType,
+    sensorState: input.sensorState,
+    presenceActive,
+    hasEvidence: Boolean(input.plateRaw || input.rfidUid || input.readType === 'ALPR' || input.readType === 'RFID'),
+  });
+
+  if (hasManualDecisionOverride(input)) {
+    if (input.denied) {
+      decision = {
+        ...buildManualDenyDecision(input.reasonCode, input.reasonDetail),
+        openTicket: null,
+        paymentStatus: 'UNKNOWN',
+        deviceHealth: 'UNKNOWN',
+        deviceHealthSnapshot: {
+          status: null,
+          reportedAt: null,
+          ageSeconds: null,
+          health: 'UNKNOWN',
+        },
+        activePresence: null,
+        credentialStatus: 'UNKNOWN',
+        paymentResolution: null,
+        plateTicketId: null,
+        rfidTicketId: null,
+        subscriptionMatch: null,
+      };
+    } else if (input.paymentRequired) {
+      decision = {
+        ...buildManualPaymentHoldDecision(input.reasonCode, input.reasonDetail),
+        openTicket: null,
+        paymentStatus: 'UNKNOWN',
+        deviceHealth: 'UNKNOWN',
+        deviceHealthSnapshot: {
+          status: null,
+          reportedAt: null,
+          ageSeconds: null,
+          health: 'UNKNOWN',
+        },
+        activePresence: null,
+        credentialStatus: 'UNKNOWN',
+        paymentResolution: null,
+        plateTicketId: null,
+        rfidTicketId: null,
+        subscriptionMatch: null,
+      };
+    } else if (input.approved) {
+      decision = {
+        ...buildManualApproveDecision(input.reasonCode, input.reasonDetail),
+        openTicket: null,
+        paymentStatus: 'UNKNOWN',
+        deviceHealth: 'UNKNOWN',
+        deviceHealthSnapshot: {
+          status: null,
+          reportedAt: null,
+          ageSeconds: null,
+          health: 'UNKNOWN',
+        },
+        activePresence: null,
+        credentialStatus: 'UNKNOWN',
+        paymentResolution: null,
+        plateTicketId: null,
+        rfidTicketId: null,
+        subscriptionMatch: null,
+      };
+    }
+  } else if (shouldRunDecisionEngine(input)) {
+    decision = await evaluateSessionDecision({
+      siteId: lane.siteId,
+      laneId: lane.laneId,
+      deviceId,
+      direction: lane.direction,
+      occurredAt,
+      presenceActive,
+      plateRaw: decisionPlateCanonical?.plateRaw ?? null,
+      plateCompact: decisionPlateCanonical?.plateCompact ?? null,
+      plateValidity: decisionPlateValidity,
+      ocrConfidence: input.ocrConfidence ?? null,
+      rfidUid: input.rfidUid ?? null,
+      currentSessionId: session.session_id,
+      currentLaneCode: lane.laneCode,
+      payload: input.payload,
+    });
+  }
+
+  if (decision) {
+    nextStatus = decisionActionToSessionStatus(decision.recommendedAction);
+  }
+
+  ensureSessionTransition(session.status as SessionStatus, nextStatus);
+
+  type SessionReadRecord = NonNullable<Awaited<ReturnType<typeof recordSessionReadEvent>>>;
+  let readEvent: SessionReadRecord['event'] | null = null;
+
+  await prisma.$transaction(async (tx: any) => {
+    await tx.gate_passage_sessions.update({
+      where: { session_id: session.session_id },
+      data: {
+        status: nextStatus,
+        ticket_id: decision?.openTicket?.ticketId ? BigInt(decision.openTicket.ticketId) : session.ticket_id ?? null,
+        last_read_at: occurredAt,
+        resolved_at:
+          nextStatus === 'OPEN' || nextStatus === 'WAITING_READ'
+            ? session.resolved_at
+            : occurredAt,
+        closed_at:
+          nextStatus === 'DENIED' ||
+          nextStatus === 'CANCELLED' ||
+          nextStatus === 'TIMEOUT' ||
+          nextStatus === 'ERROR'
+            ? occurredAt
+            : nextStatus === 'PASSED'
+              ? occurredAt
+              : session.closed_at,
+        plate_compact: plateCanonical?.plateCompact ?? session.plate_compact ?? null,
+        rfid_uid: input.rfidUid ?? session.rfid_uid ?? null,
+        presence_active: presenceActive,
+        review_required: decision?.reviewRequired ?? (nextStatus === 'WAITING_DECISION'),
+        updated_at: occurredAt,
+      },
+    });
+
+    const nextReadRecord = input.readType
+      ? await recordSessionReadEvent({
+          tx,
+          sessionId: session.session_id,
+          siteId: lane.siteId,
+          laneId: lane.laneId,
+          deviceId,
+          direction: lane.direction,
+          occurredAt,
+          readType: input.readType,
+          plateRaw: input.plateRaw,
+          ocrConfidence: input.ocrConfidence,
+          rfidUid: input.rfidUid,
+          sensorState: input.sensorState,
+          requestId: input.requestId,
+          idempotencyKey: input.idempotencyKey,
+          payload: input.payload,
+        })
+      : null;
+
+    readEvent = nextReadRecord?.event ?? null;
+
+    if (decision) {
+      await tx.gate_decisions.create({
+        data: {
+          session_id: session.session_id,
+          site_id: lane.siteId,
+          lane_id: lane.laneId,
+          decision_code: decision.decisionCode,
+          final_action: decision.finalAction,
+          reason_code: decision.reasonCode,
+          reason_detail: decision.reasonDetail,
+          input_snapshot_json: jsonSafe(decision.inputSnapshot),
+          threshold_snapshot_json: jsonSafe(decision.thresholdSnapshot),
+        },
+      });
+
+      if (decision.reviewRequired || decision.finalAction === 'PAYMENT_HOLD') {
+        const existingReview = await tx.gate_manual_reviews.findFirst({
+          where: { session_id: session.session_id, status: { in: ['OPEN', 'CLAIMED'] } },
+          select: { review_id: true },
+        });
+
+        if (!existingReview?.review_id) {
+          await tx.gate_manual_reviews.create({
+            data: {
+              session_id: session.session_id,
+              site_id: lane.siteId,
+              lane_id: lane.laneId,
+              queue_reason_code: decision.reasonCode,
+              note: decision.reasonDetail ?? null,
+              snapshot_json: jsonSafe({
+                queuedFromDecision: true,
+                decisionCode: decision.decisionCode,
+                finalAction: decision.finalAction,
+                inputSnapshot: decision.inputSnapshot,
+                thresholdSnapshot: decision.thresholdSnapshot,
+              }),
+            },
+          });
+        }
+      }
+
+      if (decision.finalAction === 'DENY' || decision.finalAction === 'PAYMENT_HOLD') {
+        await tx.gate_incidents.create({
+          data: {
+            session_id: session.session_id,
+            site_id: lane.siteId,
+            lane_id: lane.laneId,
+            device_id: deviceId,
+            severity: 'WARN',
+            status: 'OPEN',
+            incident_type:
+              decision.finalAction === 'PAYMENT_HOLD'
+                ? 'EXIT_PAYMENT_REQUIRED'
+                : lane.direction === 'ENTRY'
+                  ? 'ENTRY_BLOCKED'
+                  : 'EXIT_BLOCKED',
+            title: decision.reasonCode,
+            detail: decision.reasonDetail ?? null,
+            snapshot_json: jsonSafe({
+              decisionCode: decision.decisionCode,
+              inputSnapshot: decision.inputSnapshot,
+              thresholdSnapshot: decision.thresholdSnapshot,
+            }),
+          },
+        });
+      }
+
+      if (lane.direction === 'ENTRY' && decision.finalAction === 'APPROVE') {
+        await processApprovedEntryTx({
+          tx,
+          siteId: lane.siteId,
+          siteCode: lane.siteCode,
+          laneId: lane.laneId,
+          laneCode: lane.laneCode,
+          primaryDeviceId: lane.primaryDeviceId,
+          sessionId: session.session_id,
+          occurredAt,
+          requestId: input.requestId,
+          decision,
+          plateCompact: plateCanonical?.plateCompact ?? session.plate_compact ?? null,
+          rfidUid: input.rfidUid ?? session.rfid_uid ?? null,
+          readEventId: nextReadRecord?.readEventId ?? null,
+          payload: input.payload,
+        });
+      }
+
+      if (lane.direction === 'EXIT' && decision.finalAction === 'APPROVE') {
+        await processApprovedExitTx({
+          tx,
+          siteId: lane.siteId,
+          laneId: lane.laneId,
+          laneCode: lane.laneCode,
+          primaryDeviceId: lane.primaryDeviceId,
+          sessionId: session.session_id,
+          occurredAt,
+          requestId: input.requestId,
+          decision,
+          plateCompact: plateCanonical?.plateCompact ?? session.plate_compact ?? null,
+          rfidUid: input.rfidUid ?? session.rfid_uid ?? null,
+          readEventId: nextReadRecord?.readEventId ?? null,
+          payload: input.payload,
+        });
+      }
+    }
+  }, {
+    maxWait: 10_000,
+    timeout: 30_000,
+  });
+
+  return {
+    session: await getSessionSummary(session.session_id),
+    event: readEvent,
+    plate: plateCanonical,
+    decision: decision
+      ? {
+          decisionCode: decision.decisionCode,
+          recommendedAction: decision.recommendedAction,
+          finalAction: decision.finalAction,
+          reasonCode: decision.reasonCode,
+          reasonDetail: decision.reasonDetail,
+          reviewRequired: decision.reviewRequired,
+          explanation: decision.explanation,
+          inputSnapshot: jsonSafe(decision.inputSnapshot),
+          thresholdSnapshot: jsonSafe(decision.thresholdSnapshot),
+          subscriptionMatch: decision.subscriptionMatch ?? null,
+        }
+      : null,
+  };
+}
+
+export async function confirmGateSessionPass(input: ConfirmPassInput) {
+  const sessionId = toBigIntId(input.sessionId);
+  const occurredAt = input.occurredAt ?? new Date();
+  const session = await getSessionOrThrow(sessionId);
+
+  ensureSessionTransition(session.status as SessionStatus, 'PASSED');
+  if (session.status !== 'APPROVED') {
+    throw new ApiError({
+      code: 'CONFLICT',
+      message: 'Chá»‰ session APPROVED má»›i Ä‘Æ°á»£c confirm-pass',
+      details: { currentStatus: session.status },
+    });
+  }
+
+  await prisma.$transaction(async (tx: any) => {
+    await tx.gate_passage_sessions.update({
+      where: { session_id: sessionId },
+      data: {
+        status: 'PASSED',
+        last_read_at: occurredAt,
+        resolved_at: session.resolved_at ?? occurredAt,
+        closed_at: occurredAt,
+        presence_active: session.direction === 'ENTRY',
+        updated_at: occurredAt,
+      },
+    });
+
+    const lane = await tx.gate_lanes.findUnique({ where: { lane_id: session.lane_id } });
+    const deviceId = lane?.primary_device_id ?? null;
+
+    await tx.gate_barrier_commands.create({
+      data: {
+        session_id: sessionId,
+        site_id: session.site_id,
+        lane_id: session.lane_id,
+        device_id: deviceId,
+        command_type: 'OPEN',
+        status: 'ACKED',
+        request_id: input.requestId ?? null,
+        reason_code: input.reasonCode?.trim() || 'CONFIRM_PASS',
+        payload_json: jsonSafe(input.payload),
+        issued_at: occurredAt,
+        ack_at: occurredAt,
+      },
+    });
+
+    if (session.direction === 'EXIT') {
+      await markExitPassEffectsTx(tx, {
+        siteId: session.site_id,
+        sessionId,
+        ticketId: session.ticket_id ?? null,
+        plateCompact: session.plate_compact ?? null,
+        rfidUid: session.rfid_uid ?? null,
+        occurredAt,
+      });
+    }
+  });
+
+  return { session: await getSessionSummary(sessionId), changed: true };
+}
+
+export async function cancelGateSession(input: CancelSessionInput) {
+  const sessionId = toBigIntId(input.sessionId);
+  const occurredAt = input.occurredAt ?? new Date();
+  const session = await getSessionOrThrow(sessionId);
+
+  if (!isActiveSessionStatus(session.status as SessionStatus) && session.status !== 'ERROR') {
+    throw new ApiError({
+      code: 'CONFLICT',
+      message: 'Session hiá»‡n táº¡i khÃ´ng thá»ƒ cancel',
+      details: { currentStatus: session.status },
+    });
+  }
+
+  ensureSessionTransition(session.status as SessionStatus, 'CANCELLED');
+
+  await prisma.$transaction(async (tx: any) => {
+    await tx.gate_passage_sessions.update({
+      where: { session_id: sessionId },
+      data: {
+        status: 'CANCELLED',
+        resolved_at: occurredAt,
+        closed_at: occurredAt,
+        updated_at: occurredAt,
+      },
+    });
+
+    await tx.gate_incidents.create({
+      data: {
+        session_id: sessionId,
+        site_id: session.site_id,
+        lane_id: session.lane_id,
+        device_id: null,
+        severity: 'WARN',
+        status: 'OPEN',
+        incident_type: 'SESSION_CANCELLED',
+        title: input.reasonCode?.trim() || 'SESSION_CANCELLED',
+        detail: input.note?.trim() || null,
+        snapshot_json: jsonSafe(input.payload),
+      },
+    });
+  });
+
+  return { session: await getSessionSummary(sessionId), changed: true };
+}
+
+export async function listGateSessions(args: {
+  siteCode?: string;
+  laneCode?: string;
+  status?: string;
+  direction?: SessionDirection;
+  from?: Date;
+  to?: Date;
+  limit?: number;
+  cursor?: bigint;
+}) {
+  const limit = Math.min(200, Math.max(1, args.limit ?? 50));
+  const rows = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(
+    `
+      SELECT
+        gps.session_id AS sessionId,
+        ps.site_code AS siteCode,
+        gl.gate_code AS gateCode,
+        gl.lane_code AS laneCode,
+        gps.direction AS direction,
+        gps.status AS status,
+        gps.ticket_id AS ticketId,
+        gps.correlation_id AS correlationId,
+        gps.opened_at AS openedAt,
+        gps.last_read_at AS lastReadAt,
+        gps.resolved_at AS resolvedAt,
+        gps.closed_at AS closedAt,
+        gps.plate_compact AS plateCompact,
+        gps.rfid_uid AS rfidUid,
+        gps.presence_active AS presenceActive,
+        gps.review_required AS reviewRequired,
+        (SELECT COUNT(*) FROM gate_read_events gre WHERE gre.session_id = gps.session_id) AS readCount,
+        (SELECT COUNT(*) FROM gate_decisions gd WHERE gd.session_id = gps.session_id) AS decisionCount,
+        (SELECT COUNT(*) FROM gate_barrier_commands gbc WHERE gbc.session_id = gps.session_id) AS barrierCommandCount
+      FROM gate_passage_sessions gps
+      JOIN parking_sites ps
+        ON ps.site_id = gps.site_id
+      JOIN gate_lanes gl
+        ON gl.lane_id = gps.lane_id
+      WHERE (? IS NULL OR ps.site_code = ?)
+        AND (? IS NULL OR gl.lane_code = ?)
+        AND (? IS NULL OR gps.status = ?)
+        AND (? IS NULL OR gps.direction = ?)
+        AND (? IS NULL OR gps.opened_at >= ?)
+        AND (? IS NULL OR gps.opened_at <= ?)
+        AND (? IS NULL OR gps.session_id < ?)
+      ORDER BY gps.session_id DESC
+      LIMIT ?
+    `,
+    args.siteCode ?? null,
+    args.siteCode ?? null,
+    args.laneCode ?? null,
+    args.laneCode ?? null,
+    args.status ?? null,
+    args.status ?? null,
+    args.direction ?? null,
+    args.direction ?? null,
+    args.from ?? null,
+    args.from ?? null,
+    args.to ?? null,
+    args.to ?? null,
+    args.cursor != null ? String(args.cursor) : null,
+    args.cursor != null ? String(args.cursor) : null,
+    limit,
+  );
+
+  const normalize = (row: Record<string, unknown>) => {
+    const status = String(row.status ?? 'OPEN') as SessionStatus;
+    return {
+      sessionId: String(row.sessionId),
+      siteCode: String(row.siteCode ?? ''),
+      gateCode: String(row.gateCode ?? ''),
+      laneCode: String(row.laneCode ?? ''),
+      direction: String(row.direction ?? 'ENTRY'),
+      status,
+      allowedActions: getAllowedActions(status),
+      ticketId: row.ticketId == null ? null : String(row.ticketId),
+      correlationId: row.correlationId == null ? null : String(row.correlationId),
+      openedAt: new Date(String(row.openedAt)).toISOString(),
+      lastReadAt: row.lastReadAt == null ? null : new Date(String(row.lastReadAt)).toISOString(),
+      resolvedAt: row.resolvedAt == null ? null : new Date(String(row.resolvedAt)).toISOString(),
+      closedAt: row.closedAt == null ? null : new Date(String(row.closedAt)).toISOString(),
+      plateCompact: row.plateCompact == null ? null : String(row.plateCompact),
+      rfidUid: row.rfidUid == null ? null : String(row.rfidUid),
+      presenceActive: Boolean(Number(row.presenceActive ?? 0)),
+      reviewRequired: Boolean(Number(row.reviewRequired ?? 0)),
+      readCount: Number(row.readCount ?? 0),
+      decisionCount: Number(row.decisionCount ?? 0),
+      barrierCommandCount: Number(row.barrierCommandCount ?? 0),
+    };
+  };
+
+  const items = rows.map(normalize);
+  const nextCursor = items.length === limit ? items[items.length - 1]?.sessionId ?? null : null;
+
+  return { items, nextCursor };
+}
+
+export async function getGateSessionDetail(sessionIdInput: string | number | bigint) {
+  const sessionId = toBigIntId(sessionIdInput);
+  const session = await getSessionSummary(sessionId);
+
+  const reads = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(
+    `
+      SELECT
+        gre.read_event_id AS readEventId,
+        gre.read_type AS readType,
+        gre.direction AS direction,
+        gre.occurred_at AS occurredAt,
+        gre.plate_raw AS plateRaw,
+        gre.plate_compact AS plateCompact,
+        gre.ocr_confidence AS ocrConfidence,
+        gre.rfid_uid AS rfidUid,
+        gre.sensor_state AS sensorState,
+        gre.request_id AS requestId,
+        gre.idempotency_key AS idempotencyKey,
+        gre.device_id AS deviceId,
+        gre.raw_ocr_text AS rawOcrText,
+        gre.camera_frame_ref AS cameraFrameRef,
+        gre.crop_ref AS cropRef,
+        gre.source_device_code AS sourceDeviceCode,
+        gre.source_capture_ts AS sourceCaptureTs,
+        gre.source_media_id AS sourceMediaId,
+        grm.storage_kind AS mediaStorageKind,
+        grm.media_url AS mediaUrl,
+        grm.file_path AS mediaFilePath,
+        grm.mime_type AS mediaMimeType,
+        grm.sha256 AS mediaSha256,
+        grm.width_px AS mediaWidthPx,
+        grm.height_px AS mediaHeightPx,
+        grm.captured_at AS mediaCapturedAt,
+        grm.metadata_json AS mediaMetadataJson
+      FROM gate_read_events gre
+      LEFT JOIN gate_read_media grm
+        ON grm.media_id = gre.source_media_id
+      WHERE gre.session_id = ?
+      ORDER BY gre.occurred_at ASC, gre.read_event_id ASC
+    `,
+    String(sessionId)
+  );
+
+  const decisions = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(
+    `
+      SELECT
+        decision_id AS decisionId,
+        decision_code AS decisionCode,
+        final_action AS finalAction,
+        reason_code AS reasonCode,
+        reason_detail AS reasonDetail,
+        input_snapshot_json AS inputSnapshot,
+        threshold_snapshot_json AS thresholdSnapshot,
+        created_at AS createdAt
+      FROM gate_decisions
+      WHERE session_id = ?
+      ORDER BY created_at ASC, decision_id ASC
+    `,
+    String(sessionId)
+  );
+
+  const barrierCommands = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(
+    `
+      SELECT
+        command_id AS commandId,
+        command_type AS commandType,
+        status AS status,
+        reason_code AS reasonCode,
+        request_id AS requestId,
+        issued_at AS issuedAt,
+        ack_at AS ackAt
+      FROM gate_barrier_commands
+      WHERE session_id = ?
+      ORDER BY issued_at ASC, command_id ASC
+    `,
+    String(sessionId)
+  );
+
+  const manualReviews = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(
+    `
+      SELECT
+        review_id AS reviewId,
+        status AS status,
+        queue_reason_code AS queueReasonCode,
+        claimed_by_user_id AS claimedByUserId,
+        claimed_at AS claimedAt,
+        resolved_by_user_id AS resolvedByUserId,
+        resolved_at AS resolvedAt,
+        note AS note,
+        snapshot_json AS snapshot,
+        created_at AS createdAt
+      FROM gate_manual_reviews
+      WHERE session_id = ?
+      ORDER BY created_at ASC, review_id ASC
+    `,
+    String(sessionId)
+  );
+
+  const incidents = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(
+    `
+      SELECT
+        incident_id AS incidentId,
+        severity AS severity,
+        status AS status,
+        incident_type AS incidentType,
+        title AS title,
+        detail AS detail,
+        created_at AS createdAt,
+        resolved_at AS resolvedAt,
+        device_id AS deviceId,
+        lane_id AS laneId
+      FROM gate_incidents
+      WHERE session_id = ?
+      ORDER BY created_at ASC, incident_id ASC
+    `,
+    String(sessionId)
+  );
+
+  const timeline = [
+    ...reads.map((row: any) => ({
+      kind: 'READ',
+      at: new Date(String(row.occurredAt)).toISOString(),
+      payload: {
+        readEventId: String(row.readEventId),
+        readType: row.readType,
+        direction: row.direction,
+        plateRaw: row.plateRaw,
+        plateCompact: row.plateCompact,
+        ocrConfidence: row.ocrConfidence == null ? null : Number(row.ocrConfidence),
+        rfidUid: row.rfidUid,
+        sensorState: row.sensorState,
+        requestId: row.requestId,
+        idempotencyKey: row.idempotencyKey,
+        deviceId: row.deviceId == null ? null : String(row.deviceId),
+        sourceDeviceCode: row.sourceDeviceCode == null ? null : String(row.sourceDeviceCode),
+        rawOcrText: row.rawOcrText == null ? null : String(row.rawOcrText),
+        sourceMediaId: row.sourceMediaId == null ? null : String(row.sourceMediaId),
+        mediaUrl: row.mediaUrl == null ? null : String(row.mediaUrl),
+      },
+    })),
+    ...decisions.map((row: any) => ({
+      kind: 'DECISION',
+      at: new Date(String(row.createdAt)).toISOString(),
+      payload: {
+        decisionId: String(row.decisionId),
+        decisionCode: row.decisionCode,
+        recommendedAction: row.finalAction,
+        finalAction: row.finalAction,
+        reasonCode: row.reasonCode,
+        reasonDetail: row.reasonDetail,
+        explanation: row.reasonDetail,
+      },
+    })),
+    ...barrierCommands.map((row: any) => ({
+      kind: 'BARRIER_COMMAND',
+      at: new Date(String(row.issuedAt)).toISOString(),
+      payload: {
+        commandId: String(row.commandId),
+        commandType: row.commandType,
+        status: row.status,
+        reasonCode: row.reasonCode,
+        requestId: row.requestId,
+        ackAt: row.ackAt == null ? null : new Date(String(row.ackAt)).toISOString(),
+      },
+    })),
+    ...manualReviews.map((row: any) => ({
+      kind: 'REVIEW',
+      at: new Date(String(row.createdAt)).toISOString(),
+      payload: {
+        reviewId: String(row.reviewId),
+        status: String(row.status),
+        queueReasonCode: String(row.queueReasonCode),
+        claimedByUserId: row.claimedByUserId == null ? null : String(row.claimedByUserId),
+        resolvedByUserId: row.resolvedByUserId == null ? null : String(row.resolvedByUserId),
+        note: row.note == null ? null : String(row.note),
+        snapshot: row.snapshot ?? null,
+      },
+    })),
+    ...incidents.map((row: any) => ({
+      kind: 'INCIDENT',
+      at: new Date(String(row.createdAt)).toISOString(),
+      payload: {
+        incidentId: String(row.incidentId),
+        severity: String(row.severity),
+        status: String(row.status),
+        incidentType: String(row.incidentType),
+        title: String(row.title),
+        deviceId: row.deviceId == null ? null : String(row.deviceId),
+        laneId: row.laneId == null ? null : String(row.laneId),
+      },
+    })),
+  ].sort((a, b) => a.at.localeCompare(b.at));
+
+  return {
+    session,
+    subscriptionMatch:
+      decisions.length > 0 && decisions[decisions.length - 1]?.inputSnapshot != null && typeof decisions[decisions.length - 1]?.inputSnapshot === 'object'
+        ? (decisions[decisions.length - 1]!.inputSnapshot as any).subscriptionMatch ?? null
+        : null,
+    reads: reads.map((row: any) => ({
+      readEventId: String(row.readEventId),
+      readType: String(row.readType),
+      direction: String(row.direction),
+      occurredAt: new Date(String(row.occurredAt)).toISOString(),
+      plateRaw: row.plateRaw == null ? null : String(row.plateRaw),
+      plateCompact: row.plateCompact == null ? null : String(row.plateCompact),
+      ocrConfidence: row.ocrConfidence == null ? null : Number(row.ocrConfidence),
+      rfidUid: row.rfidUid == null ? null : String(row.rfidUid),
+      sensorState: row.sensorState == null ? null : String(row.sensorState),
+      requestId: row.requestId == null ? null : String(row.requestId),
+      idempotencyKey: row.idempotencyKey == null ? null : String(row.idempotencyKey),
+      deviceId: row.deviceId == null ? null : String(row.deviceId),
+      evidence: {
+        sourceMediaId: row.sourceMediaId == null ? null : String(row.sourceMediaId),
+        rawOcrText: row.rawOcrText == null ? null : String(row.rawOcrText),
+        cameraFrameRef: row.cameraFrameRef == null ? null : String(row.cameraFrameRef),
+        cropRef: row.cropRef == null ? null : String(row.cropRef),
+        sourceDeviceCode: row.sourceDeviceCode == null ? null : String(row.sourceDeviceCode),
+        sourceCaptureTs: row.sourceCaptureTs == null ? null : new Date(String(row.sourceCaptureTs)).toISOString(),
+        media:
+          row.sourceMediaId == null
+            ? null
+            : {
+                mediaId: String(row.sourceMediaId),
+                storageKind: row.mediaStorageKind == null ? null : String(row.mediaStorageKind),
+                mediaUrl: row.mediaUrl == null ? null : String(row.mediaUrl),
+                filePath: row.mediaFilePath == null ? null : String(row.mediaFilePath),
+                mimeType: row.mediaMimeType == null ? null : String(row.mediaMimeType),
+                sha256: row.mediaSha256 == null ? null : String(row.mediaSha256),
+                widthPx: row.mediaWidthPx == null ? null : Number(row.mediaWidthPx),
+                heightPx: row.mediaHeightPx == null ? null : Number(row.mediaHeightPx),
+                capturedAt: row.mediaCapturedAt == null ? null : new Date(String(row.mediaCapturedAt)).toISOString(),
+                metadata: row.mediaMetadataJson ?? null,
+              },
+      },
+    })),
+    decisions: decisions.map((row: any) => ({
+      decisionId: String(row.decisionId),
+      decisionCode: String(row.decisionCode),
+      recommendedAction: String(row.finalAction),
+      finalAction: String(row.finalAction),
+      reasonCode: String(row.reasonCode),
+      reasonDetail: row.reasonDetail == null ? null : String(row.reasonDetail),
+      reviewRequired: String(row.finalAction) === 'REVIEW',
+      explanation: row.reasonDetail == null ? String(row.reasonCode) : String(row.reasonDetail),
+      inputSnapshot: row.inputSnapshot ?? null,
+      thresholdSnapshot: row.thresholdSnapshot ?? null,
+      subscriptionMatch:
+        row.inputSnapshot != null && typeof row.inputSnapshot === 'object' && !Array.isArray(row.inputSnapshot)
+          ? (row.inputSnapshot as any).subscriptionMatch ?? null
+          : null,
+      createdAt: new Date(String(row.createdAt)).toISOString(),
+    })),
+    barrierCommands: barrierCommands.map((row: any) => ({
+      commandId: String(row.commandId),
+      commandType: String(row.commandType),
+      status: String(row.status),
+      reasonCode: row.reasonCode == null ? null : String(row.reasonCode),
+      requestId: row.requestId == null ? null : String(row.requestId),
+      issuedAt: new Date(String(row.issuedAt)).toISOString(),
+      ackAt: row.ackAt == null ? null : new Date(String(row.ackAt)).toISOString(),
+    })),
+    manualReviews: manualReviews.map((row: any) => ({
+      reviewId: String(row.reviewId),
+      status: String(row.status),
+      queueReasonCode: String(row.queueReasonCode),
+      claimedByUserId: row.claimedByUserId == null ? null : String(row.claimedByUserId),
+      claimedAt: row.claimedAt == null ? null : new Date(String(row.claimedAt)).toISOString(),
+      resolvedByUserId: row.resolvedByUserId == null ? null : String(row.resolvedByUserId),
+      resolvedAt: row.resolvedAt == null ? null : new Date(String(row.resolvedAt)).toISOString(),
+      note: row.note == null ? null : String(row.note),
+      snapshot: row.snapshot ?? null,
+      createdAt: new Date(String(row.createdAt)).toISOString(),
+    })),
+    incidents: incidents.map((row: any) => ({
+      incidentId: String(row.incidentId),
+      severity: String(row.severity),
+      status: String(row.status),
+      incidentType: String(row.incidentType),
+      title: String(row.title),
+      detail: row.detail == null ? null : String(row.detail),
+      createdAt: new Date(String(row.createdAt)).toISOString(),
+      resolvedAt: row.resolvedAt == null ? null : new Date(String(row.resolvedAt)).toISOString(),
+      deviceId: row.deviceId == null ? null : String(row.deviceId),
+      laneId: row.laneId == null ? null : String(row.laneId),
+    })),
+    timeline,
+  };
+}
+
+export async function openOrReuseSessionAndResolve(input: ResolveGateSessionInput) {
+  if (input.sessionId != null) return resolveGateSession(input);
+  if (!input.siteCode?.trim() || !input.laneCode?.trim() || !input.direction) {
+    throw new ApiError({
+      code: 'BAD_REQUEST',
+      message: 'Muá»‘n auto-open thÃ¬ pháº£i cÃ³ siteCode, laneCode, direction',
+    });
+  }
+
+  const opened = await openGateSession({
+    siteCode: input.siteCode.trim(),
+    laneCode: input.laneCode.trim(),
+    direction: input.direction,
+    occurredAt: input.occurredAt,
+    presenceActive: input.presenceActive,
+    correlationId: undefined,
+    plateRaw: input.plateRaw,
+    rfidUid: input.rfidUid,
+    deviceCode: input.deviceCode,
+    readType: input.readType,
+    sensorState: input.sensorState,
+    ocrConfidence: input.ocrConfidence,
+    requestId: input.requestId,
+    idempotencyKey: input.idempotencyKey,
+    payload: input.payload,
+  });
+
+  const resolved = await resolveGateSession({
+    ...input,
+    sessionId: opened.session.sessionId,
+    readType: undefined,
+    sensorState: undefined,
+  });
+
+  return {
+    ...resolved,
+    event: resolved.event ?? opened.event ?? null,
+  };
+}
+
+
+

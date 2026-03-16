@@ -1,0 +1,151 @@
+{
+  "profile": "RELEASE_CANDIDATE",
+  "intent": "pilot",
+  "mediaDriver": "MINIO",
+  "ready": true,
+  "errors": 0,
+  "warnings": 0,
+  "checkedAt": "2026-03-14T09:56:38.497Z",
+  "checks": [
+    {
+      "id": "env-file",
+      "status": "OK",
+      "message": "Đã thấy apps/api/.env."
+    },
+    {
+      "id": "mysql",
+      "status": "OK",
+      "message": "MySQL đang reachable tại 127.0.0.1:3306."
+    },
+    {
+      "id": "redis",
+      "status": "OK",
+      "message": "Redis đang reachable tại 127.0.0.1:6379."
+    },
+    {
+      "id": "minio-endpoint",
+      "status": "OK",
+      "message": "MinIO/S3 endpoint đang reachable tại 127.0.0.1:9000."
+    },
+    {
+      "id": "minio-creds",
+      "status": "OK",
+      "message": "S3 credentials đã được set cho profile MINIO."
+    },
+    {
+      "id": "internal-service-token",
+      "status": "OK",
+      "message": "API_INTERNAL_SERVICE_TOKEN đã qua secret hygiene baseline."
+    },
+    {
+      "id": "device-capture-secret",
+      "status": "OK",
+      "message": "DEVICE_CAPTURE_DEFAULT_SECRET đã qua secret hygiene baseline."
+    },
+    {
+      "id": "internal-service-rotation",
+      "status": "OK",
+      "message": "API_INTERNAL_SERVICE_TOKEN rotation topology ACTIVE_ONLY đã qua active-backed requirement."
+    },
+    {
+      "id": "device-capture-rotation",
+      "status": "OK",
+      "message": "DEVICE_CAPTURE_DEFAULT_SECRET rotation topology ACTIVE_ONLY đã qua active-backed requirement."
+    }
+  ],
+  "securitySecrets": {
+    "profile": "release-candidate",
+    "intent": "pilot",
+    "ok": true,
+    "checkedAt": "2026-03-14T09:56:38.497Z",
+    "fields": {
+      "API_INTERNAL_SERVICE_TOKEN": {
+        "field": "API_INTERNAL_SERVICE_TOKEN",
+        "present": true,
+        "masked": "529d…435b",
+        "fingerprint": "c209b6670430",
+        "severity": "PASS",
+        "findings": []
+      },
+      "DEVICE_CAPTURE_DEFAULT_SECRET": {
+        "field": "DEVICE_CAPTURE_DEFAULT_SECRET",
+        "present": true,
+        "masked": "c5fe…8d44",
+        "fingerprint": "2114f42b9ac5",
+        "severity": "PASS",
+        "findings": []
+      }
+    },
+    "findings": [],
+    "summary": {
+      "passFields": 2,
+      "warnFields": 0,
+      "errorFields": 0,
+      "findings": 0
+    }
+  },
+  "securityRotation": {
+    "ok": true,
+    "checkedAt": "2026-03-14T09:56:38.497Z",
+    "requireActiveEnv": true,
+    "fields": {
+      "API_INTERNAL_SERVICE_TOKEN": {
+        "field": "API_INTERNAL_SERVICE_TOKEN",
+        "mode": "ACTIVE_ONLY",
+        "rotationEnabled": false,
+        "ok": true,
+        "primary": {
+          "slot": "ACTIVE",
+          "sourceEnv": "API_INTERNAL_SERVICE_TOKEN_ACTIVE",
+          "masked": "529d…435b",
+          "fingerprint": "c209b6670430"
+        },
+        "primarySourceKind": "ACTIVE_ENV",
+        "activeEnvPresent": true,
+        "nextEnvPresent": false,
+        "legacyEnvPresent": true,
+        "accepted": [
+          {
+            "slot": "ACTIVE",
+            "sourceEnv": "API_INTERNAL_SERVICE_TOKEN_ACTIVE",
+            "masked": "529d…435b",
+            "fingerprint": "c209b6670430"
+          }
+        ],
+        "findings": []
+      },
+      "DEVICE_CAPTURE_DEFAULT_SECRET": {
+        "field": "DEVICE_CAPTURE_DEFAULT_SECRET",
+        "mode": "ACTIVE_ONLY",
+        "rotationEnabled": false,
+        "ok": true,
+        "primary": {
+          "slot": "ACTIVE",
+          "sourceEnv": "DEVICE_CAPTURE_SECRET_ACTIVE",
+          "masked": "c5fe…8d44",
+          "fingerprint": "2114f42b9ac5"
+        },
+        "primarySourceKind": "ACTIVE_ENV",
+        "activeEnvPresent": true,
+        "nextEnvPresent": false,
+        "legacyEnvPresent": true,
+        "accepted": [
+          {
+            "slot": "ACTIVE",
+            "sourceEnv": "DEVICE_CAPTURE_SECRET_ACTIVE",
+            "masked": "c5fe…8d44",
+            "fingerprint": "2114f42b9ac5"
+          }
+        ],
+        "findings": []
+      }
+    },
+    "findings": [],
+    "summary": {
+      "activeOnlyFields": 2,
+      "rotationWindowFields": 0,
+      "nextOnlyFields": 0,
+      "errorFields": 0
+    }
+  }
+}

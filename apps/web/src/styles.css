@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-zinc-50 text-zinc-900 antialiased;
+}
+
+.dark body {
+  @apply bg-zinc-950 text-zinc-50;
+}
+
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+}
+
+@layer components {
+  .ops-sticky-bar {
+    @apply sticky top-[72px] z-[5] border-border/80 bg-background/80 backdrop-blur-xl;
+  }
+
+  .ops-detail-card {
+    @apply rounded-3xl border border-border/80 bg-card/95 shadow-[0_18px_60px_rgba(0,0,0,0.12)];
+  }
+
+  .ops-meta-panel {
+    @apply rounded-3xl border border-border/80 bg-muted/25 p-4;
+  }
+
+  .ops-table-dense th {
+    @apply sticky top-0 z-[1] bg-card/98 backdrop-blur-xl;
+  }
+
+  .ops-table-dense td,
+  .ops-table-dense th {
+    @apply px-4 py-3 align-top;
+  }
+
+  .ops-skeleton {
+    @apply animate-pulse rounded-xl bg-muted/60;
+  }
+}

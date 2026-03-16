@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Parkly Demo UI</title>
+    <link rel="stylesheet" href="/ui/styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="topbar">
+        <div class="brand">
+          <div class="logo"></div>
+          <div>
+            <div style="font-weight:700">Parkly — Demo UI</div>
+            <div class="muted" style="font-size:12px">DB-centric + API + Camera/Upload/ALPR (mock)</div>
+          </div>
+        </div>
+        <div class="nav">
+          <a href="/ui/simulator.html">Gate Simulator</a>
+          <a href="/ui/dashboard.html">Dashboard (Realtime)</a>
+          <a href="/ui/admin.html">Admin</a>
+          <a href="/docs" target="_blank" rel="noreferrer">Swagger</a>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h2>Quickstart</h2>
+          <div class="muted">Mục tiêu: demo “app-like” bằng UI chạy trực tiếp (không build).</div>
+          <div class="log" style="margin-top:10px">
+1) copy .env.example .env
+2) pnpm install
+3) pnpm e2e
+4) pnpm api:dev
+
+Mở: http://127.0.0.1:3000/ui/
+          </div>
+          <div class="muted" style="margin-top:10px">
+            Nếu bật <b>API_AUTH_MODE=ON</b>, hãy paste token đúng role ở khung “Auth bar” bên phải.
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Auth bar (demo)</h2>
+          <div class="row">
+            <div>
+              <label>Role (để bạn tự nhớ token nào đang dùng)</label>
+              <select id="demoRole">
+                <option>ADMIN</option>
+                <option>OPS</option>
+                <option>GUARD</option>
+                <option>CASHIER</option>
+                <option>WORKER</option>
+              </select>
+            </div>
+            <div>
+              <label>Bearer token</label>
+              <input id="demoToken" placeholder="VD: guard_dev_token_change_me" />
+            </div>
+          </div>
+          <div class="btns">
+            <button class="primary" id="saveAuth">Save</button>
+            <button class="danger" id="clearAuth">Clear</button>
+          </div>
+          <div class="muted" style="margin-top:10px">
+            SSE/EventSource không set được header, nên UI sẽ tự gắn <code>?token=...</code> (cần <b>API_ALLOW_QUERY_TOKEN=ON</b>).
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      import { bindAuthBar } from '/ui/common.js';
+      bindAuthBar();
+    </script>
+  </body>
+</html>

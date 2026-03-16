@@ -1,0 +1,64 @@
+{
+  "ok": true,
+  "checkedAt": "2026-03-14T09:56:38.493Z",
+  "requireActiveEnv": true,
+  "fields": {
+    "API_INTERNAL_SERVICE_TOKEN": {
+      "field": "API_INTERNAL_SERVICE_TOKEN",
+      "mode": "ACTIVE_ONLY",
+      "rotationEnabled": false,
+      "ok": true,
+      "primary": {
+        "slot": "ACTIVE",
+        "sourceEnv": "API_INTERNAL_SERVICE_TOKEN_ACTIVE",
+        "masked": "529d…435b",
+        "fingerprint": "c209b6670430"
+      },
+      "primarySourceKind": "ACTIVE_ENV",
+      "activeEnvPresent": true,
+      "nextEnvPresent": false,
+      "legacyEnvPresent": true,
+      "accepted": [
+        {
+          "slot": "ACTIVE",
+          "sourceEnv": "API_INTERNAL_SERVICE_TOKEN_ACTIVE",
+          "masked": "529d…435b",
+          "fingerprint": "c209b6670430"
+        }
+      ],
+      "findings": []
+    },
+    "DEVICE_CAPTURE_DEFAULT_SECRET": {
+      "field": "DEVICE_CAPTURE_DEFAULT_SECRET",
+      "mode": "ACTIVE_ONLY",
+      "rotationEnabled": false,
+      "ok": true,
+      "primary": {
+        "slot": "ACTIVE",
+        "sourceEnv": "DEVICE_CAPTURE_SECRET_ACTIVE",
+        "masked": "c5fe…8d44",
+        "fingerprint": "2114f42b9ac5"
+      },
+      "primarySourceKind": "ACTIVE_ENV",
+      "activeEnvPresent": true,
+      "nextEnvPresent": false,
+      "legacyEnvPresent": true,
+      "accepted": [
+        {
+          "slot": "ACTIVE",
+          "sourceEnv": "DEVICE_CAPTURE_SECRET_ACTIVE",
+          "masked": "c5fe…8d44",
+          "fingerprint": "2114f42b9ac5"
+        }
+      ],
+      "findings": []
+    }
+  },
+  "findings": [],
+  "summary": {
+    "activeOnlyFields": 2,
+    "rotationWindowFields": 0,
+    "nextOnlyFields": 0,
+    "errorFields": 0
+  }
+}

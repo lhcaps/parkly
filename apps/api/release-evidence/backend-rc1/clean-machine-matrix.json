@@ -1,0 +1,17 @@
+{
+  "checkedAt": "2026-03-14T05:41:40.820Z",
+  "profile": "demo",
+  "stages": [
+    "bootstrap",
+    "migrate",
+    "grant",
+    "seed",
+    "login",
+    "dashboard",
+    "upload",
+    "intake",
+    "refresh",
+    "resolve",
+    "audit"
+  ]
+}

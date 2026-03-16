@@ -1,0 +1,103 @@
+{
+  "checkedAt": "2026-03-14T09:56:51.300Z",
+  "ok": true,
+  "label": "backend-pilot-ready",
+  "profile": "release-candidate",
+  "evidenceRoot": "C:\\Users\\ADMIN\\Desktop\\Parkly\\parkly\\parkly\\apps\\api\\release-evidence\\backend-pilot",
+  "steps": [
+    {
+      "id": "secrets-check",
+      "command": "pnpm secrets:check -- --profile release-candidate --intent pilot --strict --format json",
+      "ok": true,
+      "exitCode": 0,
+      "durationMs": 1,
+      "artifact": "C:\\Users\\ADMIN\\Desktop\\Parkly\\parkly\\parkly\\apps\\api\\release-evidence\\backend-pilot\\security-secrets-check.json"
+    },
+    {
+      "id": "secrets-rotation-check",
+      "command": "pnpm secrets:rotation:check -- --require-active --format json",
+      "ok": true,
+      "exitCode": 0,
+      "durationMs": 1,
+      "artifact": "C:\\Users\\ADMIN\\Desktop\\Parkly\\parkly\\parkly\\apps\\api\\release-evidence\\backend-pilot\\security-rotation-check.json"
+    },
+    {
+      "id": "verify-deployment-pilot",
+      "command": "pnpm verify:deployment -- --profile release-candidate --intent pilot",
+      "ok": true,
+      "exitCode": 0,
+      "durationMs": 5,
+      "artifact": "C:\\Users\\ADMIN\\Desktop\\Parkly\\parkly\\parkly\\apps\\api\\release-evidence\\backend-pilot\\verify-deployment-pilot.json"
+    },
+    {
+      "id": "typecheck",
+      "command": "pnpm typecheck",
+      "ok": true,
+      "exitCode": 0,
+      "durationMs": 3212
+    },
+    {
+      "id": "test-pr26",
+      "command": "pnpm test:pr26",
+      "ok": true,
+      "exitCode": 0,
+      "durationMs": 1028
+    },
+    {
+      "id": "test-pr27",
+      "command": "pnpm test:pr27",
+      "ok": true,
+      "exitCode": 0,
+      "durationMs": 643
+    },
+    {
+      "id": "test-pr28",
+      "command": "pnpm test:pr28",
+      "ok": true,
+      "exitCode": 0,
+      "durationMs": 718
+    },
+    {
+      "id": "test-pr29",
+      "command": "pnpm test:pr29",
+      "ok": true,
+      "exitCode": 0,
+      "durationMs": 476
+    },
+    {
+      "id": "test-pr30",
+      "command": "pnpm test:pr30",
+      "ok": true,
+      "exitCode": 0,
+      "durationMs": 489
+    },
+    {
+      "id": "test-pr31",
+      "command": "pnpm test:pr31",
+      "ok": true,
+      "exitCode": 0,
+      "durationMs": 458
+    },
+    {
+      "id": "test-pr32",
+      "command": "pnpm test:pr32",
+      "ok": true,
+      "exitCode": 0,
+      "durationMs": 2151
+    },
+    {
+      "id": "test-pr33",
+      "command": "pnpm test:pr33",
+      "ok": true,
+      "exitCode": 0,
+      "durationMs": 2180
+    },
+    {
+      "id": "test-pr34",
+      "command": "pnpm test:pr34",
+      "ok": true,
+      "exitCode": 0,
+      "durationMs": 1446
+    }
+  ]
+}

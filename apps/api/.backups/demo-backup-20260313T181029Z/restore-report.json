@@ -1,0 +1,12 @@
+{
+  "restoredAt": "2026-03-13T18:27:52.249Z",
+  "backupId": "demo-backup-20260313T181029Z",
+  "targetProfile": "DEMO",
+  "restoredDb": true,
+  "restoredMediaPaths": [
+    "C:\\Users\\ADMIN\\Desktop\\Parkly\\parkly\\parkly\\apps\\api\\uploads\\gate-media",
+    "C:\\Users\\ADMIN\\Desktop\\Parkly\\parkly\\parkly\\apps\\api\\.runtime\\observability"
+  ],
+  "source": "C:\\Users\\ADMIN\\Desktop\\Parkly\\parkly\\parkly\\apps\\api\\.backups\\demo-backup-20260313T181029Z",
+  "portableSqlChanged": true
+}

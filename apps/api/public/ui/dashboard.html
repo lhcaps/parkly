@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dashboard — Parkly</title>
+    <link rel="stylesheet" href="/ui/styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="topbar">
+        <div class="brand">
+          <div class="logo"></div>
+          <div>
+            <div style="font-weight:700">Dashboard (Realtime)</div>
+            <div class="muted" style="font-size:12px">SSE feed gate_events + outbox status</div>
+          </div>
+        </div>
+        <div class="nav">
+          <a href="/ui/">Home</a>
+          <a href="/ui/simulator.html">Gate Simulator</a>
+          <a href="/ui/admin.html">Admin</a>
+          <a href="/docs" target="_blank" rel="noreferrer">Swagger</a>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h2>Realtime controls</h2>
+          <div class="row">
+            <div>
+              <label>siteCode</label>
+              <input id="siteCode" value="SITE_HCM_01" />
+            </div>
+            <div>
+              <label>deviceCode (optional)</label>
+              <input id="deviceCode" placeholder="VD: GATE_ENTRY_01" />
+            </div>
+          </div>
+          <div class="btns">
+            <button class="primary" id="connect">Connect SSE</button>
+            <button class="danger" id="disconnect">Disconnect</button>
+            <span class="pill">Gate: <b id="gateState">OFF</b></span>
+            <span class="pill">Outbox: <b id="outboxState">OFF</b></span>
+          </div>
+          <div class="muted" style="margin-top:10px">
+            Lưu ý: EventSource dùng <code>?token=...</code> (cần <b>API_ALLOW_QUERY_TOKEN=ON</b> nếu auth ON).
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Auth bar</h2>
+          <div class="row">
+            <div>
+              <label>Role</label>
+              <select id="demoRole">
+                <option>ADMIN</option>
+                <option selected>OPS</option>
+                <option>GUARD</option>
+                <option>CASHIER</option>
+                <option>WORKER</option>
+              </select>
+            </div>
+            <div>
+              <label>Bearer token</label>
+              <input id="demoToken" placeholder="VD: ops_dev_token_change_me" />
+            </div>
+          </div>
+          <div class="btns">
+            <button class="primary" id="saveAuth">Save</button>
+            <button class="danger" id="clearAuth">Clear</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="two" style="margin-top:16px">
+        <div class="card">
+          <h2>Gate events feed</h2>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>eventId</th>
+                <th>time</th>
+                <th>dir</th>
+                <th>device</th>
+                <th>plate</th>
+              </tr>
+            </thead>
+            <tbody id="gateRows"></tbody>
+          </table>
+        </div>
+        <div class="card">
+          <h2>Outbox feed</h2>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>outboxId</th>
+                <th>eventId</th>
+                <th>status</th>
+                <th>attempts</th>
+              </tr>
+            </thead>
+            <tbody id="outboxRows"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <h2>Logs</h2>
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+
+    <script type="module">
+      import { bindAuthBar, sseUrl, appendLog, fmtJson, $, setText } from '/ui/common.js';
+      bindAuthBar();
+
+      let esGate = null;
+      let esOutbox = null;
+
+      function log(x) {
+        appendLog('log', typeof x === 'string' ? x : fmtJson(x));
+      }
+
+      function addRow(tbodyId, cells) {
+        const tb = $(tbodyId);
+        const tr = document.createElement('tr');
+        for (const c of cells) {
+          const td = document.createElement('td');
+          td.textContent = c == null ? '' : String(c);
+          tr.appendChild(td);
+        }
+        tb.prepend(tr);
+        // keep last 80
+        while (tb.children.length > 80) tb.removeChild(tb.lastChild);
+      }
+
+      function setState(id, on) {
+        const el = $(id);
+        el.textContent = on ? 'ON' : 'OFF';
+        el.className = on ? 'status-ok' : 'status-bad';
+      }
+
+      function disconnect() {
+        if (esGate) esGate.close();
+        if (esOutbox) esOutbox.close();
+        esGate = null;
+        esOutbox = null;
+        setState('gateState', false);
+        setState('outboxState', false);
+        log('[OK] disconnected');
+      }
+
+      $('disconnect').addEventListener('click', disconnect);
+
+      $('connect').addEventListener('click', () => {
+        disconnect();
+
+        const siteCode = $('siteCode').value || 'SITE_HCM_01';
+        const deviceCode = $('deviceCode').value || '';
+
+        const gateUrl = sseUrl('/stream/gate-events', { siteCode, deviceCode });
+        esGate = new EventSource(gateUrl);
+        setState('gateState', true);
+
+        esGate.addEventListener('ready', (ev) => log({ gate_ready: JSON.parse(ev.data) }));
+        esGate.addEventListener('gate_event', (ev) => {
+          const d = JSON.parse(ev.data);
+          addRow('gateRows', [d.eventId, d.eventTime?.slice(11, 19), d.direction, d.deviceId, d.licensePlateRaw || '']);
+        });
+        esGate.addEventListener('error', (ev) => {
+          log('[ERR] gate sse error');
+        });
+
+        const outUrl = sseUrl('/stream/outbox', { siteCode });
+        esOutbox = new EventSource(outUrl);
+        setState('outboxState', true);
+        esOutbox.addEventListener('ready', (ev) => log({ outbox_ready: JSON.parse(ev.data) }));
+        esOutbox.addEventListener('outbox', (ev) => {
+          const d = JSON.parse(ev.data);
+          addRow('outboxRows', [d.outboxId, d.eventId, d.status, d.attempts]);
+        });
+        esOutbox.addEventListener('error', (ev) => {
+          log('[ERR] outbox sse error');
+        });
+
+        log(`[OK] connected SSE: ${siteCode}`);
+      });
+
+      setState('gateState', false);
+      setState('outboxState', false);
+    </script>
+  </body>
+</html>

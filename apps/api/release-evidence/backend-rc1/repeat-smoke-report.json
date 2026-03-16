@@ -1,0 +1,81 @@
+{
+  "checkedAt": "2026-03-14T05:41:56.251Z",
+  "runs": 3,
+  "ok": true,
+  "drift": {
+    "ok": true,
+    "issues": [],
+    "expectedFixture": {
+      "username": "ops",
+      "password": "Parkly@123",
+      "role": "OPS",
+      "siteCode": "SITE_HCM_01",
+      "zoneCode": "VIP_A",
+      "spotCode": "HCM-VIP-01",
+      "mismatchPlateCompact": "51B67890",
+      "notes": "Fixture này dựa trên seed_min: VIP_A / HCM-VIP-01 có expected plate khác để cố ý tạo reconciliation violation."
+    }
+  },
+  "results": [
+    {
+      "runNumber": 1,
+      "reset": {
+        "ok": true,
+        "exitCode": 0,
+        "durationMs": 710
+      },
+      "smoke": {
+        "ok": true,
+        "exitCode": 0,
+        "durationMs": 2023
+      },
+      "parsed": {
+        "role": "OPS",
+        "siteCode": "SITE_HCM_01",
+        "spotCode": "HCM-VIP-01",
+        "incidentId": "10",
+        "auditRows": 16
+      }
+    },
+    {
+      "runNumber": 2,
+      "reset": {
+        "ok": true,
+        "exitCode": 0,
+        "durationMs": 696
+      },
+      "smoke": {
+        "ok": true,
+        "exitCode": 0,
+        "durationMs": 1810
+      },
+      "parsed": {
+        "role": "OPS",
+        "siteCode": "SITE_HCM_01",
+        "spotCode": "HCM-VIP-01",
+        "incidentId": "10",
+        "auditRows": 18
+      }
+    },
+    {
+      "runNumber": 3,
+      "reset": {
+        "ok": true,
+        "exitCode": 0,
+        "durationMs": 740
+      },
+      "smoke": {
+        "ok": true,
+        "exitCode": 0,
+        "durationMs": 1770
+      },
+      "parsed": {
+        "role": "OPS",
+        "siteCode": "SITE_HCM_01",
+        "spotCode": "HCM-VIP-01",
+        "incidentId": "10",
+        "auditRows": 20
+      }
+    }
+  ]
+}

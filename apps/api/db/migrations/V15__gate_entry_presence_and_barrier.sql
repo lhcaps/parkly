@@ -1,0 +1,30 @@
+-- V15: Entry workflow thật + anti-passback presence tracking
+
+CREATE TABLE IF NOT EXISTS gate_active_presence (
+  presence_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  site_id BIGINT NOT NULL,
+  session_id BIGINT NULL,
+  ticket_id BIGINT NULL,
+  plate_compact VARCHAR(32) NULL,
+  rfid_uid VARCHAR(64) NULL,
+  entry_lane_code VARCHAR(32) NOT NULL,
+  entered_at DATETIME NOT NULL,
+  last_seen_at DATETIME NOT NULL,
+  evidence_read_event_id BIGINT NULL,
+  status ENUM('ACTIVE','EXITED','CLEARED','BLOCKED') NOT NULL DEFAULT 'ACTIVE',
+  cleared_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  active_flag TINYINT GENERATED ALWAYS AS (CASE WHEN status = 'ACTIVE' THEN 1 ELSE NULL END) STORED,
+  CONSTRAINT fk_gate_presence_site FOREIGN KEY (site_id) REFERENCES parking_sites(site_id),
+  CONSTRAINT fk_gate_presence_session FOREIGN KEY (session_id) REFERENCES gate_passage_sessions(session_id),
+  CONSTRAINT fk_gate_presence_ticket FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id),
+  CONSTRAINT fk_gate_presence_read FOREIGN KEY (evidence_read_event_id) REFERENCES gate_read_events(read_event_id),
+  UNIQUE KEY uq_gate_presence_active_ticket (site_id, ticket_id, active_flag),
+  UNIQUE KEY uq_gate_presence_active_plate (site_id, plate_compact, active_flag),
+  UNIQUE KEY uq_gate_presence_active_rfid (site_id, rfid_uid, active_flag),
+  KEY ix_gate_presence_site_status (site_id, status),
+  KEY ix_gate_presence_site_last_seen (site_id, last_seen_at),
+  KEY ix_gate_presence_session (session_id),
+  KEY ix_gate_presence_ticket (ticket_id)
+) ENGINE=InnoDB;

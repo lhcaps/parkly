@@ -1,0 +1,43 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import path from 'node:path'
+
+test('source regression: secret safety observability, audit trail và incident playbook đã được chốt', () => {
+  const repoRoot = path.resolve(__dirname, '..', '..', '..', '..')
+  const packageJson = JSON.parse(fs.readFileSync(path.join(repoRoot, 'apps', 'api', 'package.json'), 'utf8'))
+  const metricsSource = fs.readFileSync(path.join(repoRoot, 'apps', 'api', 'src', 'server', 'metrics.ts'), 'utf8')
+  const healthSource = fs.readFileSync(path.join(repoRoot, 'apps', 'api', 'src', 'server', 'health.ts'), 'utf8')
+  const appSource = fs.readFileSync(path.join(repoRoot, 'apps', 'api', 'src', 'server', 'app.ts'), 'utf8')
+  const envExample = fs.readFileSync(path.join(repoRoot, 'apps', 'api', '.env.example'), 'utf8')
+  const runbook = fs.readFileSync(path.join(repoRoot, 'apps', 'api', 'docs', 'RUNBOOK.md'), 'utf8')
+  const securityDocs = fs.readFileSync(path.join(repoRoot, 'apps', 'api', 'docs', 'SECURITY_SECRETS.md'), 'utf8')
+  const incidentDocs = fs.readFileSync(path.join(repoRoot, 'apps', 'api', 'docs', 'INCIDENT_SECRET_ROTATION.md'), 'utf8')
+  const apiDocs = fs.readFileSync(path.join(repoRoot, 'docs', 'API.md'), 'utf8')
+  const auditScript = fs.readFileSync(path.join(repoRoot, 'apps', 'api', 'src', 'scripts', 'secrets-rotation-audit.ts'), 'utf8')
+
+  assert.equal(packageJson.scripts['secrets:rotation:audit'], 'tsx src/scripts/secrets-rotation-audit.ts')
+  assert.equal(packageJson.scripts['test:pr34'], 'pnpm -s test:pr34:metrics && pnpm -s test:pr34:source')
+  assert.match(metricsSource, /parkly_secret_rejects_total/)
+  assert.match(metricsSource, /parkly_secret_missing_auth_header_total/)
+  assert.match(metricsSource, /parkly_secret_replay_suspected_total/)
+  assert.match(metricsSource, /parkly_secret_rotation_events_total/)
+  assert.match(metricsSource, /OBS_SECRET_REJECT_SPIKE_THRESHOLD/)
+  assert.match(healthSource, /secretSafety/)
+  assert.match(healthSource, /mismatchSpikeHint/)
+  assert.match(appSource, /req\.headers\.authorization/)
+  assert.match(appSource, /req\.headers\.x-internal-signature/)
+  assert.match(appSource, /req\.body\.signature/)
+  assert.match(envExample, /API_INTERNAL_SERVICE_TOKEN_ACTIVE=/)
+  assert.match(envExample, /DEVICE_CAPTURE_SECRET_ACTIVE=/)
+  assert.match(envExample, /OBS_SECRET_REJECT_SPIKE_THRESHOLD=5/)
+  assert.match(runbook, /secrets:rotation:audit/)
+  assert.match(runbook, /secretSafety/)
+  assert.match(securityDocs, /Secret safety observability/)
+  assert.match(securityDocs, /secrets:rotation:audit/)
+  assert.match(incidentDocs, /rollback/i)
+  assert.match(incidentDocs, /summary\.secretSafety/)
+  assert.match(apiDocs, /summary\.secretSafety/)
+  assert.match(apiDocs, /components\.secretSafety/)
+  assert.match(auditScript, /SECRET_ROTATION_ROLLBACK/)
+})
