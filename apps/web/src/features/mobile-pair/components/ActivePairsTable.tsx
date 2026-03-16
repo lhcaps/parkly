@@ -1,15 +1,17 @@
-﻿import { Trash2 } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import type { ActiveMobilePair } from '@/lib/api/mobile'
+import { deriveActiveMobilePairOriginState, type ActiveMobilePair } from '@/lib/api/mobile'
 
 export function ActivePairsTable({
   rows,
+  effectiveOrigin,
   onOpen,
   onCopy,
   onRemove,
 }: {
   rows: ActiveMobilePair[]
+  effectiveOrigin: string
   onOpen: (row: ActiveMobilePair) => void
   onCopy: (row: ActiveMobilePair) => void
   onRemove: (pairId: string) => void
@@ -29,38 +31,47 @@ export function ActivePairsTable({
         </div>
       ) : (
         <div className="space-y-3">
-          {rows.map((row) => (
-            <div key={row.pairId} className="rounded-2xl border border-border/80 bg-background/40 p-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant={row.direction === 'ENTRY' ? 'entry' : 'exit'}>{row.direction}</Badge>
-                    <Badge variant="outline">{row.siteCode}</Badge>
-                    <Badge variant="outline">{row.laneCode}</Badge>
-                    <Badge variant="muted">{row.deviceCode}</Badge>
+          {rows.map((row) => {
+            const originState = deriveActiveMobilePairOriginState(row, effectiveOrigin)
+            return (
+              <div key={row.pairId} className="rounded-2xl border border-border/80 bg-background/40 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant={row.direction === 'ENTRY' ? 'entry' : 'exit'}>{row.direction}</Badge>
+                      <Badge variant="outline">{row.siteCode}</Badge>
+                      <Badge variant="outline">{row.laneCode}</Badge>
+                      <Badge variant="muted">{row.deviceCode}</Badge>
+                      <Badge variant={originState.variant}>{originState.label}</Badge>
+                    </div>
+
+                    <p className="mt-2 break-all font-mono-data text-xs text-muted-foreground">{row.pairUrl}</p>
+                    <p className="mt-2 break-all font-mono-data text-[11px] text-muted-foreground">
+                      origin {row.pairOrigin || '—'} · registry v{row.registryVersion}
+                      {row.migratedAt ? ` · migrated ${new Date(row.migratedAt).toLocaleString('vi-VN')}` : ''}
+                    </p>
+                    <p className="mt-2 text-[11px] text-muted-foreground">{originState.detail}</p>
+                    <p className="mt-2 text-[11px] font-mono-data text-muted-foreground">
+                      created {new Date(row.createdAt).toLocaleString('vi-VN')} · last open {new Date(row.lastOpenedAt).toLocaleString('vi-VN')}
+                    </p>
                   </div>
 
-                  <p className="mt-2 break-all font-mono-data text-xs text-muted-foreground">{row.pairUrl}</p>
-                  <p className="mt-2 text-[11px] font-mono-data text-muted-foreground">
-                    created {new Date(row.createdAt).toLocaleString('vi-VN')} · last open {new Date(row.lastOpenedAt).toLocaleString('vi-VN')}
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={() => onCopy(row)}>
-                    Copy
-                  </Button>
-                  <Button type="button" size="sm" onClick={() => onOpen(row)}>
-                    Open
-                  </Button>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => onRemove(row.pairId)}>
-                    <Trash2 className="h-4 w-4" />
-                    Remove
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={() => onCopy(row)}>
+                      Copy
+                    </Button>
+                    <Button type="button" size="sm" onClick={() => onOpen(row)}>
+                      Open
+                    </Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => onRemove(row.pairId)}>
+                      <Trash2 className="h-4 w-4" />
+                      Remove
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

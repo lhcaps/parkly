@@ -8,20 +8,16 @@ import { ConfirmActionButton, PageStateRenderer, StateBanner } from '@/component
 import { MobilePairForm, type MobilePairDraft } from '@/features/mobile-pair/components/MobilePairForm'
 import { MobileQrCard } from '@/features/mobile-pair/components/MobileQrCard'
 import { ActivePairsTable } from '@/features/mobile-pair/components/ActivePairsTable'
-
-// Cập nhật import mới từ @/lib/api/mobile
 import {
   buildMobileCapturePairUrl,
   createMobilePairToken,
-  isMobilePairOriginLoopback,
+  getMobilePairOriginInfo,
   listActiveMobilePairs,
   registerActiveMobilePair,
   removeActiveMobilePair,
-  resolveMobilePairOrigin,
   touchActiveMobilePair,
   type ActiveMobilePair,
 } from '@/lib/api/mobile'
-
 import { getDevices } from '@/lib/api/devices'
 import { getLanes, getSites } from '@/lib/api/topology'
 import { extractValidationFieldErrors } from '@/lib/http/errors'
@@ -90,7 +86,9 @@ export function MobileCameraPairPage() {
       }
     }
     void bootstrap()
-    return () => { active = false }
+    return () => {
+      active = false
+    }
   }, [])
 
   useEffect(() => {
@@ -119,16 +117,21 @@ export function MobileCameraPairPage() {
       }
     }
     void loadContext()
-    return () => { active = false }
+    return () => {
+      active = false
+    }
   }, [draft.siteCode])
 
-  const pairUrl = useMemo(() => buildMobileCapturePairUrl(draft), [draft])
+  const originInfo = useMemo(() => getMobilePairOriginInfo(), [])
+  const pairUrl = useMemo(
+    () => buildMobileCapturePairUrl(draft, { originOverride: originInfo.effectiveOrigin }),
+    [draft, originInfo.effectiveOrigin],
+  )
   const draftValidation = useMemo(() => validatePairDraft(draft), [draft])
-  const backendValidation = useMemo(() => extractValidationFieldErrors(error instanceof Error ? (error as any).details : undefined), [error])
-
-  // --- Bổ sung logic origin resolution cho v6 ---
-  const pairOrigin = useMemo(() => resolveMobilePairOrigin(), [])
-  const pairOriginLoopback = useMemo(() => isMobilePairOriginLoopback(), [])
+  const backendValidation = useMemo(
+    () => extractValidationFieldErrors(error instanceof Error ? (error as any).details : undefined),
+    [error],
+  )
 
   async function handleCopyPairUrl() {
     const ok = await copyText(pairUrl)
@@ -153,7 +156,8 @@ export function MobileCameraPairPage() {
       setMessage('Required context missing to create pair.')
       return
     }
-    const row = registerActiveMobilePair(draft)
+
+    const row = registerActiveMobilePair(draft, { originOverride: originInfo.effectiveOrigin })
     setActivePairs(listActiveMobilePairs())
     setMessage(`Created pair ${row.pairId}.`)
   }
@@ -173,7 +177,10 @@ export function MobileCameraPairPage() {
         badges={[
           { label: 'desktop pair', variant: 'secondary' },
           { label: 'QR + link', variant: 'outline' },
-          { label: activePairs.length > 0 ? `active ${activePairs.length}` : 'no pair', variant: activePairs.length > 0 ? 'secondary' : 'outline' },
+          {
+            label: activePairs.length > 0 ? `active ${activePairs.length}` : 'no pair',
+            variant: activePairs.length > 0 ? 'secondary' : 'outline',
+          },
         ]}
       />
 
@@ -210,6 +217,9 @@ export function MobileCameraPairPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="muted">pair actions</Badge>
                   <Badge variant="outline">local registry</Badge>
+                  <Badge variant={originInfo.source === 'window' ? 'outline' : 'secondary'}>
+                    origin {originInfo.source}
+                  </Badge>
                 </div>
 
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -229,12 +239,10 @@ export function MobileCameraPairPage() {
               </div>
             </div>
 
-            {/* Cập nhật MobileQrCard với các prop origin mới */}
             <MobileQrCard
               pairUrl={pairUrl}
               copied={copied}
-              pairOrigin={pairOrigin}
-              pairOriginLoopback={pairOriginLoopback}
+              originInfo={originInfo}
               onCopy={() => void handleCopyPairUrl()}
               onOpen={() => handleOpenPairUrl()}
             />
@@ -242,6 +250,7 @@ export function MobileCameraPairPage() {
 
           <ActivePairsTable
             rows={activePairs}
+            effectiveOrigin={originInfo.effectiveOrigin}
             onOpen={(row) => handleOpenPairUrl(row.pairUrl, row.pairId)}
             onCopy={(row) => void copyText(row.pairUrl)}
             onRemove={(pairId) => {

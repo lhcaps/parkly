@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertCircle,
+  AlertTriangle,
   CheckCircle2,
   ClipboardList,
   Loader2,
@@ -13,18 +14,24 @@ import { PageHeader } from '@/components/ops/console'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  canRunSessionAction,
+  getSessionActionLockReason,
+  isSessionTerminal,
+  type OperatorRole,
+} from '@/features/manual-control/session-action-access'
 import { SessionFilterBar } from '@/features/session-history/components/SessionFilterBar'
+import { SessionManualBarrierOverrideCard } from '@/features/session-history/components/SessionManualBarrierOverrideCard'
 import { SessionTable } from '@/features/session-history/components/SessionTable'
 import { SessionTimeline } from '@/features/session-history/components/SessionTimeline'
-import { SessionManualBarrierOverrideCard } from '@/features/session-history/components/SessionManualBarrierOverrideCard'
 import { SessionDetailConsole } from '@/features/session-history/SessionDetailConsole'
-import { canRunSessionAction, getSessionActionLockReason, type OperatorRole } from '@/features/manual-control/session-action-access'
-import { getLanes, getSites } from '@/lib/api/topology'
-import { getMe } from '@/lib/api/system'
 import { cancelSession, confirmPass, getSessionDetail, getSessions, resolveSession } from '@/lib/api/sessions'
+import { getMe } from '@/lib/api/system'
+import { getLanes, getSites } from '@/lib/api/topology'
 import type { Direction } from '@/lib/contracts/common'
 import type { SessionAllowedAction, SessionDetail, SessionState, SessionSummary } from '@/lib/contracts/sessions'
 import type { LaneRow, SiteRow } from '@/lib/contracts/topology'
+import { toAppErrorDisplay, type AppErrorDisplay } from '@/lib/http/errors'
 import { measureAsync } from '@/lib/query/perf'
 import { useDebouncedValue } from '@/lib/query/use-debounced-value'
 
@@ -53,15 +60,17 @@ function ActionButton({
   role,
   busy,
   allowedActions,
+  liveSessionStatus,
   onRun,
 }: {
   action: SessionAllowedAction
   role: OperatorRole
   busy: string
   allowedActions: SessionAllowedAction[]
+  liveSessionStatus: string
   onRun: (action: SessionAllowedAction) => Promise<void>
 }) {
-  const lockReason = getSessionActionLockReason(role, action, allowedActions)
+  const lockReason = getSessionActionLockReason(role, action, allowedActions, liveSessionStatus)
   const disabled = Boolean(lockReason) || Boolean(busy)
 
   const props = {
@@ -92,16 +101,17 @@ function DetailActionBar({
 }: {
   detail: SessionDetail
   role: OperatorRole
-  onUpdated: () => Promise<void>
+  onUpdated: () => Promise<boolean | void>
 }) {
   const [busy, setBusy] = useState('')
-  const [error, setError] = useState('')
-  const actions = detail.session.allowedActions
+  const [error, setError] = useState<AppErrorDisplay | null>(null)
+  const actions = detail.session.allowedActions ?? []
+  const terminal = isSessionTerminal(detail.session.status)
 
   async function run(action: SessionAllowedAction) {
     try {
       setBusy(action)
-      setError('')
+      setError(null)
 
       const sessionId = String(detail.session.sessionId)
 
@@ -112,7 +122,7 @@ function DetailActionBar({
           sessionId,
           approved: true,
           reasonCode: 'MANUAL_APPROVE',
-          reasonDetail: 'Thao tfrom Session History',
+          reasonDetail: 'Action from Session History',
         })
       } else if (action === 'REQUIRE_PAYMENT') {
         await resolveSession({
@@ -151,7 +161,7 @@ function DetailActionBar({
 
       await onUpdated()
     } catch (actionError) {
-      setError(actionError instanceof Error ? actionError.message : String(actionError))
+      setError(toAppErrorDisplay(actionError, 'Session action rejected'))
     } finally {
       setBusy('')
     }
@@ -159,6 +169,16 @@ function DetailActionBar({
 
   return (
     <div className="space-y-3">
+      {terminal ? (
+        <div className="flex items-start gap-2 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-4 text-sm text-destructive">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div>
+            <p className="font-semibold">Session is {detail.session.status} — actions locked</p>
+            <p className="mt-1 text-destructive/80">The backend has already moved this session to a terminal state. Refresh is still safe, mutate actions are not.</p>
+          </div>
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap gap-2">
         <Badge variant="muted">role {role || '—'}</Badge>
         {(['APPROVE', 'REQUIRE_PAYMENT', 'DENY', 'CONFIRM_PASS', 'CANCEL'] as SessionAllowedAction[]).map((action) => (
@@ -168,6 +188,7 @@ function DetailActionBar({
             role={role}
             busy={busy}
             allowedActions={actions}
+            liveSessionStatus={detail.session.status}
             onRun={run}
           />
         ))}
@@ -176,14 +197,20 @@ function DetailActionBar({
 
       {actions.filter((action) => canRunSessionAction(role, action)).length === 0 && actions.length > 0 ? (
         <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
-          Backend action is permitted by the backend, but your current role cannot perform it on this session.
+          The backend still exposes actions for this session, but your current role cannot perform any of them.
         </div>
       ) : null}
 
       {error ? (
-        <div className="flex items-start gap-2 rounded-2xl border border-destructive/25 bg-destructive/10 px-4 py-4 text-sm text-destructive">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span className="break-all">{error}</span>
+        <div className="space-y-2 rounded-2xl border border-destructive/25 bg-destructive/10 px-4 py-4 text-sm text-destructive">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div className="min-w-0">
+              <p className="font-semibold">{error.title}</p>
+              <p className="mt-1 break-all text-destructive/90">{error.message}</p>
+            </div>
+          </div>
+          {error.nextAction ? <p className="text-xs text-destructive/85">Next: {error.nextAction}</p> : null}
         </div>
       ) : null}
     </div>
@@ -208,6 +235,8 @@ export function SessionsPage() {
   const [loading, setLoading] = useState(true)
   const [detailLoading, setDetailLoading] = useState(false)
   const [error, setError] = useState('')
+  const [detailError, setDetailError] = useState('')
+  const [staleWarning, setStaleWarning] = useState('')
   const detailRequestSeq = useRef(0)
   const refreshRequestSeq = useRef(0)
   const debouncedSearch = useDebouncedValue(search, 180)
@@ -265,12 +294,16 @@ export function SessionsPage() {
     const requestSeq = ++detailRequestSeq.current
     try {
       setDetailLoading(true)
+      setDetailError('')
       const nextDetail = await measureAsync('session-detail-open', () => getSessionDetail(sessionId), sessionId)
-      if (requestSeq !== detailRequestSeq.current) return
+      if (requestSeq !== detailRequestSeq.current) return false
       setDetail(nextDetail)
-    } catch (detailError) {
-      if (requestSeq !== detailRequestSeq.current) return
-      setError(detailError instanceof Error ? detailError.message : String(detailError))
+      return true
+    } catch (detailLoadError) {
+      if (requestSeq !== detailRequestSeq.current) return false
+      setDetailError(detailLoadError instanceof Error ? detailLoadError.message : String(detailLoadError))
+      setDetail(null)
+      return false
     } finally {
       if (requestSeq === detailRequestSeq.current) setDetailLoading(false)
     }
@@ -292,7 +325,7 @@ export function SessionsPage() {
         limit: 100,
       }), [siteCode || 'all', laneCode || 'all', status || 'all', direction || 'all'].join(':'))
 
-      if (requestSeq !== refreshRequestSeq.current) return
+      if (requestSeq !== refreshRequestSeq.current) return false
       setRows(data.rows)
 
       const nextSelectedId =
@@ -305,15 +338,27 @@ export function SessionsPage() {
       setSelectedId(nextSelectedId)
 
       if (nextSelectedId) {
-        await loadDetail(nextSelectedId)
-      } else {
-        setDetail(null)
+        const detailOk = await loadDetail(nextSelectedId)
+        if (requestSeq !== refreshRequestSeq.current) return false
+        if (detailOk) {
+          setStaleWarning('')
+        } else {
+          setStaleWarning('Session detail could not be refreshed after the latest list sync. State may be stale until you reload detail again.')
+        }
+        return detailOk
       }
+
+      setDetail(null)
+      setDetailError('')
+      setStaleWarning('')
+      return true
     } catch (loadError) {
-      if (requestSeq !== refreshRequestSeq.current) return
+      if (requestSeq !== refreshRequestSeq.current) return false
       setError(loadError instanceof Error ? loadError.message : String(loadError))
       setRows([])
       setDetail(null)
+      setStaleWarning('Session list refresh failed. Any previously visible state may now be stale.')
+      return false
     } finally {
       if (requestSeq === refreshRequestSeq.current) setLoading(false)
     }
@@ -321,7 +366,7 @@ export function SessionsPage() {
 
   useEffect(() => {
     if (!siteCode) return
-    void refresh(selectedId)
+    void refresh(selectedId || undefined)
   }, [siteCode, laneCode, status, direction, from, to])
 
   const filteredRows = useMemo(() => {
@@ -344,7 +389,7 @@ export function SessionsPage() {
     })
   }, [debouncedSearch, rows])
 
-  const activeDetail = detail && String(detail.session.sessionId) === String(selectedId) ? detail : detail
+  const activeDetail = detail && String(detail.session.sessionId) === String(selectedId) ? detail : null
 
   function resetFilters() {
     setLaneCode('')
@@ -366,7 +411,7 @@ export function SessionsPage() {
           { label: role ? `role ${role}` : 'role —', variant: 'muted' },
         ]}
         actions={
-          <Button variant="outline" onClick={() => void refresh(selectedId)} disabled={loading}>
+          <Button variant="outline" onClick={() => void refresh(selectedId || undefined)} disabled={loading}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             Refresh
           </Button>
@@ -391,7 +436,7 @@ export function SessionsPage() {
         onSearchChange={setSearch}
         onFromChange={setFrom}
         onToChange={setTo}
-        onRefresh={() => void refresh(selectedId)}
+        onRefresh={() => void refresh(selectedId || undefined)}
         onReset={resetFilters}
       />
 
@@ -403,7 +448,12 @@ export function SessionsPage() {
           error={error}
           onSelect={(sessionId) => {
             setSelectedId(sessionId)
-            void loadDetail(sessionId)
+            setStaleWarning('')
+            void loadDetail(sessionId).then((ok) => {
+              if (!ok) {
+                setStaleWarning('Session detail could not be refreshed for the selected row. State may be stale until you retry refresh.')
+              }
+            })
           }}
         />
 
@@ -415,6 +465,16 @@ export function SessionsPage() {
             </CardHeader>
 
             <CardContent className="space-y-4">
+              {staleWarning ? (
+                <div className="flex items-start gap-2 rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-4 text-sm text-amber-700 dark:text-amber-300">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div>
+                    <p className="font-semibold">State may be stale</p>
+                    <p className="mt-1">{staleWarning}</p>
+                  </div>
+                </div>
+              ) : null}
+
               {detailLoading ? (
                 <div className="flex items-center gap-2 rounded-2xl border border-dashed border-border/80 bg-background/40 px-4 py-8 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -434,32 +494,44 @@ export function SessionsPage() {
                     {activeDetail.session.reviewRequired ? <Badge variant="amber">review required</Badge> : null}
                   </div>
 
+                  {detailError ? (
+                    <div className="flex items-start gap-2 rounded-2xl border border-primary/25 bg-primary/10 px-4 py-4 text-sm text-primary">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                      <span className="break-all">Live detail could not be refreshed for this session. {detailError}</span>
+                    </div>
+                  ) : null}
+
+                  {isSessionTerminal(activeDetail.session.status) ? (
+                    <div className="flex items-start gap-2 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-4 text-sm text-destructive">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                      <div>
+                        <p className="font-semibold">Session is {activeDetail.session.status} — no further actions should be run</p>
+                        <p className="mt-1 text-destructive/80">The page remains readable, but mutate controls are locked by the live session state and backend allowedActions.</p>
+                      </div>
+                    </div>
+                  ) : null}
+
                   <div className="rounded-3xl border border-border/80 bg-muted/25 p-4">
                     <SummaryRow label="Session" value={String(activeDetail.session.sessionId)} />
                     <SummaryRow label="Plate" value={activeDetail.session.plateCompact || '—'} />
                     <SummaryRow label="Opened at" value={new Date(activeDetail.session.openedAt).toLocaleString('vi-VN')} />
                     <SummaryRow label="Resolved at" value={activeDetail.session.resolvedAt ? new Date(activeDetail.session.resolvedAt).toLocaleString('vi-VN') : '—'} />
                     <SummaryRow label="RFID UID" value={activeDetail.session.rfidUid || '—'} />
+                    <SummaryRow label="Allowed actions" value={activeDetail.session.allowedActions.length > 0 ? activeDetail.session.allowedActions.join(', ') : 'none'} />
                     <SummaryRow label="Counts" value={`${activeDetail.session.readCount} reads · ${activeDetail.session.decisionCount} decisions · ${activeDetail.session.barrierCommandCount} barriers`} />
                   </div>
 
                   <DetailActionBar
                     detail={activeDetail}
                     role={role}
-                    onUpdated={async () => {
-                      await loadDetail(String(activeDetail.session.sessionId))
-                      await refresh(String(activeDetail.session.sessionId))
-                    }}
+                    onUpdated={() => refresh(String(activeDetail.session.sessionId))}
                   />
                 </>
               )}
             </CardContent>
           </Card>
 
-          {activeDetail ? <SessionManualBarrierOverrideCard detail={activeDetail} role={role} onUpdated={async () => {
-            await loadDetail(String(activeDetail.session.sessionId))
-            await refresh(String(activeDetail.session.sessionId))
-          }} /> : null}
+          {activeDetail ? <SessionManualBarrierOverrideCard detail={activeDetail} role={role} onUpdated={() => refresh(String(activeDetail.session.sessionId))} /> : null}
           {activeDetail ? <SessionTimeline detail={activeDetail} /> : null}
           {activeDetail ? <SessionDetailConsole detail={activeDetail} /> : null}
         </div>

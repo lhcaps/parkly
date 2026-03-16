@@ -1,4 +1,4 @@
-﻿import { HardDriveDownload, RefreshCcw, Trash2, Wrench } from 'lucide-react'
+import { HardDriveDownload, RefreshCcw, ShieldAlert, Trash2, Wrench } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -50,6 +50,15 @@ export function DeveloperDebugTab({
             <Metric label="Base URL" value={buildInfo.baseUrl || '/'} />
           </div>
 
+          <InlineMessage tone="info">
+            <div>
+              <p className="font-medium">Surface boundaries</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                User-auth shell routes use the browser access token. Mobile capture and device heartbeat use device-signed credentials only. A device 401 must be debugged on the mobile surface, not by logging the web operator out.
+              </p>
+            </div>
+          </InlineMessage>
+
           <Separator />
 
           <div className="space-y-3">
@@ -98,6 +107,18 @@ export function DeveloperDebugTab({
                 <p className="text-muted-foreground">No app keys in localStorage.</p>
               )}
             </div>
+          </div>
+
+          <div className="rounded-2xl border border-border/70 bg-muted/30 p-4">
+            <div className="mb-2 flex items-center gap-2 text-sm font-medium text-foreground">
+              <ShieldAlert className="h-4 w-4 text-primary" />
+              Troubleshooting split
+            </div>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li>Shell auth issues: /api/auth/*, route bootstrap, user role guards, realtime 401.</li>
+              <li>Device-signed issues: /api/devices/heartbeat and /api/gate-reads/* signed by device secret.</li>
+              <li>Do not treat device signature errors as proof that the browser user session is expired.</li>
+            </ul>
           </div>
         </CardContent>
       </Card>

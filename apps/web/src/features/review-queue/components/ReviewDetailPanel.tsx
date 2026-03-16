@@ -17,7 +17,7 @@ import {
   prettyJson,
 } from '@/features/review-queue/review-workspace'
 import type { ReviewQueueAction, ReviewQueueItem } from '@/lib/contracts/reviews'
-import type { SessionDetail } from '@/lib/contracts/sessions'
+import type { SessionAllowedAction, SessionDetail } from '@/lib/contracts/sessions'
 import { cn } from '@/lib/utils'
 
 function toneClass(tone: 'warning' | 'error' | 'info') {
@@ -41,6 +41,7 @@ function ReviewActionButton({
   allowedActions,
   busyAction,
   liveSessionStatus,
+  liveSessionAllowedActions,
   onRun,
 }: {
   action: ReviewQueueAction
@@ -48,9 +49,10 @@ function ReviewActionButton({
   allowedActions: ReviewQueueAction[]
   busyAction: string
   liveSessionStatus?: string
+  liveSessionAllowedActions?: SessionAllowedAction[]
   onRun: (action: ReviewQueueAction) => Promise<void>
 }) {
-  const lockReason = getReviewWorkspaceActionLockReason(role, action, allowedActions, liveSessionStatus)
+  const lockReason = getReviewWorkspaceActionLockReason(role, action, allowedActions, liveSessionStatus, liveSessionAllowedActions)
   const disabled = Boolean(lockReason) || Boolean(busyAction)
   const busy = busyAction === action
 
@@ -249,6 +251,22 @@ export function ReviewDetailPanel({
                 <p className="mt-1 text-destructive/80">This session has reached a terminal state. A new session must be opened in Run Lane to process the vehicle.</p>
               </div>
             </div>
+          ) : !detail ? (
+            <div className="mt-4 flex items-start gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-4 text-sm text-amber-700 dark:text-amber-300">
+              <span className="mt-0.5 shrink-0">⚠</span>
+              <div>
+                <p className="font-semibold">Live session detail not loaded</p>
+                <p className="mt-1">Actions stay locked until the authoritative session detail finishes refreshing.</p>
+              </div>
+            </div>
+          ) : error ? (
+            <div className="mt-4 flex items-start gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-4 text-sm text-amber-700 dark:text-amber-300">
+              <span className="mt-0.5 shrink-0">⚠</span>
+              <div>
+                <p className="font-semibold">State may be stale</p>
+                <p className="mt-1">{error}</p>
+              </div>
+            </div>
           ) : (
             <div className="mt-4 flex flex-wrap gap-2">
               {(['CLAIM', 'MANUAL_APPROVE', 'MANUAL_REJECT', 'MANUAL_OPEN_BARRIER'] as ReviewQueueAction[]).map((action) => (
@@ -259,6 +277,7 @@ export function ReviewDetailPanel({
                   allowedActions={selected.actions}
                   busyAction={busyAction}
                   liveSessionStatus={detail?.session.status}
+                  liveSessionAllowedActions={detail?.session.allowedActions}
                   onRun={onRunAction}
                 />
               ))}

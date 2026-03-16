@@ -1,0 +1,113 @@
+{
+  "startedAt": "2026-03-16T17:48:32.737Z",
+  "baseUrl": "http://192.168.1.84:5173",
+  "api": {
+    "skipped": false,
+    "ok": true,
+    "status": 200,
+    "durationMs": 176,
+    "target": "http://192.168.1.84:3000/api/health",
+    "bodyHint": "{\"requestId\":\"6c2e2295-d8a8-4dde-a3d4-8448a49565ff\",\"data\":{\"ok\":true,\"ready\":true,\"status\":\"DEGRADED\",\"ts\":\"2026-03-16T17:48:36.896Z\",\"components\":{\"db\":{\"stat",
+    "attempts": [
+      {
+        "target": "http://192.168.1.84:3000/api/health",
+        "status": 200,
+        "ok": true
+      }
+    ]
+  },
+  "routes": [
+    {
+      "name": "login",
+      "path": "/login",
+      "status": 200,
+      "ok": true,
+      "durationMs": 3518,
+      "bodyHint": "<!doctype html> <html lang=\"vi\"> <head> <script type=\"module\">import { injectIntoGlobalHook } from \"/@react-refres"
+    },
+    {
+      "name": "overview",
+      "path": "/overview",
+      "status": 200,
+      "ok": true,
+      "durationMs": 20,
+      "bodyHint": "<!doctype html> <html lang=\"vi\"> <head> <script type=\"module\">import { injectIntoGlobalHook } from \"/@react-refres"
+    },
+    {
+      "name": "run-lane",
+      "path": "/run-lane?siteCode=SITE_HCM_01&gateCode=GATE_01&laneCode=GATE_01_ENTRY",
+      "status": 200,
+      "ok": true,
+      "durationMs": 433,
+      "bodyHint": "<!doctype html> <html lang=\"vi\"> <head> <script type=\"module\">import { injectIntoGlobalHook } from \"/@react-refres"
+    },
+    {
+      "name": "review-queue",
+      "path": "/review-queue?siteCode=SITE_HCM_01&status=OPEN&q=43A&reviewId=RV-1001",
+      "status": 200,
+      "ok": true,
+      "durationMs": 69,
+      "bodyHint": "<!doctype html> <html lang=\"vi\"> <head> <script type=\"module\">import { injectIntoGlobalHook } from \"/@react-refres"
+    },
+    {
+      "name": "session-history",
+      "path": "/session-history?siteCode=SITE_HCM_01&status=OPEN&q=43A&sessionId=GS-1001",
+      "status": 200,
+      "ok": true,
+      "durationMs": 39,
+      "bodyHint": "<!doctype html> <html lang=\"vi\"> <head> <script type=\"module\">import { injectIntoGlobalHook } from \"/@react-refres"
+    },
+    {
+      "name": "audit-viewer",
+      "path": "/audit-viewer?siteCode=SITE_HCM_01&quick=request&requestId=req-demo-001&auditId=AU-1001",
+      "status": 200,
+      "ok": true,
+      "durationMs": 33,
+      "bodyHint": "<!doctype html> <html lang=\"vi\"> <head> <script type=\"module\">import { injectIntoGlobalHook } from \"/@react-refres"
+    },
+    {
+      "name": "sync-outbox",
+      "path": "/sync-outbox?siteCode=SITE_HCM_01&status=FAILED&quick=failed&outboxId=OB-1001",
+      "status": 200,
+      "ok": true,
+      "durationMs": 8,
+      "bodyHint": "<!doctype html> <html lang=\"vi\"> <head> <script type=\"module\">import { injectIntoGlobalHook } from \"/@react-refres"
+    },
+    {
+      "name": "reports",
+      "path": "/reports?siteCode=SITE_HCM_01&days=7",
+      "status": 200,
+      "ok": true,
+      "durationMs": 3,
+      "bodyHint": "<!doctype html> <html lang=\"vi\"> <head> <script type=\"module\">import { injectIntoGlobalHook } from \"/@react-refres"
+    },
+    {
+      "name": "mobile-camera-pair",
+      "path": "/mobile-camera-pair",
+      "status": 200,
+      "ok": true,
+      "durationMs": 2,
+      "bodyHint": "<!doctype html> <html lang=\"vi\"> <head> <script type=\"module\">import { injectIntoGlobalHook } from \"/@react-refres"
+    },
+    {
+      "name": "mobile-capture",
+      "path": "/mobile-capture?siteCode=SITE_HCM_01&laneCode=GATE_01_ENTRY",
+      "status": 200,
+      "ok": true,
+      "durationMs": 2,
+      "bodyHint": "<!doctype html> <html lang=\"vi\"> <head> <script type=\"module\">import { injectIntoGlobalHook } from \"/@react-refres"
+    }
+  ],
+  "passCount": 10,
+  "failCount": 0,
+  "preconditions": [
+    "desktop và iPhone cùng subnet",
+    "web bind 0.0.0.0 hoặc origin LAN đúng",
+    "API reachable từ mobile device",
+    "device secret đúng"
+  ],
+  "notes": [
+    "Smoke script này chỉ chứng minh shell route + health availability. Nó không thay thế operator flow pair -> heartbeat -> capture -> review.",
+    "Evidence thủ công phải lưu thêm screenshot QR origin, mobile context summary, requestId của heartbeat/capture và terminal lock banner nếu có."
+  ]
+}

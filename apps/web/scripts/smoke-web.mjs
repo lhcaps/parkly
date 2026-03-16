@@ -1,5 +1,5 @@
 import http from 'node:http'
-import { readFile, stat } from 'node:fs/promises'
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 
@@ -13,6 +13,7 @@ function parseArgs(argv) {
     holdOpen: false,
     strictApi: false,
     jsonOut: process.env.SMOKE_JSON_OUT || '',
+    evidenceDir: process.env.SMOKE_EVIDENCE_DIR || '',
     waitMs: Number(process.env.SMOKE_WAIT_MS || '12000'),
   }
 
@@ -23,6 +24,7 @@ function parseArgs(argv) {
     if (value === '--host') options.host = argv[index + 1] || options.host
     if (value === '--port') options.port = Number(argv[index + 1] || options.port)
     if (value === '--jsonOut') options.jsonOut = argv[index + 1] || options.jsonOut
+    if (value === '--evidenceDir') options.evidenceDir = argv[index + 1] || options.evidenceDir
     if (value === '--waitMs') options.waitMs = Number(argv[index + 1] || options.waitMs)
     if (value === '--serve-dist') options.serveDist = true
     if (value === '--hold-open') options.holdOpen = true
@@ -240,14 +242,47 @@ async function checkApi(apiUrl) {
 
 async function writeJson(filePath, payload) {
   if (!filePath) return
-  const fs = await import('node:fs/promises')
-  await fs.mkdir(path.dirname(filePath), { recursive: true })
-  await fs.writeFile(filePath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8')
+  await mkdir(path.dirname(filePath), { recursive: true })
+  await writeFile(filePath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8')
+}
+
+async function writeText(filePath, body) {
+  await mkdir(path.dirname(filePath), { recursive: true })
+  await writeFile(filePath, body, 'utf8')
 }
 
 function printRoute(result) {
   const prefix = result.ok ? 'PASS' : 'FAIL'
   console.log(`[${prefix}] ${result.name.padEnd(18)} ${String(result.status).padEnd(4)} ${String(result.durationMs).padStart(4)}ms  ${result.path}`)
+}
+
+function summaryNotes(summary) {
+  const notes = []
+  if (summary.failCount > 0) {
+    notes.push('Có route shell fail. Chưa được phép chuyển sang manual smoke trên mobile/review.')
+  }
+  if (!summary.api.ok) {
+    notes.push('API health chưa xanh hoàn toàn. Manual smoke vẫn có thể tiếp tục nếu service cần thiết cho flow đang reachable.')
+  }
+  notes.push('Smoke script này chỉ chứng minh shell route + health availability. Nó không thay thế operator flow pair -> heartbeat -> capture -> review.')
+  notes.push('Evidence thủ công phải lưu thêm screenshot QR origin, mobile context summary, requestId của heartbeat/capture và terminal lock banner nếu có.')
+  return notes
+}
+
+async function writeEvidenceScaffold(evidenceDir, summary) {
+  if (!evidenceDir) return
+  const latestSmoke = path.join(evidenceDir, 'latest-smoke.json')
+  const runSheet = path.join(evidenceDir, 'manual-run-sheet.md')
+  const closureNotes = path.join(evidenceDir, 'bug-closure-notes.md')
+
+  await writeJson(latestSmoke, summary)
+
+  const manualRunSheet = `# Frontend mobile-review smoke run sheet\n\n- Started at: ${summary.startedAt}\n- Base URL: ${summary.baseUrl}\n- API target: ${summary.api.target ?? 'n/a'}\n- Smoke pass/fail: ${summary.passCount}/${summary.routes.length}\n\n## Preconditions\n- [ ] Desktop và iPhone cùng subnet\n- [ ] Web bind 0.0.0.0 hoặc origin LAN đúng\n- [ ] API reachable từ iPhone\n- [ ] Device secret đúng\n- [ ] User shell đăng nhập hợp lệ\n\n## Round 1 — happy path\n- [ ] Pair tạo từ desktop có origin LAN đúng\n- [ ] iPhone mở link pair thành công\n- [ ] Heartbeat thành công hoặc fail đúng secret hiện tại\n- [ ] Capture đi đúng route device-signed\n- [ ] Session/review detail cập nhật đúng\n\n## Round 2 — fresh pair token\n- [ ] Pair mới hoàn toàn\n- [ ] Không drift về origin cũ\n- [ ] Không reuse state cũ sai\n\n## Round 3 — edit secret giữa chừng\n- [ ] Link pair ban đầu có secret A\n- [ ] Form sửa thành secret B\n- [ ] Heartbeat theo secret B\n- [ ] Capture theo secret B\n- [ ] Shell không logout do device 401\n\n## Terminal lock check\n- [ ] Session terminal hiển thị lock banner\n- [ ] UI không còn action usable trái allowedActions\n\n## Evidence files\n- [ ] screenshot-pair-origin.png\n- [ ] screenshot-mobile-context.png\n- [ ] screenshot-heartbeat-status.png\n- [ ] screenshot-capture-status.png\n- [ ] screenshot-session-or-review-detail.png\n- [ ] screenshot-terminal-lock.png\n- [ ] latest-smoke.json\n\n## Notes\n\n`
+
+  const bugClosureTemplate = `# Bug closure notes\n\n## qr-localhost-drift\n- Status: OPEN\n- Verified on:\n- Build / patch:\n- Evidence:\n  - screenshot:\n  - requestId: n/a\n  - smoke run:\n- Notes:\n\n## stale-device-secret\n- Status: OPEN\n- Verified on:\n- Build / patch:\n- Evidence:\n  - screenshot:\n  - requestId:\n  - smoke run:\n- Notes:\n\n## wrong-media-upload-surface\n- Status: OPEN\n- Verified on:\n- Build / patch:\n- Evidence:\n  - screenshot:\n  - requestId: n/a\n  - smoke run:\n- Notes:\n\n## device-401-shell-logout\n- Status: OPEN\n- Verified on:\n- Build / patch:\n- Evidence:\n  - screenshot:\n  - requestId:\n  - smoke run:\n- Notes:\n\n## stale-review-session-actions\n- Status: OPEN\n- Verified on:\n- Build / patch:\n- Evidence:\n  - screenshot:\n  - requestId:\n  - smoke run:\n- Notes:\n`
+
+  await writeText(runSheet, manualRunSheet)
+  await writeText(closureNotes, bugClosureTemplate)
 }
 
 async function main() {
@@ -289,12 +324,32 @@ async function main() {
       routes: results,
       passCount: results.filter((item) => item.ok).length,
       failCount: results.filter((item) => !item.ok).length,
+      preconditions: [
+        'desktop và iPhone cùng subnet',
+        'web bind 0.0.0.0 hoặc origin LAN đúng',
+        'API reachable từ mobile device',
+        'device secret đúng',
+      ],
+      notes: [],
     }
 
-    if (!options.jsonOut && options.serveDist) {
+    summary.notes = summaryNotes(summary)
+
+    if (!options.jsonOut) {
       options.jsonOut = path.resolve(process.cwd(), 'docs/frontend/evidence/latest-smoke.json')
     }
+    if (!options.evidenceDir) {
+      options.evidenceDir = path.resolve(process.cwd(), '../../release-evidence/frontend-mobile-review')
+    }
+
     await writeJson(options.jsonOut, summary)
+    await writeEvidenceScaffold(options.evidenceDir, summary)
+
+    for (const note of summary.notes) {
+      console.log(`[note] ${note}`)
+    }
+    console.log(`[info] Smoke JSON: ${options.jsonOut}`)
+    console.log(`[info] Evidence scaffold: ${options.evidenceDir}`)
 
     if (options.holdOpen) {
       console.log('[info] Server đang giữ mở để bạn tự test thủ công. Nhấn Ctrl+C để dừng.')

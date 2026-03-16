@@ -3,19 +3,27 @@
 - Owner:
 - Date:
 - Backend profile: local-dev / demo / rc
-- Web commit / patch: 
-- API base: 
+- Web commit / patch:
+- API base:
+- Web base:
+- Device under test:
+
+## Preconditions
+- [ ] Desktop và iPhone cùng subnet
+- [ ] Web bind 0.0.0.0 hoặc origin LAN đúng
+- [ ] API reachable từ mobile
+- [ ] Device secret đúng
 
 ## Signoff
-- [ ] Login thành công
-- [ ] Overview mở ổn
-- [ ] Run Lane mở route sâu ổn
-- [ ] Review Queue handoff sang Session/Audit ổn
-- [ ] Sync Outbox handoff ổn
-- [ ] Mobile Pairing và Mobile Capture mở được
-- [ ] Refresh route sâu không trắng màn
-- [ ] Stale / degraded / unauthorized hiển thị đúng
-- [ ] Không còn wording nội bộ thừa ở flow chính
+- [ ] Pair tạo ra URL LAN-ready, không phải localhost
+- [ ] Mobile context summary khớp form hiện tại
+- [ ] Heartbeat dùng context hiện tại, không dùng secret cũ
+- [ ] Capture đi đúng route device-signed, không gọi media upload user-auth
+- [ ] Device 401 không làm shell logout
+- [ ] Session/review detail refresh sau mutation
+- [ ] Session terminal hiển thị lock banner và khóa action đúng
+- [ ] Realtime stale/retry không clear token user
+- [ ] Có đủ screenshot, requestId và closure notes
 
 ## Notes
 

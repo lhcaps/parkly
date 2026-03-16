@@ -1,7 +1,8 @@
-﻿import { AlertTriangle, Check, ClipboardCopy, ExternalLink, Smartphone } from 'lucide-react'
+import { AlertTriangle, Check, ClipboardCopy, ExternalLink, Smartphone } from 'lucide-react'
 import { useMemo } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import type { MobilePairOriginInfo } from '@/lib/api/mobile'
 
 function qrImageUrl(value: string) {
   if (!value) return ''
@@ -11,19 +12,22 @@ function qrImageUrl(value: string) {
 export function MobileQrCard({
   pairUrl,
   copied,
-  pairOrigin,
-  pairOriginLoopback,
+  originInfo,
   onCopy,
   onOpen,
 }: {
   pairUrl: string
   copied: boolean
-  pairOrigin: string
-  pairOriginLoopback: boolean
+  originInfo: MobilePairOriginInfo
   onCopy: () => void
   onOpen: () => void
 }) {
   const qrUrl = useMemo(() => qrImageUrl(pairUrl), [pairUrl])
+  const originStatusVariant = originInfo.isLoopback
+    ? 'destructive'
+    : originInfo.hasSubnetMismatch
+      ? 'amber'
+      : 'secondary'
 
   return (
     <div className="rounded-3xl border border-border/80 bg-card/95 p-5 shadow-[0_18px_60px_rgba(0,0,0,0.12)]">
@@ -31,9 +35,10 @@ export function MobileQrCard({
         <Badge variant="secondary">desktop pair</Badge>
         <Badge variant="outline">QR</Badge>
         <Badge variant="outline">copy link</Badge>
-        <Badge variant={pairOriginLoopback ? 'destructive' : 'amber'}>
-          origin {pairOriginLoopback ? 'loopback' : 'lan-ready'}
+        <Badge variant={originStatusVariant}>
+          origin {originInfo.isLoopback ? 'loopback' : originInfo.hasSubnetMismatch ? 'subnet-check' : 'lan-ready'}
         </Badge>
+        <Badge variant={originInfo.source === 'window' ? 'outline' : 'secondary'}>source {originInfo.source}</Badge>
       </div>
 
       <div className="mt-4">
@@ -43,14 +48,39 @@ export function MobileQrCard({
         </p>
       </div>
 
-      {pairOriginLoopback ? (
+      {originInfo.invalidRequestedOrigin ? (
         <div className="mt-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
           <div className="flex items-start gap-3">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <div>
-              Pair origin is using loopback: <span className="font-mono">{pairOrigin || 'localhost'}</span>.
+              Ignored configured origin <span className="font-mono">{originInfo.invalidRequestedOrigin}</span> because{' '}
+              {originInfo.invalidReason?.toLowerCase() || 'it is invalid'}. Fallback is now using{' '}
+              <span className="font-mono">{originInfo.effectiveOrigin || 'window.location.origin'}</span>.
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {originInfo.isLoopback ? (
+        <div className="mt-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              Pair origin is using loopback: <span className="font-mono">{originInfo.effectiveOrigin || 'localhost'}</span>.
               QR opened on phone will fail. Set <span className="font-mono">VITE_PUBLIC_WEB_ORIGIN</span> to your LAN URL,
               for example <span className="font-mono">http://192.168.1.84:5173</span>, then restart Vite.
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {originInfo.hasSubnetMismatch ? (
+        <div className="mt-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              Effective origin <span className="font-mono">{originInfo.effectiveOrigin}</span> is not on the same detected IPv4 subnet as this tab{' '}
+              <span className="font-mono">{originInfo.expectedWindowOrigin || 'window origin unavailable'}</span>. Verify that the QR points to the desktop LAN IP, not another machine.
             </div>
           </div>
         </div>
@@ -74,8 +104,14 @@ export function MobileQrCard({
 
         <div className="space-y-4">
           <div className="rounded-2xl border border-border/80 bg-background/40 p-4">
-            <p className="text-[11px] font-mono-data uppercase tracking-[0.18em] text-muted-foreground">Pair origin</p>
-            <p className="mt-2 break-all font-mono-data text-xs text-foreground">{pairOrigin || '—'}</p>
+            <p className="text-[11px] font-mono-data uppercase tracking-[0.18em] text-muted-foreground">Effective origin</p>
+            <p className="mt-2 break-all font-mono-data text-xs text-foreground">{originInfo.effectiveOrigin || '—'}</p>
+            <p className="mt-2 text-[11px] text-muted-foreground">source: {originInfo.source}</p>
+          </div>
+
+          <div className="rounded-2xl border border-border/80 bg-background/40 p-4">
+            <p className="text-[11px] font-mono-data uppercase tracking-[0.18em] text-muted-foreground">Current tab origin</p>
+            <p className="mt-2 break-all font-mono-data text-xs text-foreground">{originInfo.expectedWindowOrigin || '—'}</p>
           </div>
 
           <div className="rounded-2xl border border-border/80 bg-background/40 p-4">

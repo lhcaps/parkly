@@ -35,7 +35,7 @@ export function SessionManualBarrierOverrideCard({
 }: {
   detail: SessionDetail
   role: OperatorRole
-  onUpdated: () => Promise<void>
+  onUpdated: () => Promise<boolean | void>
 }) {
   const [reasonCode, setReasonCode] = useState('MANUAL_OPEN_BARRIER')
   const [note, setNote] = useState('Manual barrier open from Session History — operator confirmed.')

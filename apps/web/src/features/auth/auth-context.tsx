@@ -7,6 +7,7 @@ import {
   getRefreshToken,
   getToken,
   storeAuthTokens,
+  type AuthExpiredDetail,
 } from '@/lib/http/client'
 import { getAuthMe, loginWithPassword, logoutAuthSession } from '@/lib/api/auth'
 import type { AuthPrincipal, AuthRole } from '@/lib/contracts/auth'
@@ -47,7 +48,7 @@ function createForbiddenNotice(): SessionNotice {
   return {
     tone: 'warning',
     title: 'Không đủ quyền truy cập',
-    message: 'Phiên đăng nhập còn hiệu lực nhưng vai trò hiện tại không được phép. Hệ thống sẽ chuyển sang trang phù hợp.',
+    message: 'Phiên đăng nhập còn hiệu lực nhưng vai trò hiện tại không được phép dùng màn hình này.',
   }
 }
 
@@ -55,12 +56,16 @@ function createLogoutNotice(): SessionNotice {
   return {
     tone: 'info',
     title: 'Đã đăng xuất',
-    message: 'Toàn bộ phiên, token và kết nối realtime đã được dọn sạch.',
+    message: 'Toàn bộ phiên người dùng và kết nối realtime của shell đã được dọn sạch.',
   }
 }
 
 function hasStoredTokens() {
   return Boolean(getToken() || getRefreshToken())
+}
+
+function isDeviceSignedExpiredEvent(detail?: AuthExpiredDetail) {
+  return detail?.surface === 'device-signed'
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -137,7 +142,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [reloadSession])
 
   useEffect(() => {
-    function onExpired() {
+    function onExpired(event: Event) {
+      const detail = event instanceof CustomEvent ? (event.detail as AuthExpiredDetail | undefined) : undefined
+      if (isDeviceSignedExpiredEvent(detail)) return
       applyExpired(createExpiredNotice())
     }
 

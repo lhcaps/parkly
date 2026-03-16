@@ -484,3 +484,22 @@ Sau khi pass, thư mục `release-evidence/backend-pilot` phải có ít nhất:
 - `secrets:rotation:check -- --require-active` sẽ fail nếu chỉ còn legacy alias hoặc `NEXT_ONLY`.
 - `verify:deployment -- --intent pilot` sẽ có thêm `securityRotation` và các check `internal-service-rotation`, `device-capture-rotation`.
 - `PILOT_LABEL`, `PILOT_EVIDENCE_ROOT_DIR`, `PILOT_SKIP_TYPECHECK`, `PILOT_VERIFY_DEPLOYMENT_BEFORE_GATE` là contract env mới cho release hardening.
+
+
+## Logging profile
+
+Mặc định local-dev dùng log format `dev` để terminal gọn, ưu tiên access summary một dòng và chỉ bung stack khi có warn/error.
+
+```dotenv
+LOG_LEVEL=info
+LOG_FORMAT=dev
+LOG_REDACT_IP=OFF
+```
+
+Khuyến nghị:
+
+- local-dev / demo nội bộ: `LOG_FORMAT=dev`
+- production / ship log collector: `LOG_FORMAT=json`
+- môi trường nhạy cảm IP: `LOG_REDACT_IP=ON`
+
+Access log mới chỉ giữ các field vận hành quan trọng như `requestId`, `method`, `path`, `status`, `durationMs`, `actorRole`, `deviceCode`, `siteCode`, `laneCode`, `sessionId`, `reviewId`. Header nhạy cảm và secret trong body/query đã bị redact.

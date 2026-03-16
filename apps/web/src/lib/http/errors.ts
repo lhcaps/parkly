@@ -65,6 +65,53 @@ function pushFieldError(target: Array<{ field: string; message: string }>, field
   target.push({ field: normalizedField, message: normalizedMessage })
 }
 
+function containsAnyNeedle(value: string, needles: readonly string[]) {
+  const haystack = value.toUpperCase()
+  return needles.some((needle) => haystack.includes(needle))
+}
+
+function isDeviceSignatureCode(code: string) {
+  return containsAnyNeedle(code, [
+    'DEVICE_SIGNATURE_INVALID',
+    'DEVICE_AUTH_INVALID',
+    'DEVICE_SECRET_INVALID',
+    'DEVICE_SIGNING_INVALID',
+    'DEVICE_UNAUTHORIZED',
+  ])
+}
+
+function isInvalidCredentialCode(code: string) {
+  return containsAnyNeedle(code, [
+    'AUTH_INVALID_CREDENTIALS',
+    'INVALID_CREDENTIALS',
+    'AUTH_FAILED',
+  ])
+}
+
+function isWorkflowConflictCode(code: string) {
+  return containsAnyNeedle(code, [
+    'CONFLICT',
+    'STATE_CHANGED',
+    'STALE_STATE',
+    'SESSION_TERMINAL',
+    'SESSION_NOT_ACTIONABLE',
+    'ACTION_NOT_ALLOWED',
+    'INVALID_STATE_TRANSITION',
+    'REVIEW_ALREADY_CLAIMED',
+    'REVIEW_NOT_ACTIONABLE',
+    'REVIEW_LOCKED',
+    'MANUAL_ACTION_BLOCKED',
+  ])
+}
+
+function isAnonymousBootstrapCode(code: string) {
+  return containsAnyNeedle(code, [
+    'ANONYMOUS_BOOTSTRAP_FAILED',
+    'BOOTSTRAP_FAILED',
+    'AUTH_BOOTSTRAP_FAILED',
+  ])
+}
+
 export function extractErrorHint(details: unknown): string {
   return readDetailString(details, 'hint')
 }
@@ -144,15 +191,25 @@ export function normalizeApiError(error: unknown): ApiError {
   return new ApiError({ message: typeof error === 'string' ? error : 'Unknown API error', cause: error })
 }
 
+export function isDeviceSignedAuthError(error: unknown): boolean {
+  const normalized = normalizeApiError(error)
+  return normalized.status === 401 && isDeviceSignatureCode(normalized.code)
+}
+
+function isWorkflowConflictError(error: unknown): boolean {
+  const normalized = normalizeApiError(error)
+  return normalized.status === 409 || isWorkflowConflictCode(normalized.code)
+}
+
 export function classifyAppError(error: unknown, opts?: { realtimeStale?: boolean }): AppErrorKind {
   if (opts?.realtimeStale) return 'realtimeStale'
 
   const normalized = normalizeApiError(error)
 
   if (normalized.code === 'REALTIME_STALE') return 'realtimeStale'
-  if (normalized.status === 401 || normalized.code === 'UNAUTHENTICATED') return 'unauthorized'
+  if (isWorkflowConflictError(normalized)) return 'conflict'
   if (normalized.status === 403 || normalized.code === 'FORBIDDEN') return 'forbidden'
-  if (normalized.status === 409 || normalized.code === 'CONFLICT') return 'conflict'
+  if (normalized.status === 401 || normalized.code === 'UNAUTHENTICATED' || isAnonymousBootstrapCode(normalized.code)) return 'unauthorized'
   if (
     normalized.status === 422
     || normalized.code === 'UNPROCESSABLE_ENTITY'
@@ -195,12 +252,40 @@ export function toAppErrorDisplay(error: unknown, fallbackTitle = 'Unable to com
   const detailSuffix = suffix ? ` ${suffix}.` : ''
   const kind = classifyAppError(normalized, opts)
 
+  if (isDeviceSignedAuthError(normalized)) {
+    return {
+      kind: 'unauthorized',
+      title: 'Device authentication failed',
+      message: withRequestId(`The device signature or device secret is invalid for this request.${detailSuffix}`.trim(), normalized.requestId),
+      tone: 'warning',
+      status: normalized.status || null,
+      code: normalized.code,
+      requestId: normalized.requestId,
+      nextAction: 'Verify site, lane, device code, and device secret on the mobile surface, then retry.',
+      fieldErrors,
+    }
+  }
+
+  if (isInvalidCredentialCode(normalized.code) && normalized.status === 401) {
+    return {
+      kind: 'unauthorized',
+      title: 'Authentication failed',
+      message: 'Username or password is incorrect.',
+      tone: 'warning',
+      status: normalized.status || null,
+      code: normalized.code,
+      requestId: normalized.requestId,
+      nextAction: 'Check the credentials and try again.',
+      fieldErrors,
+    }
+  }
+
   switch (kind) {
     case 'unauthorized':
       return {
         kind,
         title: 'Session expired',
-        message: withRequestId(`Backend returned 401. Sign in again to restore the session.${detailSuffix}`.trim(), normalized.requestId),
+        message: withRequestId(`The current user session is no longer valid.${detailSuffix}`.trim(), normalized.requestId),
         tone: 'warning',
         status: normalized.status || null,
         code: normalized.code,
@@ -212,84 +297,84 @@ export function toAppErrorDisplay(error: unknown, fallbackTitle = 'Unable to com
       return {
         kind,
         title: 'Role not permitted',
-        message: withRequestId(`Backend returned 403. Switch to an account with the required role.oặc màn hình đúng trách nhiệm vận hành.${detailSuffix}`.trim(), normalized.requestId),
+        message: withRequestId(`The current role is not allowed to perform this action.${detailSuffix}`.trim(), normalized.requestId),
         tone: 'warning',
         status: normalized.status || null,
         code: normalized.code,
         requestId: normalized.requestId,
-        nextAction: 'Keep the current shell, switch role, or ask someone with the required permissions.',
+        nextAction: 'Use a role with the required permission or move to the correct workflow.',
         fieldErrors,
       }
     case 'validation':
       return {
         kind,
-        title: 'Invalid payload',
-        message: withRequestId(`Backend rejected the request due to invalid input.${detailSuffix}`.trim(), normalized.requestId),
+        title: 'Invalid input',
+        message: withRequestId(`The request payload is incomplete or invalid.${detailSuffix}`.trim(), normalized.requestId),
         tone: 'warning',
         status: normalized.status || null,
         code: normalized.code,
         requestId: normalized.requestId,
-        nextAction: 'Fix the reported fields and resubmit.',
+        nextAction: 'Fix the reported fields and submit again.',
         fieldErrors,
       }
     case 'conflict':
       return {
         kind,
-        title: 'State conflict',
-        message: withRequestId(`Backend returned 409 conflict. The data may be stale or modified concurrently. tác đồng thời.${detailSuffix}`.trim(), normalized.requestId),
+        title: 'State changed',
+        message: withRequestId(`The workflow state changed before this action completed.${detailSuffix}`.trim(), normalized.requestId),
         tone: 'warning',
         status: normalized.status || null,
         code: normalized.code,
         requestId: normalized.requestId,
-        nextAction: 'Refresh the detail snapshot and confirm the action again.',
+        nextAction: 'Refresh the live detail, confirm the latest state, then retry only if the action is still allowed.',
         fieldErrors,
       }
     case 'dependencyDown':
       return {
         kind,
-        title: 'Dependency degraded',
-        message: withRequestId(`Request could not complete — downstream, worker, or network is unstable.${detailSuffix}`.trim(), normalized.requestId),
+        title: 'Service temporarily unavailable',
+        message: withRequestId(`The request could not complete because the API, worker, or network path is unstable.${detailSuffix}`.trim(), normalized.requestId),
         tone: 'error',
         status: normalized.status || null,
         code: normalized.code,
         requestId: normalized.requestId,
-        nextAction: 'Retry after checking API logs and dependent services.',
+        nextAction: 'Retry after checking connectivity and dependent services.',
         fieldErrors,
       }
     case 'realtimeStale':
       return {
         kind,
         title: 'Realtime stale',
-        message: withRequestId(normalized.message || 'The stream is no longer reliable for current state. live hiện tại.', normalized.requestId),
+        message: withRequestId(normalized.message || 'The live stream is stale and should not be treated as authoritative current state.', normalized.requestId),
         tone: 'warning',
         status: normalized.status || null,
         code: normalized.code,
         requestId: normalized.requestId,
-        nextAction: 'Manual resync to reload the authoritative snapshot.',
+        nextAction: 'Resync the snapshot before acting on live state.',
         fieldErrors,
       }
     case 'internal':
       return {
         kind,
         title: 'Internal server error',
-        message: withRequestId(`Backend trả về ${normalized.status || 500}. The UI shell is intact but cannot continue the current flow.ể tin vào kết quả của request này.${detailSuffix}`.trim(), normalized.requestId),
+        message: withRequestId(`The backend rejected the request with a server-side error.${detailSuffix}`.trim(), normalized.requestId),
         tone: 'error',
         status: normalized.status || null,
         code: normalized.code,
         requestId: normalized.requestId,
-        nextAction: 'Retry. If it persists, note the request ID and check backend logs.',
+        nextAction: 'Retry. If it happens again, note the request ID and inspect backend logs.',
         fieldErrors,
       }
     default:
       return {
         kind: 'unknown',
         title: fallbackTitle,
-        message: withRequestId(normalized.message || 'An unexpected error occurred calling the API.', normalized.requestId),
+        message: withRequestId(normalized.message || 'An unexpected API error occurred.', normalized.requestId),
         tone: 'error',
         status: normalized.status || null,
         code: normalized.code,
         requestId: normalized.requestId,
-        nextAction: 'Retry or open the debug screen to check the current context.',
+        nextAction: 'Retry or open diagnostics to inspect the current context.',
         fieldErrors,
       }
   }
@@ -318,14 +403,18 @@ export function formatInlineApiError(error: unknown, fallbackTitle?: string) {
  */
 export function isAuthInvalidCredentials(error: unknown): boolean {
   const normalized = error instanceof ApiError ? error : normalizeApiError(error)
-  const code = normalized.code || ''
-  return (
-    normalized.status === 401 &&
-    (
-      code === 'AUTH_INVALID_CREDENTIALS' ||
-      code === 'INVALID_CREDENTIALS' ||
-      code === 'UNAUTHENTICATED' ||
-      code === 'AUTH_FAILED'
-    )
-  )
+  return normalized.status === 401 && isInvalidCredentialCode(normalized.code)
+}
+
+export function getSafeLoginErrorMessage(error: unknown): string {
+  if (isAuthInvalidCredentials(error)) return 'Sai tên đăng nhập hoặc mật khẩu.'
+
+  const kind = classifyAppError(error)
+  if (kind === 'dependencyDown' || kind === 'internal') {
+    return 'Không thể đăng nhập lúc này. Kiểm tra kết nối hoặc backend rồi thử lại.'
+  }
+  if (kind === 'forbidden') {
+    return 'Tài khoản không có quyền truy cập vào console này.'
+  }
+  return 'Đăng nhập thất bại. Vui lòng thử lại.'
 }

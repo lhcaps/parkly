@@ -18,6 +18,7 @@ let refreshPromise: Promise<string | null> | null = null
 export type QueryPrimitive = string | number | boolean | Date | null | undefined
 export type QueryValue = QueryPrimitive | QueryPrimitive[]
 export type QueryParams = Record<string, QueryValue>
+export type AuthExpiredSurface = 'shell' | 'device-signed' | 'unknown'
 
 export function normalizeBase(raw?: string) {
   const value = String(raw ?? '').trim().replace(/\/+$/, '')
@@ -251,15 +252,6 @@ function createHttpError(response: Response, payload: unknown, rawText: string) 
   })
 }
 
-function emitAuthExpired(error: ApiError) {
-  if (error.status !== 401) return
-  notifyAuthExpired({
-    code: error.code,
-    requestId: error.requestId,
-    status: error.status,
-  })
-}
-
 export function getAuthExpiredEventName() {
   return AUTH_EXPIRED_EVENT
 }
@@ -272,6 +264,8 @@ export type AuthExpiredDetail = {
   code?: string
   requestId?: string
   status?: number
+  surface?: AuthExpiredSurface
+  path?: string
 }
 
 export function notifyAuthExpired(detail?: AuthExpiredDetail) {
@@ -281,37 +275,55 @@ export function notifyAuthExpired(detail?: AuthExpiredDetail) {
       code: detail?.code,
       requestId: detail?.requestId,
       status: detail?.status,
+      surface: detail?.surface ?? 'unknown',
+      path: detail?.path,
     },
   }))
 }
 
 export function invalidateAuthSession(reason = 'auth-invalid', detail?: AuthExpiredDetail) {
   clearAuthTokens(reason)
-  notifyAuthExpired(detail)
+  notifyAuthExpired({
+    ...detail,
+    surface: detail?.surface ?? 'shell',
+  })
 }
 
 function isAuthSessionMutation(path: string) {
-  return path.startsWith('/api/auth/login') || path.startsWith('/api/auth/refresh') || path.startsWith('/api/auth/logout')
+  const normalized = normalizeRequestPath(path)
+  return normalized.startsWith('/api/auth/login') || normalized.startsWith('/api/auth/refresh') || normalized.startsWith('/api/auth/logout')
 }
 
-/**
- * Paths signed by device secret (not user access token).
- * A 401 from these should NOT invalidate the user shell session —
- * it means the device credentials are wrong, not that the user is logged out.
- */
-const DEVICE_SIGNED_PATHS: readonly string[] = [
+const DEVICE_SIGNED_PATH_PREFIXES: readonly string[] = [
   '/api/gate-reads/alpr',
   '/api/gate-reads/rfid',
   '/api/gate-reads/sensor',
   '/api/devices/heartbeat',
 ]
 
+function normalizeRequestPath(path: string) {
+  const raw = String(path ?? '').trim()
+  if (!raw) return ''
+
+  try {
+    const parsed = new URL(raw, 'http://local')
+    return parsed.pathname || raw
+  } catch {
+    return raw.split('?')[0]?.split('#')[0] ?? raw
+  }
+}
+
 function isDeviceSignedPath(path: string): boolean {
-  return DEVICE_SIGNED_PATHS.some((p) => path.startsWith(p))
+  const normalized = normalizeRequestPath(path)
+  return DEVICE_SIGNED_PATH_PREFIXES.some((prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`))
+}
+
+function shouldAttachAccessToken(path: string) {
+  return !isDeviceSignedPath(path)
 }
 
 async function sendRequest(path: string, init?: RequestInit, accessTokenOverride?: string) {
-  const token = accessTokenOverride ?? getToken()
+  const token = shouldAttachAccessToken(path) ? (accessTokenOverride ?? getToken()) : ''
   return fetch(buildUrl(path), {
     ...init,
     headers: mergeHeaders(token, init?.headers),
@@ -389,14 +401,14 @@ async function apiFetchInternal<T>(path: string, init: RequestInit | undefined, 
     })
   }
 
-  if (response.status === 401 && allowRefresh && !isAuthSessionMutation(path) && getRefreshToken()) {
+  if (response.status === 401 && allowRefresh && !isAuthSessionMutation(path) && !isDeviceSignedPath(path) && getRefreshToken()) {
     try {
       const refreshedToken = await refreshAccessToken()
       if (refreshedToken) {
         response = await sendRequest(path, init, refreshedToken)
       }
     } catch {
-      // request sẽ được xử lý bên dưới như một auth failure chuẩn
+      // handled below as a standard auth failure
     }
   }
 
@@ -409,11 +421,13 @@ async function apiFetchInternal<T>(path: string, init: RequestInit | undefined, 
 
   if (!response.ok) {
     const error = createHttpError(response, payload, rawText)
-    if (error.status === 401 && !isDeviceSignedPath(path)) {
+    if (error.status === 401 && !isDeviceSignedPath(path) && !isAuthSessionMutation(path)) {
       invalidateAuthSession('http-401', {
         code: error.code,
         requestId: error.requestId,
         status: error.status,
+        surface: 'shell',
+        path: normalizeRequestPath(path),
       })
     }
     throw error

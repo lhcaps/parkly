@@ -4,29 +4,22 @@ import http from 'node:http';
 
 import { buildApp } from './app';
 import { config } from './config';
+import { logStartup } from './logger';
 
 async function main() {
   const app = await buildApp();
 
   const server = http.createServer(app);
   server.listen(config.port, config.host, () => {
-    // eslint-disable-next-line no-console
-    console.log(
-      JSON.stringify(
-        {
-          msg: 'Parkly API started',
-          host: config.host,
-          port: config.port,
-          prefix: config.prefix,
-          docs: '/docs',
-          authMode: config.authMode,
-          redisRequired: config.redis.required,
-          redisPrefix: config.redis.prefix,
-        },
-        null,
-        2
-      )
-    );
+    logStartup({
+      host: config.host,
+      port: config.port,
+      prefix: config.prefix,
+      docs: '/docs',
+      authMode: config.authMode,
+      redisRequired: config.redis.required,
+      redisPrefix: config.redis.prefix,
+    });
   });
 
   process.on('SIGINT', async () => {

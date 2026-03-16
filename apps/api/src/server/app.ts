@@ -10,7 +10,6 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import multer from 'multer';
 import swaggerUi from 'swagger-ui-express';
-import pinoHttp from 'pino-http';
 import { createRedisRateLimitStore } from './rate-limit-store';
 
 import { config, type AppRole } from './config';
@@ -89,6 +88,7 @@ import { registerDashboardRoutes } from '../modules/dashboard/interfaces/http/re
 import { registerAuditRoutes } from '../modules/audit/interfaces/http/register-audit-routes';
 import { parseBigIntCursor, validateOrThrow } from './validation';
 import { buildHealthBreakdown } from './health';
+import { buildErrorLogPayload, createAccessSummaryMiddleware, createHttpLoggerMiddleware } from './logger';
 
 declare global {
   // eslint-disable-next-line no-var
@@ -604,29 +604,8 @@ export async function buildApp() {
     })
   );
 
-  app.use(
-    pinoHttp({
-      level: process.env.LOG_LEVEL ?? 'info',
-      genReqId: (req) => (req as any).id,
-      redact: {
-        paths: [
-          'req.headers.authorization',
-          'req.headers.cookie',
-          'req.headers.x-internal-api-key',
-          'req.headers.x-internal-signature',
-          'req.body.password',
-          'req.body.refreshToken',
-          'req.body.signature',
-          'res.headers["set-cookie"]',
-        ],
-        censor: '[REDACTED]',
-      },
-      customProps: (req) => ({
-        requestId: (req as any).id ?? null,
-        correlationId: (req as any).correlationId ?? (req as any).id ?? null,
-      }),
-    })
-  );
+  app.use(createHttpLoggerMiddleware());
+  app.use(createAccessSummaryMiddleware());
 
   app.use(express.json({ limit: '2mb' }));
 
@@ -2203,12 +2182,21 @@ export async function buildApp() {
     const rid = (req as any).id ?? randomUUID();
 
     if (err instanceof ApiError) {
+      const payload = buildErrorLogPayload(err, req);
+      const level = payload.status >= 500 ? 'error' : payload.status === 409 || payload.status === 412 || payload.status === 422 || payload.status === 401 || payload.status === 403 ? 'warn' : 'info';
+      (req as any).log?.[level]?.(payload, 'api_error');
       res.status(err.statusCode).json(fail(rid, { code: err.code, message: err.message, details: err.details }));
       return;
     }
 
     if (isDbPermissionError(err)) {
-      (req as any).log?.error?.({ err, rid }, 'db_permission_error');
+      (req as any).log?.error?.({
+        ...buildErrorLogPayload(err, req),
+        type: 'db.permission.error',
+        errorKind: 'db_permission_error',
+        errorCode: String(err?.code ?? 'DB_PERMISSION_ERROR'),
+        errorReason: Number.isFinite(err?.errno) ? `MYSQL_${Number(err.errno)}` : null,
+      }, 'db_permission_error');
       res.status(500).json(fail(rid, {
         code: 'INTERNAL_ERROR',
         message: 'Database runtime user chưa đủ quyền hoặc đang match sai host account (localhost / 127.0.0.1 / ::1). Chạy pnpm db:whoami:app, rồi pnpm db:grant:app và restart API.',
@@ -2232,7 +2220,12 @@ export async function buildApp() {
     const message = status >= 500 ? defaultMessageForCode('INTERNAL_ERROR') : String(err?.message ?? defaultMessageForCode(code));
     const details = err?.validation ?? err?.details;
 
-    (req as any).log?.error?.({ err, rid, status, code }, 'api_error');
+    const payload = buildErrorLogPayload(err, req);
+    (req as any).log?.[payload.status >= 500 ? 'error' : 'warn']?.({
+      ...payload,
+      status,
+      errorCode: code,
+    }, 'api_error');
     res.status(status).json(fail(rid, { code, message, details }));
   });
 

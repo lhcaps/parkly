@@ -331,3 +331,213 @@ Không gắn nhãn `backend-rc1` nếu thiếu một trong các bằng chứng s
 - docs phát hành khớp runtime thật
 - changelog RC chốt rõ ready scope và non-goals
 - evidence archive nằm trong repo hoặc đường dẫn bàn giao rõ ràng
+
+## 14. Frontend mobile pairing over LAN (FE-PR-01)
+
+Mục tiêu của phần này là tránh việc QR pair sinh `localhost` hoặc origin sai khi desktop chạy web local còn điện thoại mở surface qua Wi‑Fi/LAN.
+
+### 14.1 Chạy web để điện thoại truy cập được
+
+Web dev server phải bind ra tất cả interface:
+
+```bash
+pnpm --dir apps/web dev -- --host 0.0.0.0 --port 5173
+```
+
+Khi cần chốt cứng origin cho QR/pair links, đặt thêm trong `apps/web/.env`:
+
+```dotenv
+VITE_PUBLIC_WEB_ORIGIN=http://192.168.1.84:5173
+```
+
+Quy tắc bắt buộc:
+
+- `VITE_PUBLIC_WEB_ORIGIN` chỉ được là bare origin;
+- không thêm path như `/mobile-capture`;
+- không thêm query string hoặc hash;
+- `VITE_API_BASE_URL` và `VITE_PUBLIC_WEB_ORIGIN` là hai khái niệm khác nhau, không được trộn.
+
+### 14.2 Phân tách đúng API base và web origin
+
+Ví dụ local LAN chuẩn:
+
+```dotenv
+VITE_API_BASE_URL=
+VITE_PUBLIC_WEB_ORIGIN=http://192.168.1.84:5173
+```
+
+Giải thích:
+
+- `VITE_API_BASE_URL=` để trống nếu vẫn dùng Vite proxy `/api -> http://127.0.0.1:3000` trên desktop;
+- `VITE_PUBLIC_WEB_ORIGIN` là URL mà iPhone mở được sau khi quét QR;
+- nếu API chạy origin riêng không qua proxy thì set `VITE_API_BASE_URL` độc lập, nhưng vẫn giữ `VITE_PUBLIC_WEB_ORIGIN` là web origin thực tế cho mobile.
+
+### 14.3 Checklist vận hành nhanh
+
+1. PC và điện thoại phải cùng subnet Wi‑Fi/LAN.
+2. Chạy web với `--host 0.0.0.0`.
+3. Xác nhận Windows Firewall không chặn port 5173.
+4. Mở `http://192.168.1.84:5173` trực tiếp trên iPhone trước khi quét QR.
+5. Vào trang Mobile Camera Pair rồi xác nhận badge origin là `lan-ready`, không phải `loopback`.
+6. Nếu đổi IP LAN hoặc đổi máy, pair cũ trong local registry phải được xem là legacy/origin drift và tạo lại.
+
+
+## 15. Mobile device context consistency + signed surface verification (FE-PR-02)
+
+Mục tiêu của phần này là chặn triệt để tình trạng heartbeat và capture ký bằng secret/query context cũ sau khi operator đã sửa form trực tiếp trên điện thoại.
+
+### 15.1 Quy tắc vận hành mới
+
+- query params trên URL chỉ dùng để prefill **một lần** lúc mở tab;
+- sau khi trang đã mount, mọi thao tác heartbeat và capture chỉ được lấy dữ liệu từ live form state hiện tại;
+- mobile surface không được gọi `/api/media/upload`;
+- nếu backend trả `DEVICE_SIGNATURE_INVALID`, phải đối chiếu lại **effective device context** ngay trên màn hình trước khi retry.
+
+### 15.2 Smoke thủ công bắt buộc sau khi đổi secret
+
+1. Tạo pair từ desktop và mở link trên iPhone.
+2. Xác nhận thẻ **Effective device context** hiển thị đúng `site / lane / direction / deviceCode` và secret mask.
+3. Sửa `deviceSecret` trên form từ giá trị A sang giá trị B.
+4. Bấm **Heartbeat ONLINE**.
+5. Kiểm tra status block và local ops journal:
+   - request phải mang `requestId` mới;
+   - nếu secret B sai thì lỗi phải phản ánh secret/live form hiện tại, không phải secret A từ query cũ;
+   - nếu secret B đúng thì device health phải chuyển về `ONLINE`.
+6. Không reload tab, giữ nguyên form rồi bấm **Send capture** với plate hint hoặc ảnh local.
+7. Xác nhận:
+   - capture dùng cùng effective context như heartbeat;
+   - session / run-lane trên desktop nhận update đúng lane;
+   - không có request nào từ mobile surface gọi `/api/media/upload`.
+
+### 15.3 Checklist chẩn đoán nhanh tại hiện trường
+
+- nếu heartbeat sai mà capture đúng: kiểm tra xem UI có đang dùng chung effective context hay không;
+- nếu cả heartbeat và capture đều sai: so lại `deviceCode + deviceSecret` trong thẻ effective context với thiết bị đã đăng ký ở backend;
+- nếu tab mới mở vẫn quay về secret cũ: đó là hành vi đúng vì URL pair chỉ là seed ban đầu; tab cũ đang mở không được phép bị mutate ngược;
+- nếu cần lưu evidence nhanh, copy `requestId` từ status block và mở **Ops journal** ngay trên mobile page.
+
+
+## 14. Frontend smoke — Mobile Capture + Review Workflow (FE-PR-05)
+
+Mục này chốt regression gate cho 4 PR frontend trước. Không thay thế test backend. Nó dùng để chứng minh operator có thể lặp lại đúng flow thật trên desktop + iPhone mà không cần giải thích miệng thêm.
+
+### 14.1 Preconditions bắt buộc
+
+- desktop và iPhone ở cùng subnet LAN, ví dụ `192.168.1.x`;
+- web chạy với bind `0.0.0.0`;
+- `VITE_PUBLIC_WEB_ORIGIN` trỏ đúng origin LAN hoặc tab hiện tại đã mở bằng origin LAN;
+- API reachable từ cả desktop lẫn iPhone;
+- device secret đúng với thiết bị đang test;
+- backend đã bootstrap xong và có user vận hành hợp lệ.
+
+Ví dụ dev web LAN-ready:
+
+```bash
+pnpm --dir apps/web dev -- --host 0.0.0.0
+```
+
+Ví dụ env tối thiểu:
+
+```dotenv
+VITE_PUBLIC_WEB_ORIGIN=http://192.168.1.84:5173
+VITE_API_BASE_URL=http://192.168.1.84:3000/api
+```
+
+### 14.2 Smoke shell check trước khi test tay
+
+Từ `apps/web`:
+
+```bash
+pnpm smoke:web -- --baseUrl http://192.168.1.84:5173 --apiUrl http://192.168.1.84:3000/api --jsonOut docs/frontend/evidence/latest-smoke.json
+```
+
+Nếu muốn test dist build thay vì dev server:
+
+```bash
+pnpm build
+pnpm smoke:web:dist -- --host 0.0.0.0 --port 4173 --apiUrl http://192.168.1.84:3000/api --jsonOut docs/frontend/evidence/latest-smoke.json
+```
+
+Kỳ vọng tối thiểu:
+
+- tất cả route shell chính trả `200` và render được SPA shell;
+- `mobile-camera-pair` và `mobile-capture` phải pass;
+- API health không nhất thiết block smoke route, nhưng nếu fail phải được ghi vào evidence.
+
+### 14.3 One-pass operator flow
+
+Chạy đủ đúng thứ tự dưới đây. Không cherry-pick từng nút riêng lẻ.
+
+1. Desktop mở `Mobile Camera Pair`.
+2. Tạo pair mới và xác minh QR/link dùng origin LAN thay vì `localhost`.
+3. iPhone mở link pair đó.
+4. Trên iPhone, sửa tay `deviceSecret` nếu cần rồi bấm heartbeat.
+5. Xác minh device health hoặc lane/session surface đã phản ánh thiết bị online.
+6. Chụp ảnh hoặc nhập plate hint rồi gửi capture.
+7. Trên desktop, xác minh session/review cập nhật tương ứng.
+8. Nếu có review action, thực hiện một action hợp lệ rồi xác minh session detail và queue cùng refresh.
+9. Tạo một case terminal session rồi mở lại review/session UI để xác minh khóa action đúng.
+
+### 14.4 Evidence bắt buộc cho mỗi vòng
+
+Mỗi vòng test phải lưu tối thiểu:
+
+- 1 screenshot QR/pair card thể hiện origin effective;
+- 1 screenshot mobile context summary trước heartbeat hoặc capture;
+- 1 screenshot heartbeat status, có requestId nếu backend trả;
+- 1 screenshot capture status, có requestId nếu backend trả;
+- 1 screenshot session detail hoặc review detail sau mutation;
+- 1 screenshot terminal lock banner nếu test case terminal;
+- 1 đoạn log hoặc screenshot network thể hiện route được gọi đúng surface;
+- file `latest-smoke.json` của shell smoke.
+
+### 14.5 Ma trận 3 vòng lặp tối thiểu
+
+#### Vòng 1 — happy path
+
+- pair mới;
+- heartbeat thành công;
+- capture thành công;
+- session đi đúng trạng thái kỳ vọng.
+
+#### Vòng 2 — fresh pair token
+
+- tạo pair mới hoàn toàn;
+- không reuse pair cũ;
+- xác minh không bị drift về origin cũ hoặc query cũ.
+
+#### Vòng 3 — edit secret giữa chừng
+
+- mở link pair có secret A;
+- sửa form sang secret B;
+- heartbeat và capture phải phản ánh secret B;
+- shell user không được logout vì lỗi device-signed.
+
+### 14.6 Gate fail ngay
+
+Fail release gate ngay nếu gặp một trong các dấu hiệu sau:
+
+- QR hoặc copy link vẫn sinh `localhost` hoặc `127.x` trong khi đang chạy smoke LAN;
+- heartbeat hoặc capture còn ký bằng secret cũ lấy từ query/pair seed;
+- mobile page còn gọi `/api/media/upload` trong flow thiết bị;
+- `401` từ device endpoint làm auth shell chuyển sang expired/logout;
+- session đã terminal nhưng UI vẫn cho thao tác chính;
+- mutation xong mà detail/list không tự refresh hoặc banner không báo state có thể stale.
+
+### 14.7 Known issues có thể chấp nhận tạm thời
+
+Các điểm dưới đây chỉ được phép tồn tại nếu đã ghi rõ trong evidence và không phá acceptance gate:
+
+- API health endpoint fail do môi trường local chưa bật đầy đủ service phụ, nhưng route shell vẫn pass;
+- SSE/realtime có lúc retry ngắn rồi phục hồi, miễn là không clear user token và banner hiển thị đúng degraded state;
+- thao tác test thủ công cần nhập lại plate hint hoặc chụp lại ảnh do mạng điện thoại chập chờn.
+
+### 14.8 Closure note bắt buộc sau smoke
+
+Sau khi chạy đủ 3 vòng, cập nhật `release-evidence/frontend-mobile-review/bug-closure-notes.md` với từng bug đã nêu trong status report:
+
+- QR localhost drift;
+- stale device secret trên heartbeat/capture;
+- mobile gọi sai user-auth media route;
+- device 401 làm shell logout giả;
+- stale review/session action.

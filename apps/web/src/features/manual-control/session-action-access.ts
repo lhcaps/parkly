@@ -31,6 +31,27 @@ const REVIEW_ACTION_ROLES: Record<ReviewQueueAction, readonly string[]> = {
   MANUAL_OPEN_BARRIER: ['OPS', 'ADMIN'],
 }
 
+function labelSessionAction(action: SessionAllowedAction) {
+  if (action === 'APPROVE') return 'approve'
+  if (action === 'REQUIRE_PAYMENT') return 'require payment'
+  if (action === 'DENY') return 'deny'
+  if (action === 'CONFIRM_PASS') return 'confirm pass'
+  return 'cancel'
+}
+
+function labelReviewAction(action: ReviewQueueAction) {
+  if (action === 'CLAIM') return 'claim'
+  if (action === 'MANUAL_APPROVE') return 'manual approve'
+  if (action === 'MANUAL_REJECT') return 'manual reject'
+  return 'manual open barrier'
+}
+
+function mapReviewActionToSessionAction(action: ReviewQueueAction): SessionAllowedAction | null {
+  if (action === 'MANUAL_APPROVE') return 'APPROVE'
+  if (action === 'MANUAL_REJECT') return 'DENY'
+  return null
+}
+
 export function canRunSessionAction(role: OperatorRole, action: SessionAllowedAction) {
   const allowed = SESSION_ACTION_ROLES[action] ?? []
   return allowed.includes(role)
@@ -40,7 +61,11 @@ export function getSessionActionLockReason(
   role: OperatorRole,
   action: SessionAllowedAction,
   allowedActions: SessionAllowedAction[],
+  liveSessionStatus?: string,
 ) {
+  if (liveSessionStatus && isSessionTerminal(liveSessionStatus)) {
+    return `Session is ${liveSessionStatus} — ${labelSessionAction(action)} is no longer available.`
+  }
   if (!allowedActions.includes(action)) return 'The current state machine does not permit this action.'
   if (!canRunSessionAction(role, action)) return `Role ${role || 'UNKNOWN'} does not have permission for action ${action}.`
   return ''
@@ -57,12 +82,28 @@ export function getReviewWorkspaceActionLockReason(
   allowedActions: ReviewQueueAction[],
   /** Pass live session status when available — terminal sessions block all actions. */
   liveSessionStatus?: string,
+  /** Pass live session allowedActions when available — review actions must intersect with current session state. */
+  liveSessionAllowedActions?: SessionAllowedAction[],
 ) {
   if (liveSessionStatus && isSessionTerminal(liveSessionStatus)) {
     return `Session is ${liveSessionStatus} — no actions are possible on a terminal session.`
   }
+
   if (!allowedActions.includes(action)) return 'This action is not currently available for this queue item.'
-  if (!canRunReviewWorkspaceAction(role, action)) return `Role ${role || 'UNKNOWN'} does not have permission for action ${action}.`
+
+  if (action === 'MANUAL_OPEN_BARRIER' && Array.isArray(liveSessionAllowedActions) && liveSessionAllowedActions.length === 0) {
+    return 'The live session exposes no permitted actions. Refresh the session snapshot before attempting a barrier override.'
+  }
+
+  const mappedAction = mapReviewActionToSessionAction(action)
+  if (mappedAction && Array.isArray(liveSessionAllowedActions) && !liveSessionAllowedActions.includes(mappedAction)) {
+    return `The live session no longer permits ${labelReviewAction(action)}. Refresh the queue detail and confirm the new state.`
+  }
+
+  if (!canRunReviewWorkspaceAction(role, action)) {
+    return `Role ${role || 'UNKNOWN'} does not have permission for action ${action}.`
+  }
+
   return ''
 }
 

@@ -9,27 +9,25 @@ import {
   RefreshCw,
   ShieldX,
 } from 'lucide-react'
-import { PageHeader, SurfaceState } from '@/components/ops/console'
+import { PageHeader } from '@/components/ops/console'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import {
+  getReviewWorkspaceActionLockReason,
+  isSessionTerminal,
+} from '@/features/manual-control/session-action-access'
 import { ReviewFilterBar, type ReviewStatus } from '@/features/review-queue/components/ReviewFilterBar'
 import { ReviewTable } from '@/features/review-queue/components/ReviewTable'
-import { isSessionTerminal } from '@/features/manual-control/session-action-access'
-import { getSites } from '@/lib/api/topology'
-import { getMe } from '@/lib/api/system'
+import { getReviewQueue, claimReview, manualApproveSession, manualOpenBarrier, manualRejectSession } from '@/lib/api/reviews'
 import { getSessionDetail } from '@/lib/api/sessions'
-import {
-  claimReview,
-  getReviewQueue,
-  manualApproveSession,
-  manualOpenBarrier,
-  manualRejectSession,
-} from '@/lib/api/reviews'
-import type { ManualAuditPayload, ReviewQueueItem } from '@/lib/contracts/reviews'
+import { getMe } from '@/lib/api/system'
+import { getSites } from '@/lib/api/topology'
+import type { ManualAuditPayload, ReviewQueueAction, ReviewQueueItem } from '@/lib/contracts/reviews'
 import type { SessionDetail } from '@/lib/contracts/sessions'
 import type { SiteRow } from '@/lib/contracts/topology'
+import { toAppErrorDisplay, type AppErrorDisplay } from '@/lib/http/errors'
 import { measureAsync } from '@/lib/query/perf'
 
 function rid() {
@@ -62,7 +60,7 @@ function reviewMatchesTime(row: ReviewQueueItem, from: string, to: string) {
   return true
 }
 
-function queueActionLabel(action: string) {
+function queueActionLabel(action: ReviewQueueAction) {
   if (action === 'MANUAL_APPROVE') return 'Approve'
   if (action === 'MANUAL_REJECT') return 'Reject'
   if (action === 'MANUAL_OPEN_BARRIER') return 'Open barrier'
@@ -70,6 +68,12 @@ function queueActionLabel(action: string) {
   return action
 }
 
+function summaryActionLabel(action: ReviewQueueAction) {
+  if (action === 'CLAIM') return 'claim'
+  if (action === 'MANUAL_APPROVE') return 'approve'
+  if (action === 'MANUAL_REJECT') return 'reject'
+  return 'open barrier'
+}
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start justify-between gap-3 border-b border-border/60 py-3 first:pt-0 last:border-b-0 last:pb-0">
@@ -95,14 +99,16 @@ export function ReviewQueuePage() {
   const [operatorRole, setOperatorRole] = useState('')
   const [reasonCode, setReasonCode] = useState('MANUAL_OVERRIDE')
   const [note, setNote] = useState('Confirmed on-site at lane.')
+  const [actionError, setActionError] = useState<AppErrorDisplay | null>(null)
+  const [staleWarning, setStaleWarning] = useState('')
 
-  // Live session detail for the selected review — used to gate actions against real-time state
   const [sessionDetail, setSessionDetail] = useState<SessionDetail | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState('')
 
   const deferredSearch = useDeferredValue(search)
-  const detailAbortRef = useRef<AbortController | null>(null)
+  const refreshSeqRef = useRef(0)
+  const detailSeqRef = useRef(0)
 
   useEffect(() => {
     let active = true
@@ -121,54 +127,90 @@ export function ReviewQueuePage() {
     }
 
     void bootstrap()
-    return () => { active = false }
+    return () => {
+      active = false
+    }
   }, [])
 
-  async function refresh() {
-    setLoading(true)
-    setError('')
-    try {
-      const res = await measureAsync(
-        'review-refresh',
-        () => getReviewQueue({ siteCode: siteCode || undefined, status: status || undefined, from: from || undefined, to: to || undefined, limit: 100 }),
-        [siteCode || 'all', status || 'all'].join(':'),
-      )
-      setRows(res.rows)
-      if (!selectedId && res.rows[0]) setSelectedId(res.rows[0].reviewId)
-      if (selectedId && !res.rows.some((row) => row.reviewId === selectedId)) {
-        setSelectedId(res.rows[0]?.reviewId || '')
-      }
-    } catch (refreshError) {
-      setError(refreshError instanceof Error ? refreshError.message : String(refreshError))
-      setRows([])
-    } finally {
-      setLoading(false)
-    }
-  }
-
   async function loadSessionDetail(sessionId: string) {
-    if (detailAbortRef.current) detailAbortRef.current.abort()
-    const ctrl = new AbortController()
-    detailAbortRef.current = ctrl
-
+    const requestSeq = ++detailSeqRef.current
     setDetailLoading(true)
     setDetailError('')
     setSessionDetail(null)
 
     try {
       const detail = await getSessionDetail(String(sessionId))
-      if (ctrl.signal.aborted) return
+      if (requestSeq !== detailSeqRef.current) return false
       setSessionDetail(detail)
+      return true
     } catch (err) {
-      if (ctrl.signal.aborted) return
+      if (requestSeq !== detailSeqRef.current) return false
       setDetailError(err instanceof Error ? err.message : String(err))
+      return false
     } finally {
-      if (!ctrl.signal.aborted) setDetailLoading(false)
+      if (requestSeq === detailSeqRef.current) setDetailLoading(false)
+    }
+  }
+
+  async function refresh(preferredReviewId?: string) {
+    const requestSeq = ++refreshSeqRef.current
+    setLoading(true)
+    setError('')
+
+    try {
+      const res = await measureAsync(
+        'review-refresh',
+        () => getReviewQueue({
+          siteCode: siteCode || undefined,
+          status: status || undefined,
+          from: from || undefined,
+          to: to || undefined,
+          limit: 100,
+        }),
+        [siteCode || 'all', status || 'all'].join(':'),
+      )
+
+      if (requestSeq !== refreshSeqRef.current) return false
+
+      setRows(res.rows)
+
+      const nextSelected =
+        preferredReviewId && res.rows.some((row) => row.reviewId === preferredReviewId)
+          ? res.rows.find((row) => row.reviewId === preferredReviewId) || null
+          : res.rows[0] || null
+
+      setSelectedId(nextSelected?.reviewId || '')
+
+      if (!nextSelected?.session.sessionId) {
+        setSessionDetail(null)
+        setDetailError('')
+        setStaleWarning('')
+        return true
+      }
+
+      const detailOk = await loadSessionDetail(String(nextSelected.session.sessionId))
+      if (requestSeq !== refreshSeqRef.current) return false
+      if (detailOk) {
+        setStaleWarning('')
+      } else {
+        setStaleWarning('Live session detail could not be refreshed. State may be stale until you manually refresh context.')
+      }
+      return detailOk
+    } catch (refreshError) {
+      if (requestSeq !== refreshSeqRef.current) return false
+      setError(refreshError instanceof Error ? refreshError.message : String(refreshError))
+      setRows([])
+      setSessionDetail(null)
+      setStaleWarning('Review queue could not be refreshed. Any previously visible state may now be stale.')
+      return false
+    } finally {
+      if (requestSeq === refreshSeqRef.current) setLoading(false)
     }
   }
 
   useEffect(() => {
-    void refresh()
+    if (!siteCode) return
+    void refresh(selectedId || undefined)
   }, [siteCode, status, from, to])
 
   const filteredRows = useMemo(() => {
@@ -177,10 +219,17 @@ export function ReviewQueuePage() {
       if (!reviewMatchesTime(row, from, to)) return false
       if (!keyword) return true
       const haystack = [
-        row.reviewId, row.status, row.queueReasonCode,
-        row.session.sessionId, row.session.siteCode, row.session.gateCode,
-        row.session.laneCode, row.session.plateCompact || '',
-      ].join(' ').toLowerCase()
+        row.reviewId,
+        row.status,
+        row.queueReasonCode,
+        row.session.sessionId,
+        row.session.siteCode,
+        row.session.gateCode,
+        row.session.laneCode,
+        row.session.plateCompact || '',
+      ]
+        .join(' ')
+        .toLowerCase()
       return haystack.includes(keyword)
     })
   }, [deferredSearch, from, rows, to])
@@ -190,26 +239,76 @@ export function ReviewQueuePage() {
     [filteredRows, selectedId],
   )
 
-  // Load live session detail whenever the selected review changes
   useEffect(() => {
-    if (selected?.session.sessionId) {
-      void loadSessionDetail(String(selected.session.sessionId))
-    } else {
+    if (!selected?.session.sessionId) {
       setSessionDetail(null)
       setDetailLoading(false)
+      setDetailError('')
+      return
     }
+
+    void loadSessionDetail(String(selected.session.sessionId)).then((ok) => {
+      if (!ok) {
+        setStaleWarning('Live session detail could not be refreshed. State may be stale until you manually refresh context.')
+      }
+    })
   }, [selected?.reviewId])
 
-  // Effective live session status — prefer detail, fall back to queue snapshot
   const liveStatus = sessionDetail?.session.status ?? selected?.session.status ?? ''
-  const liveAllowedActions = sessionDetail?.session.allowedActions ?? selected?.session.allowedActions ?? []
+  const liveSessionAllowedActions = sessionDetail?.session.allowedActions ?? selected?.session.allowedActions ?? []
   const isTerminal = liveStatus ? isSessionTerminal(liveStatus) : false
+  const liveContextReady = Boolean(selected && sessionDetail && !detailLoading && !detailError)
+
+  function getActionLockReason(action: ReviewQueueAction) {
+    if (!selected) return 'Select a review item first.'
+    if (!liveContextReady) {
+      return detailLoading
+        ? 'Verifying live session detail. Wait for refresh to finish.'
+        : 'Live session detail is unavailable. Refresh context before running actions.'
+    }
+    return getReviewWorkspaceActionLockReason(
+      operatorRole,
+      action,
+      selected.actions,
+      liveStatus || undefined,
+      liveSessionAllowedActions,
+    )
+  }
+
+  function isActionDisabled(action: ReviewQueueAction) {
+    if (actionBusy !== '') return true
+    return Boolean(getActionLockReason(action))
+  }
 
   async function run(action: 'claim' | 'approve' | 'reject' | 'barrier') {
     if (!selected) return
 
+    const queueAction: ReviewQueueAction =
+      action === 'claim'
+        ? 'CLAIM'
+        : action === 'approve'
+          ? 'MANUAL_APPROVE'
+          : action === 'reject'
+            ? 'MANUAL_REJECT'
+            : 'MANUAL_OPEN_BARRIER'
+
+    const lockReason = getActionLockReason(queueAction)
+    if (lockReason) {
+      setActionError({
+        kind: 'conflict',
+        title: `${summaryActionLabel(queueAction)} is locked`,
+        message: lockReason,
+        tone: 'warning',
+        status: null,
+        code: 'UI_LOCKED',
+        fieldErrors: [],
+      })
+      return
+    }
+
     setActionBusy(action)
-    setError('')
+    setActionError(null)
+    setStaleWarning('')
 
     const body: ManualAuditPayload = {
       requestId: rid(),
@@ -230,13 +329,21 @@ export function ReviewQueuePage() {
         await manualOpenBarrier(selected.session.sessionId, body)
       }
 
-      // Refresh both queue and session detail after any mutation
-      await Promise.all([
-        refresh(),
-        loadSessionDetail(String(selected.session.sessionId)),
-      ])
+      const refreshOk = await refresh(selected.reviewId)
+      if (!refreshOk) {
+        setActionError({
+          kind: 'realtimeStale',
+          title: 'Action completed but state may be stale',
+          message: 'The backend may have accepted the mutation, but the list/detail refresh did not complete. Refresh the queue and session context now.',
+          tone: 'warning',
+          status: null,
+          code: 'POST_MUTATION_REFRESH_FAILED',
+          fieldErrors: [],
+          nextAction: 'Use Refresh and verify the live session detail before the next action.',
+        })
+      }
     } catch (runError) {
-      setError(runError instanceof Error ? runError.message : String(runError))
+      setActionError(toAppErrorDisplay(runError, `${summaryActionLabel(queueAction)} failed`))
     } finally {
       setActionBusy('')
     }
@@ -247,14 +354,6 @@ export function ReviewQueuePage() {
     setSearch('')
     setFrom('')
     setTo('')
-  }
-
-  // Compute per-action disabled state: queue action must exist AND session must not be terminal
-  function isActionDisabled(queueAction: string) {
-    if (actionBusy !== '') return true
-    if (isTerminal) return true
-    if (liveAllowedActions.length === 0 && queueAction !== 'CLAIM') return true
-    return !selected?.actions.includes(queueAction as ReviewQueueItem['actions'][number])
   }
 
   return (
@@ -268,7 +367,7 @@ export function ReviewQueuePage() {
           { label: operatorRole || '—', variant: 'muted' },
         ]}
         actions={
-          <Button variant="outline" onClick={() => void refresh()} disabled={loading}>
+          <Button variant="outline" onClick={() => void refresh(selectedId || undefined)} disabled={loading}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             Refresh
           </Button>
@@ -288,7 +387,7 @@ export function ReviewQueuePage() {
         onSearchChange={setSearch}
         onFromChange={setFrom}
         onToChange={setTo}
-        onRefresh={() => void refresh()}
+        onRefresh={() => void refresh(selectedId || undefined)}
         onReset={resetFilters}
       />
 
@@ -298,7 +397,11 @@ export function ReviewQueuePage() {
           selectedId={selected?.reviewId || ''}
           loading={loading}
           error={error}
-          onSelect={setSelectedId}
+          onSelect={(reviewId) => {
+            setSelectedId(reviewId)
+            setActionError(null)
+            setStaleWarning('')
+          }}
         />
 
         <div className="space-y-5 xl:sticky xl:top-20 xl:self-start">
@@ -318,7 +421,6 @@ export function ReviewQueuePage() {
                   <div className="flex flex-wrap gap-2">
                     <Badge variant="amber">{selected.status}</Badge>
                     <Badge variant={selected.session.direction === 'ENTRY' ? 'entry' : 'exit'}>{selected.session.direction}</Badge>
-                    {/* Live session status badge — overrides queue snapshot when loaded */}
                     {liveStatus && liveStatus !== selected.session.status ? (
                       <Badge variant={isTerminal ? 'destructive' : 'amber'}>session {liveStatus}</Badge>
                     ) : null}
@@ -328,7 +430,6 @@ export function ReviewQueuePage() {
                     ))}
                   </div>
 
-                  {/* Terminal session banner — highest priority UI signal */}
                   {isTerminal ? (
                     <div className="flex items-start gap-3 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-4 text-sm text-destructive">
                       <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -340,14 +441,24 @@ export function ReviewQueuePage() {
                       </div>
                     </div>
                   ) : detailLoading ? (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-background/40 px-3 py-3 text-xs text-muted-foreground">
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Verifying live session state…
+                      Verifying live session state… all actions stay locked until the authoritative detail returns.
                     </div>
                   ) : detailError ? (
                     <div className="flex items-start gap-2 rounded-2xl border border-primary/25 bg-primary/10 px-3 py-3 text-xs text-primary">
                       <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                      <span>Could not verify live session state — actions are based on queue snapshot only. {detailError}</span>
+                      <span>Could not verify live session state. Actions remain locked until context refresh succeeds. {detailError}</span>
+                    </div>
+                  ) : null}
+
+                  {staleWarning ? (
+                    <div className="flex items-start gap-2 rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-4 text-sm text-amber-700 dark:text-amber-300">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                      <div>
+                        <p className="font-semibold">State may be stale</p>
+                        <p className="mt-1">{staleWarning}</p>
+                      </div>
                     </div>
                   ) : null}
 
@@ -358,16 +469,17 @@ export function ReviewQueuePage() {
                     <SummaryRow label="Site / Gate / Lane" value={`${selected.session.siteCode} / ${selected.session.gateCode} / ${selected.session.laneCode}`} />
                     <SummaryRow label="Plate" value={selected.session.plateCompact || '—'} />
                     <SummaryRow label="Session status" value={liveStatus || selected.session.status || '—'} />
+                    <SummaryRow label="Live allowed actions" value={liveSessionAllowedActions.length > 0 ? liveSessionAllowedActions.join(', ') : 'none'} />
                   </div>
 
                   <div className="grid gap-3 md:grid-cols-2">
                     <div className="rounded-2xl border border-border/80 bg-background/40 p-4">
                       <p className="text-[11px] font-mono-data uppercase tracking-[0.18em] text-muted-foreground">Reason code</p>
-                      <Input value={reasonCode} onChange={(e) => setReasonCode(e.target.value)} className="mt-2" disabled={isTerminal || actionBusy !== ''} />
+                      <Input value={reasonCode} onChange={(e) => setReasonCode(e.target.value)} className="mt-2" disabled={!liveContextReady || actionBusy !== ''} />
                     </div>
                     <div className="rounded-2xl border border-border/80 bg-background/40 p-4">
                       <p className="text-[11px] font-mono-data uppercase tracking-[0.18em] text-muted-foreground">Note</p>
-                      <Input value={note} onChange={(e) => setNote(e.target.value)} className="mt-2" disabled={isTerminal || actionBusy !== ''} />
+                      <Input value={note} onChange={(e) => setNote(e.target.value)} className="mt-2" disabled={!liveContextReady || actionBusy !== ''} />
                     </div>
                   </div>
 
@@ -376,7 +488,7 @@ export function ReviewQueuePage() {
                       variant="outline"
                       size="sm"
                       disabled={isActionDisabled('CLAIM')}
-                      title={isTerminal ? `Session is ${liveStatus}` : !selected.actions.includes('CLAIM') ? 'Claim not available for this queue item' : undefined}
+                      title={getActionLockReason('CLAIM') || undefined}
                       onClick={() => void run('claim')}
                     >
                       {actionBusy === 'claim' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardCheck className="h-4 w-4" />}
@@ -387,7 +499,7 @@ export function ReviewQueuePage() {
                       variant="secondary"
                       size="sm"
                       disabled={isActionDisabled('MANUAL_APPROVE')}
-                      title={isTerminal ? `Session is ${liveStatus}` : !selected.actions.includes('MANUAL_APPROVE') ? 'Approve not permitted' : undefined}
+                      title={getActionLockReason('MANUAL_APPROVE') || undefined}
                       onClick={() => void run('approve')}
                     >
                       {actionBusy === 'approve' ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
@@ -398,7 +510,7 @@ export function ReviewQueuePage() {
                       variant="destructive"
                       size="sm"
                       disabled={isActionDisabled('MANUAL_REJECT')}
-                      title={isTerminal ? `Session is ${liveStatus}` : !selected.actions.includes('MANUAL_REJECT') ? 'Reject not permitted' : undefined}
+                      title={getActionLockReason('MANUAL_REJECT') || undefined}
                       onClick={() => void run('reject')}
                     >
                       {actionBusy === 'reject' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldX className="h-4 w-4" />}
@@ -409,7 +521,7 @@ export function ReviewQueuePage() {
                       variant="entry"
                       size="sm"
                       disabled={isActionDisabled('MANUAL_OPEN_BARRIER')}
-                      title={isTerminal ? `Session is ${liveStatus}` : !selected.actions.includes('MANUAL_OPEN_BARRIER') ? 'Open barrier not permitted' : undefined}
+                      title={getActionLockReason('MANUAL_OPEN_BARRIER') || undefined}
                       onClick={() => void run('barrier')}
                     >
                       {actionBusy === 'barrier' ? <Loader2 className="h-4 w-4 animate-spin" /> : <DoorOpen className="h-4 w-4" />}
@@ -417,10 +529,22 @@ export function ReviewQueuePage() {
                     </Button>
                   </div>
 
-                  {error ? (
-                    <div className="flex items-start gap-2 rounded-2xl border border-destructive/25 bg-destructive/10 px-4 py-4 text-sm text-destructive">
-                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                      <span className="break-all">{error}</span>
+                  {actionError ? (
+                    <div className="space-y-3 rounded-2xl border border-destructive/25 bg-destructive/10 px-4 py-4 text-sm text-destructive">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                        <div className="min-w-0">
+                          <p className="font-semibold">{actionError.title}</p>
+                          <p className="mt-1 break-all text-destructive/90">{actionError.message}</p>
+                        </div>
+                      </div>
+                      {(actionError.status != null || actionError.requestId || actionError.nextAction) ? (
+                        <div className="space-y-2 text-xs text-destructive/85">
+                          {actionError.status != null ? <p>HTTP {actionError.status}</p> : null}
+                          {actionError.requestId ? <p>requestId={actionError.requestId}</p> : null}
+                          {actionError.nextAction ? <p>Next: {actionError.nextAction}</p> : null}
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
                 </>

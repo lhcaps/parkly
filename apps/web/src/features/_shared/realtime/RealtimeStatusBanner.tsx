@@ -31,7 +31,7 @@ export function RealtimeStatusBanner({
     return (
       <DegradedBanner
         title={`${title} — session expired`}
-        description="The live connection has stopped because the current session is no longer valid. Existing data is preserved until you sign in again or resync succeeds."
+        description="The realtime stream was rejected because the current user session is no longer valid. Sign in again to restore live updates."
         tone="error"
         meta={`last seen ${formatTime(lastSeen)} · reconnects ${state.reconnectCount}`}
         actionLabel={disabled ? undefined : 'Resync'}
@@ -46,7 +46,7 @@ export function RealtimeStatusBanner({
     return (
       <DegradedBanner
         title={`${title} — stale data`}
-        description="Displaying the last known snapshot. Resync before acting on any live state shown here."
+        description="Displaying the last known snapshot. The web session is still intact, but you should resync before acting on current state."
         tone="warning"
         meta={`last seen ${formatTime(lastSeen)} · stale since ${formatTime(state.staleSince)} · reconnects ${state.reconnectCount}`}
         actionLabel={disabled ? undefined : 'Resync now'}
@@ -61,7 +61,7 @@ export function RealtimeStatusBanner({
     return (
       <DegradedBanner
         title={`${title} — reconnecting`}
-        description="Holding last known context while the stream reconnects. Data will update automatically once the connection stabilises."
+        description="Holding the last known snapshot while the stream reconnects. This does not sign the operator out."
         tone="warning"
         meta={`last seen ${formatTime(lastSeen)} · reconnects ${state.reconnectCount}`}
         actionLabel={disabled ? undefined : 'Manual resync'}
@@ -75,9 +75,9 @@ export function RealtimeStatusBanner({
   if (status === 'failed' || state.error) {
     return (
       <DegradedBanner
-        title={`${title} — disconnected`}
-        description={state.error || 'The live channel is not stable. Existing data is preserved, but do not rely on it for current state confirmation.'}
-        tone="error"
+        title={`${title} — retry required`}
+        description={state.error || 'The live channel is unstable. Existing data is preserved and the user shell remains signed in, but current state may be stale until resync succeeds.'}
+        tone="warning"
         meta={`last seen ${formatTime(lastSeen)} · reconnects ${state.reconnectCount}`}
         actionLabel={disabled ? undefined : 'Try resync'}
         onAction={disabled ? undefined : onResync}

@@ -217,6 +217,8 @@ export async function connectSseWithRetry(args: {
         invalidateAuthSession('sse-401', {
           code: 'SSE_HTTP_401',
           status: 401,
+          surface: 'shell',
+          path: args.url,
         })
         args.onStatusChange?.('unauthorized', { reconnectCount, error: error.message })
         break

@@ -11,7 +11,7 @@ import { Select, type SelectOption } from '@/components/ui/select'
 import { getDefaultRouteForRole } from '@/app/routes'
 import { useAuth } from '@/features/auth/auth-context'
 import { getAuthPasswordPolicy } from '@/lib/api/auth'
-import { formatInlineApiError, isAuthInvalidCredentials } from '@/lib/http/errors'
+import { getSafeLoginErrorMessage } from '@/lib/http/errors'
 import type { AuthRole, PasswordPolicyDescriptor } from '@/lib/contracts/auth'
 
 const ROLE_OPTIONS: SelectOption[] = [
@@ -73,11 +73,7 @@ export function LoginPanel() {
       })
       navigate(location.state ? redirectTo : getDefaultRouteForRole(principal.role), { replace: true })
     } catch (error) {
-      if (isAuthInvalidCredentials(error)) {
-        setErrorMessage('Sai tên đăng nhập hoặc mật khẩu.')
-      } else {
-        setErrorMessage(formatInlineApiError(error, 'Đăng nhập thất bại'))
-      }
+      setErrorMessage(getSafeLoginErrorMessage(error))
     }
   }
 
@@ -91,12 +87,19 @@ export function LoginPanel() {
           </div>
           <CardTitle className="text-2xl font-semibold tracking-tight">Sign in to Parkly Console</CardTitle>
           <CardDescription>
-            Web console uses a single source of truth for the access token, refresh token, and principal.vào app, route guard, shell và realtime đều bám cùng session thay vì token thủ công theo từng page.
+            Web console uses one runtime source of truth for access token, refresh token, principal, route guards, and realtime shell state.
           </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-5">
-          {auth.sessionNotice ? <InlineMessage tone={auth.sessionNotice.tone}>{auth.sessionNotice.message}</InlineMessage> : null}
+          {auth.sessionNotice ? (
+            <InlineMessage tone={auth.sessionNotice.tone}>
+              <div>
+                <p className="font-medium">{auth.sessionNotice.title}</p>
+                <p className="mt-1">{auth.sessionNotice.message}</p>
+              </div>
+            </InlineMessage>
+          ) : null}
           {errorMessage ? <InlineMessage tone="error">{errorMessage}</InlineMessage> : null}
 
           <form className="space-y-4" onSubmit={(event) => void handleSubmit(event)}>
@@ -138,7 +141,9 @@ export function LoginPanel() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>App bootstraps via /api/auth/me. Token is automatically refreshedkhi hợp lệ và chặn route theo role ngay ở route layer. REST và realtime đều đọc token từ cùng một runtime source.</p>
+            <p>
+              The shell bootstraps through <code>/api/auth/me</code>. Access token refresh, route guards, and realtime all read from the same user session runtime.
+            </p>
             {policy ? (
               <div className="rounded-2xl border border-border/70 bg-muted/30 p-4">
                 <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Password policy</p>
@@ -163,8 +168,8 @@ export function LoginPanel() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>Settings is now diagnostics and default context only. Manual token entry is no longer supported.ẻ cho từng browser page.</p>
-            <p>Insufficient roles are blocked at both navigation and direct URL access.</p>
+            <p>Settings only exposes diagnostics and default context. Manual token entry is not part of the normal login flow.</p>
+            <p>Device-signed mobile requests are isolated from the user auth shell and must be debugged separately.</p>
             <Button asChild variant="ghost" className="px-0 text-primary hover:bg-transparent">
               <Link to="/settings">View diagnostics</Link>
             </Button>

@@ -20,16 +20,38 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { ValidationSummary } from '@/components/forms/validation-summary'
+import { MobileCaptureJournal } from '@/features/mobile-capture/components/MobileCaptureJournal'
+import {
+  MobileContextSummaryCard,
+  type MobileContextDiagnostic,
+  type MobileContextReadiness,
+} from '@/features/mobile-capture/components/MobileContextSummaryCard'
+import {
+  appendMobileCaptureJournal,
+  buildJournalScopeKey,
+  buildMobileCaptureContextSnapshot,
+  clearMobileCaptureJournal,
+  formatMobileCaptureContextSnapshot,
+  readMobileCaptureJournal,
+  type MobileCaptureJournalEntry,
+} from '@/features/mobile-capture/mobile-capture-storage'
 import { alprPreview } from '@/lib/api/alpr'
 import {
   createLocalImagePreviewUrl,
-  readMobileCaptureContextFromLocation,
+  hasEffectiveDeviceContextOverride,
+  maskDeviceSecret,
+  normalizeEffectiveDeviceContext,
+  readMobileCaptureSeedFromLocation,
   sendCaptureAlpr,
   sendDeviceHeartbeat,
   validateEffectiveDeviceContext,
   type EffectiveDeviceContext,
 } from '@/lib/api/mobile'
-import { extractValidationFieldErrors, toAppErrorDisplay } from '@/lib/http/errors'
+import {
+  extractValidationFieldErrors,
+  normalizeApiError,
+  toAppErrorDisplay,
+} from '@/lib/http/errors'
 import { buildRoutePath } from '@/lib/router/url-state'
 import { cn } from '@/lib/utils'
 import type { Direction } from '@/lib/contracts/common'
@@ -44,16 +66,32 @@ function rid(prefix: string) {
 
 type OperationStatus =
   | { kind: 'idle' }
-  | { kind: 'ok'; message: string }
-  | { kind: 'error'; title: string; message: string; requestId?: string; hint?: string }
+  | { kind: 'ok'; message: string; requestId?: string; hint?: string }
+  | {
+      kind: 'error'
+      title: string
+      message: string
+      requestId?: string
+      hint?: string
+      code?: string
+      fieldErrors?: Array<{ field: string; message: string }>
+    }
+
+type ErrorOperationStatus = Extract<OperationStatus, { kind: 'error' }>
 
 function StatusBlock({ status }: { status: OperationStatus }) {
   if (status.kind === 'idle') return null
   if (status.kind === 'ok') {
     return (
-      <div className="flex items-center gap-2 rounded-2xl border border-success/25 bg-success/10 px-4 py-3 text-sm text-success">
-        <CheckCircle2 className="h-4 w-4 shrink-0" />
-        {status.message}
+      <div className="space-y-2 rounded-2xl border border-success/25 bg-success/10 px-4 py-3 text-sm text-success">
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          <span>{status.message}</span>
+        </div>
+        {status.requestId ? (
+          <p className="font-mono-data text-[11px] text-success/80">requestId: {status.requestId}</p>
+        ) : null}
+        {status.hint ? <p className="text-xs text-success/80">{status.hint}</p> : null}
       </div>
     )
   }
@@ -74,22 +112,40 @@ function StatusBlock({ status }: { status: OperationStatus }) {
   )
 }
 
-function errorToStatus(error: unknown, surface: 'heartbeat' | 'capture' | 'preview'): OperationStatus {
-  const display = toAppErrorDisplay(error, `${surface} failed`)
-  if (display.kind === 'unauthorized') {
+function errorToStatus(
+  error: unknown,
+  surface: 'heartbeat' | 'capture' | 'preview',
+  fallbackRequestId?: string,
+): ErrorOperationStatus {
+  const normalized = normalizeApiError(error)
+  const display = toAppErrorDisplay(normalized, `${surface} failed`)
+  const requestId = normalized.requestId || fallbackRequestId
+  const fieldErrors = extractValidationFieldErrors(normalized.details)
+  const isDeviceSignatureInvalid = normalized.code === 'DEVICE_SIGNATURE_INVALID'
+  const isDeviceUnauthorized = surface !== 'preview' && (isDeviceSignatureInvalid || display.kind === 'unauthorized')
+
+  if (isDeviceUnauthorized) {
     return {
       kind: 'error',
-      title: `Device authentication failed`,
-      message: `The deviceCode / deviceSecret used for ${surface} was rejected. Check that both match the registered device.`,
-      requestId: display.requestId,
-      hint: 'Verify deviceCode and deviceSecret in the form above match the device registered on this lane.',
+      title: isDeviceSignatureInvalid ? 'Device signature invalid' : 'Device authentication failed',
+      message: isDeviceSignatureInvalid
+        ? 'Backend rejected the signed request. The deviceSecret or deviceCode currently in the form does not match the registered device.'
+        : 'Backend rejected the signed device request. Re-check the deviceCode and deviceSecret currently shown in the live form state.',
+      requestId,
+      code: normalized.code,
+      hint: 'Open the effective context card, compare the live form state against the registered device, then retry heartbeat and capture from the same tab.',
+      fieldErrors,
     }
   }
+
   return {
     kind: 'error',
     title: display.title,
     message: display.message + (display.nextAction ? ` ${display.nextAction}` : ''),
-    requestId: display.requestId,
+    requestId,
+    hint: normalized.code && normalized.code !== 'UNKNOWN_ERROR' ? `errorCode: ${normalized.code}` : undefined,
+    code: normalized.code,
+    fieldErrors,
   }
 }
 
@@ -110,8 +166,17 @@ function DataRow({ label, value }: { label: string; value: string }) {
   )
 }
 
-/** Dev-only debug panel showing exactly what context will be used for signing */
-function DevContextDebug({ ctx }: { ctx: EffectiveDeviceContext & { pairToken: string } }) {
+function DevContextDebug({
+  seed,
+  effective,
+  pairToken,
+  hasManualOverrides,
+}: {
+  seed: ReturnType<typeof readMobileCaptureSeedFromLocation>
+  effective: EffectiveDeviceContext
+  pairToken: string
+  hasManualOverrides: boolean
+}) {
   const [open, setOpen] = useState(false)
   if (!IS_DEV) return null
   return (
@@ -127,7 +192,18 @@ function DevContextDebug({ ctx }: { ctx: EffectiveDeviceContext & { pairToken: s
       </button>
       {open ? (
         <pre className="overflow-x-auto border-t border-border/50 px-3 py-2 font-mono-data text-[11px] text-foreground">
-          {JSON.stringify({ ...ctx, deviceSecret: ctx.deviceSecret ? `${ctx.deviceSecret.slice(0, 4)}…[${ctx.deviceSecret.length}]` : '(empty)' }, null, 2)}
+          {JSON.stringify({
+            pairToken,
+            hasManualOverrides,
+            seed: {
+              ...seed,
+              deviceSecret: maskDeviceSecret(seed.deviceSecret),
+            },
+            effective: {
+              ...effective,
+              deviceSecret: maskDeviceSecret(effective.deviceSecret),
+            },
+          }, null, 2)}
         </pre>
       ) : null}
     </div>
@@ -135,57 +211,116 @@ function DevContextDebug({ ctx }: { ctx: EffectiveDeviceContext & { pairToken: s
 }
 
 export function MobileCapturePage() {
-  // Read URL/query context once at mount — for initial prefill only.
-  // After mount, all operations use live form state (never stale URL values).
-  const initial = useMemo(() => readMobileCaptureContextFromLocation(), [])
-
-  const [siteCode, setSiteCode] = useState(initial.siteCode)
-  const [laneCode, setLaneCode] = useState(initial.laneCode)
-  const [direction, setDirection] = useState<Direction>(initial.direction)
-  const [deviceCode, setDeviceCode] = useState(initial.deviceCode)
-  const [deviceSecret, setDeviceSecret] = useState(initial.deviceSecret)
-  const [pairToken] = useState(initial.token)
+  const initialSeed = useMemo(() => readMobileCaptureSeedFromLocation(), [])
+  const [editableCtx, setEditableCtx] = useState<EffectiveDeviceContext>(() => normalizeEffectiveDeviceContext(initialSeed))
+  const pairToken = initialSeed.token
 
   const [file, setFile] = useState<File | null>(null)
-  const [localImageUrl, setLocalImageUrl] = useState<string>('')  // object URL for display only
+  const [localImageUrl, setLocalImageUrl] = useState('')
   const [plateHint, setPlateHint] = useState('')
   const [overridePlate, setOverridePlate] = useState('')
   const [preview, setPreview] = useState<AlprRecognizeRes | null>(null)
   const [lastCapture, setLastCapture] = useState<CaptureReadRes | null>(null)
+  const [lastHeartbeatAt, setLastHeartbeatAt] = useState('')
+  const [lastHeartbeatRequestId, setLastHeartbeatRequestId] = useState('')
+  const [lastCaptureRequestId, setLastCaptureRequestId] = useState('')
 
-  // Separate pending state per operation — no shared busy flag
   const [isPreviewing, setIsPreviewing] = useState(false)
   const [isSendingCapture, setIsSendingCapture] = useState(false)
   const [isSendingHeartbeat, setIsSendingHeartbeat] = useState(false)
 
-  // Separate status surfaces per operation
   const [previewStatus, setPreviewStatus] = useState<OperationStatus>({ kind: 'idle' })
   const [captureStatus, setCaptureStatus] = useState<OperationStatus>({ kind: 'idle' })
   const [heartbeatStatus, setHeartbeatStatus] = useState<OperationStatus>({ kind: 'idle' })
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const journalScopeKey = useMemo(
+    () => buildJournalScopeKey({
+      pairToken: initialSeed.token,
+      siteCode: initialSeed.siteCode,
+      laneCode: initialSeed.laneCode,
+      deviceCode: initialSeed.deviceCode,
+    }),
+    [initialSeed],
+  )
+  const [journalRows, setJournalRows] = useState<MobileCaptureJournalEntry[]>(() => readMobileCaptureJournal(journalScopeKey))
 
-  // Revoke object URL on unmount or when file changes to avoid memory leaks
+  useEffect(() => {
+    setJournalRows(readMobileCaptureJournal(journalScopeKey))
+  }, [journalScopeKey])
+
   useEffect(() => {
     return () => {
       if (localImageUrl) URL.revokeObjectURL(localImageUrl)
     }
   }, [localImageUrl])
 
-  /**
-   * Single source of truth for the device context used to sign ALL requests.
-   * Always derived from live form state — never from URL params after mount.
-   */
-  const effectiveCtx: EffectiveDeviceContext = {
-    siteCode: siteCode.trim(),
-    laneCode: laneCode.trim(),
-    direction,
-    deviceCode: deviceCode.trim(),
-    deviceSecret: deviceSecret.trim(),
-  }
-
-  const ctxValidation = validateEffectiveDeviceContext(effectiveCtx)
+  const effectiveCtx = useMemo(() => normalizeEffectiveDeviceContext(editableCtx), [editableCtx])
+  const ctxValidation = useMemo(() => validateEffectiveDeviceContext(effectiveCtx), [effectiveCtx])
   const canSend = ctxValidation.valid
+  const hasManualOverrides = useMemo(
+    () => hasEffectiveDeviceContextOverride(initialSeed, effectiveCtx),
+    [effectiveCtx, initialSeed],
+  )
+
+  const contextSnapshot = useMemo(
+    () => buildMobileCaptureContextSnapshot({
+      seed: initialSeed,
+      effective: effectiveCtx,
+      hasManualOverrides,
+    }),
+    [effectiveCtx, hasManualOverrides, initialSeed],
+  )
+
+  const contextDiagnostics = useMemo<MobileContextDiagnostic[]>(() => {
+    const rows: MobileContextDiagnostic[] = []
+
+    if (!ctxValidation.valid) {
+      for (const field of ctxValidation.missing) {
+        rows.push({
+          tone: 'blocked',
+          code: `missing-${field}`,
+          label: `${field} missing`,
+          detail: `${field} must be present in the live form state before heartbeat or capture can be signed.`,
+        })
+      }
+    }
+
+    if (hasManualOverrides) {
+      rows.push({
+        tone: 'attention',
+        code: 'manual-override',
+        label: 'Live form overrides query seed',
+        detail: 'This is expected after editing deviceSecret or lane fields. The current form wins for all signed actions in this tab.',
+      })
+    }
+
+    if (!pairToken) {
+      rows.push({
+        tone: 'attention',
+        code: 'missing-pair-token',
+        label: 'Pair token missing',
+        detail: 'Requests still use the live device context, but traceability back to a pairing session is weaker.',
+      })
+    }
+
+    if (initialSeed.source === 'query') {
+      rows.push({
+        tone: 'ready',
+        code: 'prefill-query',
+        label: 'Query prefill applied once',
+        detail: 'URL parameters were read only at mount. Subsequent edits in this tab do not get overwritten by stale query values.',
+      })
+    }
+
+    return rows
+  }, [ctxValidation, hasManualOverrides, pairToken, initialSeed.source])
+
+  const contextReadiness = useMemo<MobileContextReadiness>(() => {
+    if (contextDiagnostics.some((item) => item.tone === 'blocked')) return 'blocked'
+    if (contextDiagnostics.some((item) => item.tone === 'attention')) return 'attention'
+    return 'ready'
+  }, [contextDiagnostics])
 
   const contextErrorItems = useMemo(
     () =>
@@ -193,21 +328,25 @@ export function MobileCapturePage() {
         ? []
         : ctxValidation.missing.map((field) => ({
             field,
-            message: `${field} is required for device requests.`,
+            message: `${field} is required for device-signed requests.`,
           })),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [siteCode, laneCode, deviceCode, deviceSecret],
+    [ctxValidation],
   )
 
   const captureValidationItems = useMemo(
-    () =>
-      extractValidationFieldErrors(
-        captureStatus.kind === 'error'
-          ? (captureStatus as unknown as { details?: unknown }).details
-          : undefined,
-      ),
+    () => (captureStatus.kind === 'error' ? captureStatus.fieldErrors || [] : []),
     [captureStatus],
   )
+
+  const allValidation = [...contextErrorItems, ...captureValidationItems]
+
+  function pushJournal(entry: Omit<MobileCaptureJournalEntry, 'id' | 'ts'> & { ts?: string }) {
+    setJournalRows(appendMobileCaptureJournal(journalScopeKey, entry))
+  }
+
+  function setCtxField<K extends keyof EffectiveDeviceContext>(field: K, value: EffectiveDeviceContext[K]) {
+    setEditableCtx((current) => ({ ...current, [field]: value }))
+  }
 
   function clearFile() {
     if (localImageUrl) URL.revokeObjectURL(localImageUrl)
@@ -234,22 +373,33 @@ export function MobileCapturePage() {
     setPreviewStatus({ kind: 'idle' })
 
     try {
-      // Step 1: local object URL for display — no server upload needed
       const objUrl = createLocalImagePreviewUrl(file)
       if (localImageUrl) URL.revokeObjectURL(localImageUrl)
       setLocalImageUrl(objUrl)
 
-      // Step 2: run server ALPR preview with plate hint only (no image upload from device surface)
-      // We pass no imageUrl here since /api/media/upload is user-auth. Backend will run
-      // text-only preview if imageUrl is absent, or skip OCR entirely.
-      // The plate override / hint is still applied.
       const result = await alprPreview(undefined, plateHint || undefined)
       setPreview(result)
       if (!overridePlate.trim()) applyPlate(result.plateDisplay || result.recognizedPlate)
       setPreviewStatus({ kind: 'ok', message: `Preview ready — ${result.previewStatus}` })
+      pushJournal({
+        type: 'preview',
+        summary: `Preview ready — ${result.previewStatus}`,
+        detail: [
+          `plate=${result.plateDisplay || result.recognizedPlate || '—'}`,
+          `confidence=${result.confidence.toFixed(2)}`,
+          formatMobileCaptureContextSnapshot(contextSnapshot),
+        ].join(' | '),
+      })
     } catch (err) {
-      // Do NOT clear file/context — preserve for retry
-      setPreviewStatus(errorToStatus(err, 'preview'))
+      const status = errorToStatus(err, 'preview')
+      setPreviewStatus(status)
+      pushJournal({
+        type: 'error',
+        summary: `Preview failed — ${status.title}`,
+        detail: [status.message, status.requestId ? `requestId=${status.requestId}` : '', formatMobileCaptureContextSnapshot(contextSnapshot)]
+          .filter(Boolean)
+          .join(' | '),
+      })
     } finally {
       setIsPreviewing(false)
     }
@@ -267,13 +417,13 @@ export function MobileCapturePage() {
 
     setIsSendingHeartbeat(true)
     setHeartbeatStatus({ kind: 'idle' })
-    const now = new Date().toISOString()
 
+    const requestId = rid('mobile_hb')
     try {
-      // Always use effectiveCtx — never stale URL params
+      const now = new Date().toISOString()
       await sendDeviceHeartbeat({
         secret: effectiveCtx.deviceSecret,
-        requestId: rid('mobile_hb'),
+        requestId,
         idempotencyKey: rid('mobile_hb_idem'),
         siteCode: effectiveCtx.siteCode,
         deviceCode: effectiveCtx.deviceCode,
@@ -284,11 +434,38 @@ export function MobileCapturePage() {
         status: 'ONLINE',
         latencyMs: 40,
         firmwareVersion: 'mobile-capture-surface',
-        rawPayload: { source: 'MOBILE_CAPTURE_PAGE', pairToken },
+        rawPayload: {
+          source: 'MOBILE_CAPTURE_PAGE',
+          pairToken,
+          effectiveContextKey: contextSnapshot.effectiveKey,
+        },
       })
-      setHeartbeatStatus({ kind: 'ok', message: 'Heartbeat sent — ONLINE' })
+      setLastHeartbeatAt(now)
+      setLastHeartbeatRequestId(requestId)
+      setHeartbeatStatus({
+        kind: 'ok',
+        message: 'Heartbeat sent — ONLINE',
+        requestId,
+        hint: 'This heartbeat used the live form state shown in the effective context card.',
+      })
+      pushJournal({
+        type: 'heartbeat',
+        summary: 'Heartbeat sent — ONLINE',
+        detail: [
+          `requestId=${requestId}`,
+          formatMobileCaptureContextSnapshot(contextSnapshot),
+        ].join(' | '),
+      })
     } catch (err) {
-      setHeartbeatStatus(errorToStatus(err, 'heartbeat'))
+      const status = errorToStatus(err, 'heartbeat', requestId)
+      setHeartbeatStatus(status)
+      pushJournal({
+        type: 'error',
+        summary: `Heartbeat failed — ${status.title}`,
+        detail: [status.message, status.requestId ? `requestId=${status.requestId}` : '', formatMobileCaptureContextSnapshot(contextSnapshot)]
+          .filter(Boolean)
+          .join(' | '),
+      })
     } finally {
       setIsSendingHeartbeat(false)
     }
@@ -315,16 +492,13 @@ export function MobileCapturePage() {
     setIsSendingCapture(true)
     setCaptureStatus({ kind: 'idle' })
 
+    const requestId = rid('mobile_alpr')
     try {
       const now = new Date().toISOString()
       const effectivePlate = overridePlate.trim() || preview?.plateDisplay || preview?.recognizedPlate || plateHint.trim()
-
-      // Note: We do NOT upload the image via /api/media/upload — that route requires
-      // user authentication and is not available from a device-signed surface.
-      // The capture is sent with plate data only. imageUrl is omitted.
       const data = await sendCaptureAlpr({
         secret: effectiveCtx.deviceSecret,
-        requestId: rid('mobile_alpr'),
+        requestId,
         idempotencyKey: rid('mobile_alpr_idem'),
         siteCode: effectiveCtx.siteCode,
         laneCode: effectiveCtx.laneCode,
@@ -333,32 +507,52 @@ export function MobileCapturePage() {
         timestamp: now,
         eventTime: now,
         plateRaw: effectivePlate || undefined,
-        imageUrl: null,  // device surface cannot use /api/media/upload (user-auth)
+        imageUrl: null,
         ocrConfidence: preview?.confidence ?? null,
         rawPayload: {
           source: 'MOBILE_CAPTURE_PAGE',
           previewStatus: preview?.previewStatus ?? null,
           pairToken,
+          effectiveContextKey: contextSnapshot.effectiveKey,
         },
       })
 
       setLastCapture(data)
-      setCaptureStatus({ kind: 'ok', message: `Capture accepted · ${data.sessionStatus}` })
+      setLastCaptureRequestId(requestId)
+      setCaptureStatus({
+        kind: 'ok',
+        message: `Capture accepted · ${data.sessionStatus}`,
+        requestId,
+        hint: 'Capture used the same live device context as heartbeat. No /api/media/upload request was made from this surface.',
+      })
+      pushJournal({
+        type: 'capture',
+        summary: `Capture accepted — ${data.sessionStatus}`,
+        detail: [
+          `requestId=${requestId}`,
+          `sessionId=${data.sessionId}`,
+          `plate=${data.plateDisplay || data.plateCompact || data.plateRaw || '—'}`,
+          formatMobileCaptureContextSnapshot(contextSnapshot),
+        ].join(' | '),
+      })
     } catch (err) {
-      // Do NOT clear file/preview/context — preserve for retry
-      setCaptureStatus(errorToStatus(err, 'capture'))
+      const status = errorToStatus(err, 'capture', requestId)
+      setCaptureStatus(status)
+      pushJournal({
+        type: 'error',
+        summary: `Capture failed — ${status.title}`,
+        detail: [status.message, status.requestId ? `requestId=${status.requestId}` : '', formatMobileCaptureContextSnapshot(contextSnapshot)]
+          .filter(Boolean)
+          .join(' | '),
+      })
     } finally {
       setIsSendingCapture(false)
     }
   }
 
-  const allValidation = [...contextErrorItems, ...captureValidationItems]
-
   return (
     <div className="min-h-screen bg-background px-4 py-6 text-foreground">
       <div className="mx-auto max-w-md space-y-5">
-
-        {/* ── Header ── */}
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="secondary">mobile surface</Badge>
@@ -372,31 +566,46 @@ export function MobileCapturePage() {
           </p>
           <h1 className="text-2xl font-semibold tracking-tight">Mobile Capture</h1>
           <p className="text-sm text-muted-foreground">
-            Lightweight capture surface — preview, plate override, and signed ALPR submission.
+            Lightweight signed capture surface. Query params only prefill once; the live form below is the single source of truth.
           </p>
         </div>
 
         <ValidationSummary items={allValidation} />
 
-        {/* Dev debug — shows exactly what context is used for signing */}
-        <DevContextDebug ctx={{ ...effectiveCtx, pairToken }} />
+        <MobileContextSummaryCard
+          seedCtx={initialSeed}
+          effectiveCtx={effectiveCtx}
+          pairToken={pairToken}
+          readiness={contextReadiness}
+          diagnostics={contextDiagnostics}
+          hasManualOverrides={hasManualOverrides}
+          lastHeartbeatAt={lastHeartbeatAt}
+          lastHeartbeatRequestId={lastHeartbeatRequestId}
+          lastCaptureRequestId={lastCaptureRequestId}
+        />
 
-        {/* ── Device context ── */}
+        <DevContextDebug
+          seed={initialSeed}
+          effective={effectiveCtx}
+          pairToken={pairToken}
+          hasManualOverrides={hasManualOverrides}
+        />
+
         <Card className="border-border/80 bg-card/95">
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Device context</CardTitle>
             <CardDescription>
-              Pre-loaded from pair link. Editing any field here overrides the pair/query values for all requests.
+              Edit these values to change the actual device context used for heartbeat and capture in this tab.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2.5">
             <div className="space-y-1">
               <SectionLabel>Site</SectionLabel>
-              <Input value={siteCode} onChange={(e) => setSiteCode(e.target.value)} placeholder="siteCode" />
+              <Input value={editableCtx.siteCode} onChange={(e) => setCtxField('siteCode', e.target.value)} placeholder="siteCode" />
             </div>
             <div className="space-y-1">
               <SectionLabel>Lane</SectionLabel>
-              <Input value={laneCode} onChange={(e) => setLaneCode(e.target.value)} placeholder="laneCode" />
+              <Input value={editableCtx.laneCode} onChange={(e) => setCtxField('laneCode', e.target.value)} placeholder="laneCode" />
             </div>
             <div className="space-y-1">
               <SectionLabel>Direction</SectionLabel>
@@ -405,10 +614,10 @@ export function MobileCapturePage() {
                   <button
                     key={d}
                     type="button"
-                    onClick={() => setDirection(d)}
+                    onClick={() => setCtxField('direction', d)}
                     className={cn(
                       'rounded-2xl border px-4 py-2.5 text-sm font-medium transition',
-                      direction === d
+                      editableCtx.direction === d
                         ? d === 'ENTRY'
                           ? 'border-success/40 bg-success/15 text-success'
                           : 'border-destructive/40 bg-destructive/15 text-destructive'
@@ -422,13 +631,13 @@ export function MobileCapturePage() {
             </div>
             <div className="space-y-1">
               <SectionLabel>Device code</SectionLabel>
-              <Input value={deviceCode} onChange={(e) => setDeviceCode(e.target.value)} placeholder="deviceCode" />
+              <Input value={editableCtx.deviceCode} onChange={(e) => setCtxField('deviceCode', e.target.value)} placeholder="deviceCode" />
             </div>
             <div className="space-y-1">
               <SectionLabel>Device secret</SectionLabel>
               <Input
-                value={deviceSecret}
-                onChange={(e) => setDeviceSecret(e.target.value)}
+                value={editableCtx.deviceSecret}
+                onChange={(e) => setCtxField('deviceSecret', e.target.value)}
                 placeholder="deviceSecret"
                 type="password"
                 autoComplete="off"
@@ -437,16 +646,14 @@ export function MobileCapturePage() {
           </CardContent>
         </Card>
 
-        {/* ── Capture surface ── */}
         <Card className="border-border/80 bg-card/95">
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Capture surface</CardTitle>
             <CardDescription>
-              Image preview is local only. Capture is submitted with plate data — no server image upload required.
+              Local preview never uploads the image from this mobile surface. Capture is submitted as a signed device request.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {/* Hidden native file input */}
             <input
               ref={fileInputRef}
               type="file"
@@ -465,7 +672,6 @@ export function MobileCapturePage() {
               }}
             />
 
-            {/* Styled file picker */}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -507,7 +713,6 @@ export function MobileCapturePage() {
               className="font-mono-data"
             />
 
-            {/* Local image preview (object URL, no upload) */}
             {localImageUrl ? (
               <img
                 src={localImageUrl}
@@ -516,10 +721,8 @@ export function MobileCapturePage() {
               />
             ) : null}
 
-            {/* Preview status */}
             <StatusBlock status={previewStatus} />
 
-            {/* Primary actions */}
             <div className="grid grid-cols-2 gap-2">
               <Button
                 type="button"
@@ -542,10 +745,8 @@ export function MobileCapturePage() {
               </Button>
             </div>
 
-            {/* Capture status */}
             <StatusBlock status={captureStatus} />
 
-            {/* Heartbeat — secondary */}
             <div className="space-y-2 pt-1">
               <Button
                 type="button"
@@ -563,7 +764,6 @@ export function MobileCapturePage() {
           </CardContent>
         </Card>
 
-        {/* ── ALPR preview result (from server) ── */}
         {preview ? (
           <Card className="border-border/80 bg-card/95">
             <CardHeader className="pb-3">
@@ -612,7 +812,6 @@ export function MobileCapturePage() {
           </Card>
         ) : null}
 
-        {/* ── Last capture result ── */}
         {lastCapture ? (
           <Card className="border-border/80 bg-card/95">
             <CardHeader className="pb-3">
@@ -637,7 +836,7 @@ export function MobileCapturePage() {
                   onClick={() =>
                     window.open(
                       buildRoutePath('/session-history', {
-                        siteCode,
+                        siteCode: effectiveCtx.siteCode,
                         sessionId: lastCapture.sessionId,
                         q: lastCapture.plateDisplay || lastCapture.plateCompact || lastCapture.plateRaw || undefined,
                       }),
@@ -655,7 +854,7 @@ export function MobileCapturePage() {
                   size="sm"
                   onClick={() =>
                     window.open(
-                      buildRoutePath('/run-lane', { siteCode, laneCode }),
+                      buildRoutePath('/run-lane', { siteCode: effectiveCtx.siteCode, laneCode: effectiveCtx.laneCode }),
                       '_blank',
                       'noopener,noreferrer',
                     )
@@ -669,10 +868,17 @@ export function MobileCapturePage() {
           </Card>
         ) : null}
 
-        <p className="text-center text-xs text-muted-foreground/60">
-          Edge camera surface — device code, secret, heartbeat, and signed ALPR capture.
-        </p>
+        <MobileCaptureJournal
+          rows={journalRows}
+          onClear={() => {
+            clearMobileCaptureJournal(journalScopeKey)
+            setJournalRows([])
+          }}
+        />
 
+        <p className="text-center text-xs text-muted-foreground/60">
+          Edge camera surface — signed by live device context. Query prefill is seed-only and does not mutate this tab after mount.
+        </p>
       </div>
     </div>
   )
