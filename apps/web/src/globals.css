@@ -88,3 +88,115 @@
     contain-intrinsic-size: 124px;
   }
 }
+
+/* ─── Login page dramatic background ───────────────────────── */
+@layer utilities {
+  .login-root {
+    position: relative;
+    min-height: 100dvh;
+    overflow: hidden;
+    background: hsl(var(--background));
+  }
+
+  /* Mouse-tracking spotlight — updated via JS custom props */
+  .login-spotlight {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      900px circle at var(--lx, 50%) var(--ly, 50%),
+      hsl(38 96% 56% / 0.07) 0%,
+      hsl(38 70% 40% / 0.03) 40%,
+      transparent 70%
+    );
+    transition: background 0.05s linear;
+    z-index: 0;
+  }
+
+  /* Fine dot grid */
+  .login-grid {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(circle, hsl(var(--border) / 0.55) 1px, transparent 1px);
+    background-size: 28px 28px;
+    mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%);
+    z-index: 0;
+  }
+
+  /* Ambient blurred orbs */
+  .login-orb {
+    pointer-events: none;
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(90px);
+    z-index: 0;
+    will-change: transform;
+  }
+  .login-orb-a {
+    width: 560px; height: 560px;
+    top: -120px; right: -80px;
+    background: hsl(38 96% 56% / 0.055);
+    animation: orb-drift-a 18s ease-in-out infinite;
+  }
+  .login-orb-b {
+    width: 420px; height: 420px;
+    bottom: -60px; left: -100px;
+    background: hsl(210 80% 55% / 0.04);
+    animation: orb-drift-b 22s ease-in-out infinite;
+  }
+  .login-orb-c {
+    width: 300px; height: 300px;
+    top: 40%; left: 55%;
+    background: hsl(158 64% 40% / 0.035);
+    animation: orb-drift-c 26s ease-in-out infinite;
+  }
+
+  /* Content above orbs */
+  .login-content {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Card: subtle animated border on hover */
+  .login-card-main {
+    transition: box-shadow 0.35s ease, border-color 0.35s ease;
+  }
+  .login-card-main:focus-within {
+    border-color: hsl(38 96% 56% / 0.35) !important;
+    box-shadow:
+      0 0 0 1px hsl(38 96% 56% / 0.12),
+      0 24px 80px rgba(0,0,0,0.28);
+  }
+
+  /* Brand mark pulse */
+  .login-brand-dot {
+    animation: brand-pulse 3s ease-in-out infinite;
+  }
+
+  /* Input focus glow */
+  .login-input-wrap input:focus {
+    box-shadow: 0 0 0 2px hsl(38 96% 56% / 0.28) !important;
+  }
+}
+
+@keyframes orb-drift-a {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%       { transform: translate(-60px, 40px) scale(1.08); }
+  66%       { transform: translate(40px, -30px) scale(0.95); }
+}
+@keyframes orb-drift-b {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  40%       { transform: translate(80px, -50px) scale(1.05); }
+  70%       { transform: translate(-30px, 30px) scale(0.92); }
+}
+@keyframes orb-drift-c {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  35%       { transform: translate(-70px, 60px) scale(1.12); }
+  65%       { transform: translate(50px, -40px) scale(0.9); }
+}
+@keyframes brand-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 hsl(38 96% 56% / 0.4); }
+  50%       { opacity: 0.85; box-shadow: 0 0 0 8px hsl(38 96% 56% / 0); }
+}

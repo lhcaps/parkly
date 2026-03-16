@@ -6,8 +6,10 @@ import {
   Camera,
   ClipboardCheck,
   Cpu,
+  CreditCard,
   History,
   LayoutGrid,
+  MapPin,
   RadioTower,
   Settings,
   Smartphone,
@@ -27,6 +29,8 @@ const pageLoaders = {
   captureDebug: () => import('@/pages/CaptureDebugPage').then((module) => ({ default: module.CaptureDebugPage })),
   settings: () => import('@/pages/SettingsPage').then((module) => ({ default: module.SettingsPage })),
   mobileCapture: () => import('@/pages/MobileCapturePage').then((module) => ({ default: module.MobileCapturePage })),
+  subscriptions: () => import('@/pages/SubscriptionsPage').then((module) => ({ default: module.SubscriptionsPage })),
+  parkingLive: () => import('@/pages/ParkingLivePage').then((module) => ({ default: module.ParkingLivePage })),
 } as const
 
 const OverviewPage = lazy(pageLoaders.overview)
@@ -41,9 +45,13 @@ const MobileCameraPairPage = lazy(pageLoaders.mobileCameraPair)
 const CaptureDebugPage = lazy(pageLoaders.captureDebug)
 const SettingsPage = lazy(pageLoaders.settings)
 const MobileCapturePage = lazy(pageLoaders.mobileCapture)
+const SubscriptionsPage = lazy(pageLoaders.subscriptions)
+const ParkingLivePage = lazy(pageLoaders.parkingLive)
 
 const ROUTE_PRELOADS: Record<string, Array<keyof typeof pageLoaders>> = {
-  '/overview': ['reviewQueue', 'sessions', 'runLane'],
+  '/overview': ['reviewQueue', 'sessions', 'runLane', 'subscriptions'],
+  '/subscriptions': ['overview'],
+  '/parking-live': ['overview'],
   '/run-lane': ['reviewQueue', 'sessions'],
   '/review-queue': ['sessions', 'runLane'],
   '/session-history': ['reviewQueue', 'outbox', 'reports'],
@@ -177,6 +185,26 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
     icon: Camera,
     element: <CaptureDebugPage />,
     allowedRoles: ['ADMIN', 'OPS', 'GUARD', 'WORKER'],
+  },
+  {
+    path: '/subscriptions',
+    label: 'Subscriptions',
+    shortLabel: 'Subscriptions',
+    description: 'Manage parking subscriptions — vehicles, spot assignments, and status.',
+    group: 'Operations',
+    icon: CreditCard,
+    element: <SubscriptionsPage />,
+    allowedRoles: ['ADMIN', 'OPS'],
+  },
+  {
+    path: '/parking-live',
+    label: 'Parking Live',
+    shortLabel: 'Parking',
+    description: 'Realtime parking occupancy — floor view, slot status, and drill-down detail.',
+    group: 'Monitoring',
+    icon: MapPin,
+    element: <ParkingLivePage />,
+    allowedRoles: ['ADMIN', 'OPS', 'GUARD'],
   },
   {
     path: '/settings',

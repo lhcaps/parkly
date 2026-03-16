@@ -4,10 +4,13 @@ import pino, { type Logger, type LoggerOptions } from 'pino'
 import pinoHttp, { type Options as PinoHttpOptions } from 'pino-http'
 import type { NextFunction, Request, Response } from 'express'
 
-import { ApiError, statusToCode, type ApiErrorCode } from './http'
+import { ApiError, statusToCode } from './http'
 
 export type LogLevelName = 'debug' | 'info' | 'warn' | 'error'
 export type LogSurface = 'public' | 'user-auth' | 'device-signed' | 'stream' | 'internal'
+
+type RequestLike = Partial<Request> & Record<string, any>
+type ResponseLike = Partial<Response> & Record<string, any>
 
 export type LogFieldContext = {
   requestId?: string | null
@@ -50,13 +53,17 @@ function stringifyScalar(value: unknown) {
   return null
 }
 
+function sanitizeNullableString(value: unknown) {
+  const text = String(value ?? '').trim()
+  return text ? text : null
+}
+
 function readPathname(urlValue: string | undefined) {
   const source = String(urlValue ?? '').trim()
   if (!source) return '/'
   const queryIndex = source.indexOf('?')
   return queryIndex >= 0 ? source.slice(0, queryIndex) : source
 }
-
 
 function shouldRedactIp() {
   return String(process.env.LOG_REDACT_IP ?? 'OFF').trim().toUpperCase() === 'ON'
@@ -73,24 +80,50 @@ function readFromContainer(container: unknown, key: string) {
   return stringifyScalar((container as Record<string, unknown>)[key])
 }
 
-function readFromRequest(req: Request, key: string) {
+function readFromRequest(req: RequestLike, key: string) {
   return readFromContainer(req.params, key)
     ?? readFromContainer(req.query, key)
     ?? readFromContainer(req.body, key)
 }
 
-function resolveActorContext(req: Request) {
-  const auth = req.auth
+function readHeader(req: RequestLike, name: string) {
+  if (typeof req.header === 'function') return req.header(name)
+  if (typeof req.get === 'function') return req.get(name)
+  const headers = req.headers as Record<string, unknown> | undefined
+  if (!headers) return undefined
+  const direct = headers[name] ?? headers[name.toLowerCase()]
+  if (Array.isArray(direct)) return direct[0] as string | undefined
+  return typeof direct === 'string' ? direct : undefined
+}
+
+function resolveActorContext(req: RequestLike) {
+  const auth = req.auth as { principalType?: string; actorUserId?: unknown; role?: string | null; actorLabel?: string | null } | undefined
   if (!auth) return { actorId: null, actorRole: null, actorLabel: null }
   return {
-    actorId: auth.principalType === 'USER' ? String(auth.actorUserId) : null,
-    actorRole: auth.role,
-    actorLabel: auth.actorLabel,
+    actorId: auth.principalType === 'USER' ? stringifyScalar(auth.actorUserId) : null,
+    actorRole: auth.role ?? null,
+    actorLabel: auth.actorLabel ?? null,
   }
 }
 
-export function classifyLogSurface(req: Request): LogSurface {
-  const path = readPathname(req.originalUrl ?? req.path)
+function resolveRequestId(req: RequestLike) {
+  return sanitizeNullableString(req.id) ?? null
+}
+
+function resolveCorrelationId(req: RequestLike) {
+  return sanitizeNullableString(req.correlationId) ?? resolveRequestId(req)
+}
+
+function resolveRequestPath(req: RequestLike) {
+  return readPathname((req.originalUrl as string | undefined) ?? (req.path as string | undefined) ?? (req.url as string | undefined))
+}
+
+function resolveRequestIp(req: RequestLike) {
+  return maybeRedactIp(req.ip ?? req.socket?.remoteAddress ?? req.connection?.remoteAddress ?? null)
+}
+
+export function classifyLogSurface(req: RequestLike): LogSurface {
+  const path = resolveRequestPath(req)
   if (path.startsWith('/api/stream/')) return 'stream'
   if (
     path.startsWith('/api/devices/') ||
@@ -105,11 +138,11 @@ export function classifyLogSurface(req: Request): LogSurface {
   return 'public'
 }
 
-export function buildLogFieldContext(req: Request): LogFieldContext {
+export function buildLogFieldContext(req: RequestLike): LogFieldContext {
   const actor = resolveActorContext(req)
   return {
-    requestId: req.id ?? null,
-    correlationId: req.correlationId ?? req.id ?? null,
+    requestId: resolveRequestId(req),
+    correlationId: resolveCorrelationId(req),
     actorId: actor.actorId,
     actorRole: actor.actorRole,
     actorLabel: actor.actorLabel,
@@ -123,23 +156,23 @@ export function buildLogFieldContext(req: Request): LogFieldContext {
   }
 }
 
-function buildReqSerializer(req: Request) {
+function buildReqSerializer(req: RequestLike) {
   return {
-    requestId: req.id ?? null,
-    correlationId: req.correlationId ?? req.id ?? null,
-    method: req.method,
-    path: readPathname(req.originalUrl ?? req.path),
-    ip: maybeRedactIp(req.ip ?? (req.socket as any)?.remoteAddress ?? null),
-    host: req.header('host') ?? null,
-    userAgent: req.header('user-agent') ?? null,
+    requestId: resolveRequestId(req),
+    correlationId: resolveCorrelationId(req),
+    method: req.method ?? null,
+    path: resolveRequestPath(req),
+    ip: resolveRequestIp(req),
+    host: readHeader(req, 'host') ?? null,
+    userAgent: readHeader(req, 'user-agent') ?? null,
     surface: classifyLogSurface(req),
     ...buildLogFieldContext(req),
   }
 }
 
-function buildResSerializer(res: Response) {
+function buildResSerializer(res: ResponseLike) {
   return {
-    statusCode: res.statusCode,
+    statusCode: Number.isFinite(res.statusCode) ? Number(res.statusCode) : null,
   }
 }
 
@@ -275,21 +308,16 @@ export function buildHttpLoggerOptions(): PinoHttpOptions {
     autoLogging: false,
     genReqId: (req) => (req as any).id,
     customProps: (req) => ({
-      requestId: (req as any).id ?? null,
-      correlationId: (req as any).correlationId ?? (req as any).id ?? null,
-      surface: classifyLogSurface(req as Request),
-      ...buildLogFieldContext(req as Request),
+      requestId: sanitizeNullableString((req as any).id) ?? null,
+      correlationId: sanitizeNullableString((req as any).correlationId) ?? sanitizeNullableString((req as any).id) ?? null,
+      surface: classifyLogSurface(req as RequestLike),
+      ...buildLogFieldContext(req as RequestLike),
     }),
   }
 }
 
 export function createHttpLoggerMiddleware() {
   return pinoHttp(buildHttpLoggerOptions())
-}
-
-function sanitizeNullableString(value: unknown) {
-  const text = String(value ?? '').trim()
-  return text ? text : null
 }
 
 function errorReason(err: any) {
@@ -301,7 +329,7 @@ export function classifyApiError(err: unknown, req?: Request) {
   const status = apiErr?.statusCode ?? (Number.isFinite((err as any)?.statusCode) ? Number((err as any).statusCode) : Number.isFinite((err as any)?.status) ? Number((err as any).status) : 500)
   const code = sanitizeNullableString(apiErr?.code ?? (err as any)?.code) ?? statusToCode(status)
   const reason = errorReason(err as any)
-  const surface = req ? classifyLogSurface(req) : 'public'
+  const surface = req ? classifyLogSurface(req as RequestLike) : 'public'
 
   let level: LogLevelName = 'info'
   let kind = 'client_error'
@@ -339,12 +367,12 @@ export function buildErrorLogPayload(err: unknown, req: Request) {
     errorReason: classification.reason,
     status: classification.status,
     surface: classification.surface,
-    ...buildLogFieldContext(req),
+    ...buildLogFieldContext(req as RequestLike),
     err,
   }
 }
 
-export function classifyAccessLogLevel(req: Request, statusCode: number): LogLevelName {
+export function classifyAccessLogLevel(req: RequestLike, statusCode: number): LogLevelName {
   if (statusCode >= 500) return 'error'
   if (statusCode === 409 || statusCode === 412 || statusCode === 422) return 'warn'
   if (statusCode === 401 || statusCode === 403) return classifyLogSurface(req) === 'device-signed' ? 'warn' : 'info'
@@ -356,39 +384,43 @@ export function createAccessSummaryMiddleware() {
   return function accessSummaryMiddleware(req: Request, res: Response, next: NextFunction) {
     const startedAt = process.hrtime.bigint()
     let completed = false
+    const reqAny = req as RequestLike
+    const resAny = res as ResponseLike
 
     const flush = (event: 'finish' | 'close') => {
       if (completed) return
       completed = true
 
       const elapsedMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000
-      const status = event === 'close' && !res.writableEnded ? 499 : res.statusCode
-      const level = classifyAccessLogLevel(req, status)
-      const path = sanitizeNullableString((req as any).route?.path)
-        ? `${sanitizeNullableString(req.baseUrl) ?? ''}${sanitizeNullableString((req as any).route?.path) ?? ''}`
-        : readPathname(req.originalUrl ?? req.path)
+      const writableEnded = Boolean(resAny.writableEnded)
+      const status = event === 'close' && !writableEnded ? 499 : Number.isFinite(resAny.statusCode) ? Number(resAny.statusCode) : 200
+      const level = classifyAccessLogLevel(reqAny, status)
+      const routePath = sanitizeNullableString(reqAny.route?.path)
+      const path = routePath
+        ? `${sanitizeNullableString(reqAny.baseUrl) ?? ''}${routePath}`
+        : resolveRequestPath(reqAny)
 
       const payload = {
         type: 'access',
         event,
-        method: req.method,
+        method: reqAny.method ?? null,
         path,
         status,
         durationMs: Number(elapsedMs.toFixed(1)),
-        ip: maybeRedactIp(req.ip ?? (req.socket as any)?.remoteAddress ?? null),
-        host: req.header('host') ?? null,
-        userAgent: req.header('user-agent') ?? null,
-        surface: classifyLogSurface(req),
-        ...buildLogFieldContext(req),
+        ip: resolveRequestIp(reqAny),
+        host: readHeader(reqAny, 'host') ?? null,
+        userAgent: readHeader(reqAny, 'user-agent') ?? null,
+        surface: classifyLogSurface(reqAny),
+        ...buildLogFieldContext(reqAny),
       }
 
-      const logger = req.log ?? apiLogger
+      const logger = reqAny.log ?? apiLogger
       logger[level](payload, 'request completed')
     }
 
-    res.on('finish', () => flush('finish'))
-    res.on('close', () => {
-      if (!res.writableEnded) flush('close')
+    resAny.on?.('finish', () => flush('finish'))
+    resAny.on?.('close', () => {
+      if (!resAny.writableEnded) flush('close')
     })
 
     next()

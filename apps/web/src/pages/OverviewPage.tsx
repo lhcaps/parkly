@@ -10,6 +10,7 @@ import {
   ShieldAlert,
   TimerReset,
 } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -211,20 +212,24 @@ export function OverviewPage() {
           icon={Activity}
           tone={(overview?.laneAttentionCount ?? 0) > 0 ? 'warning' : 'success'}
         />
-        <KpiCard
-          title="Occupancy rate"
-          value={dashboard.loading ? '…' : `${(overview?.occupancyRate ?? 0).toFixed(2)}%`}
-          helper={dashboard.error ? 'Occupancy snapshot unavailable.' : `${dashboardData?.occupancy.occupiedTotal ?? 0} of ${dashboardData?.occupancy.totalSpots ?? 0} spots occupied.`}
-          icon={DatabaseZap}
-          tone="default"
-        />
-        <KpiCard
-          title="Active subscriptions"
-          value={dashboard.loading ? '…' : String(overview?.activeSubscriptionCount ?? 0)}
-          helper={dashboard.error ? 'Subscription summary unavailable.' : `${overview?.expiringSubscriptionCount ?? 0} expiring soon.`}
-          icon={TimerReset}
-          tone={(overview?.expiringSubscriptionCount ?? 0) > 0 ? 'warning' : 'default'}
-        />
+        <Link to="/parking-live" className="block">
+          <KpiCard
+            title="Occupancy rate"
+            value={dashboard.loading ? '…' : `${(overview?.occupancyRate ?? 0).toFixed(2)}%`}
+            helper={dashboard.error ? 'Occupancy snapshot unavailable.' : `${dashboardData?.occupancy.occupiedTotal ?? 0} of ${dashboardData?.occupancy.totalSpots ?? 0} spots. Click for live view.`}
+            icon={DatabaseZap}
+            tone="default"
+          />
+        </Link>
+        <Link to="/subscriptions?status=ACTIVE" className="block">
+          <KpiCard
+            title="Active subscriptions"
+            value={dashboard.loading ? '…' : String(overview?.activeSubscriptionCount ?? 0)}
+            helper={dashboard.error ? 'Subscription summary unavailable.' : `${overview?.expiringSubscriptionCount ?? 0} expiring soon. Click to manage.`}
+            icon={TimerReset}
+            tone={(overview?.expiringSubscriptionCount ?? 0) > 0 ? 'warning' : 'default'}
+          />
+        </Link>
         <KpiCard
           title="Active presence"
           value={dashboard.loading ? '…' : String(overview?.activePresenceCount ?? 0)}

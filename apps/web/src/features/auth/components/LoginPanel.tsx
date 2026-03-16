@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { AlertCircle, LockKeyhole, ShieldCheck } from 'lucide-react'
+import { LockKeyhole, ShieldCheck, Zap } from 'lucide-react'
 import { InlineMessage } from '@/components/ops/console'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, type SelectOption } from '@/components/ui/select'
@@ -50,9 +50,7 @@ export function LoginPanel() {
     getAuthPasswordPolicy().then((value) => {
       if (active) setPolicy(value)
     }).catch(() => undefined)
-    return () => {
-      active = false
-    }
+    return () => { active = false }
   }, [])
 
   useEffect(() => {
@@ -64,7 +62,6 @@ export function LoginPanel() {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setErrorMessage('')
-
     try {
       const principal = await auth.login({
         username: username.trim(),
@@ -78,53 +75,101 @@ export function LoginPanel() {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_380px]">
-      <Card className="border-border/80 bg-card/95 shadow-[0_18px_60px_rgba(0,0,0,0.18)]">
-        <CardHeader className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary">Auth shell</Badge>
-            <Badge variant="outline">session bootstrap</Badge>
-          </div>
-          <CardTitle className="text-2xl font-semibold tracking-tight">Sign in to Parkly Console</CardTitle>
-          <CardDescription>
-            Web console uses one runtime source of truth for access token, refresh token, principal, route guards, and realtime shell state.
-          </CardDescription>
-        </CardHeader>
+    <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
 
-        <CardContent className="space-y-5">
+      {/* ── Main login card ── */}
+      <Card className="login-card-main border-border/60 bg-card/80 backdrop-blur-sm shadow-[0_24px_80px_rgba(0,0,0,0.32)]">
+        <CardHeader className="space-y-4 pb-6">
+          {/* Session notice above form */}
           {auth.sessionNotice ? (
             <InlineMessage tone={auth.sessionNotice.tone}>
               <div>
                 <p className="font-medium">{auth.sessionNotice.title}</p>
-                <p className="mt-1">{auth.sessionNotice.message}</p>
+                <p className="mt-1 text-sm">{auth.sessionNotice.message}</p>
               </div>
             </InlineMessage>
           ) : null}
-          {errorMessage ? <InlineMessage tone="error">{errorMessage}</InlineMessage> : null}
 
-          <form className="space-y-4" onSubmit={(event) => void handleSubmit(event)}>
-            <div className="space-y-2">
-              <Label htmlFor="login-username">Username</Label>
-              <Input id="login-username" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="ops" autoComplete="username" />
+          <div>
+            <div className="mb-3 flex items-center gap-2">
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
+              <span className="font-mono-data text-[10px] uppercase tracking-[0.22em] text-primary/70">Auth</span>
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
+            </div>
+            <CardTitle className="text-2xl font-semibold tracking-tight">
+              Sign in to Parkly Console
+            </CardTitle>
+            <p className="mt-2 text-sm text-muted-foreground">
+              One session authenticates all routes, guards, and realtime connections.
+            </p>
+          </div>
+        </CardHeader>
+
+        <CardContent>
+          {errorMessage ? (
+            <div className="mb-5">
+              <InlineMessage tone="error">{errorMessage}</InlineMessage>
+            </div>
+          ) : null}
+
+          <form className="space-y-5" onSubmit={(event) => void handleSubmit(event)}>
+            <div className="login-input-wrap space-y-1.5">
+              <Label htmlFor="login-username" className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                Username
+              </Label>
+              <Input
+                id="login-username"
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                placeholder="ops"
+                autoComplete="username"
+                className="h-11 border-border/60 bg-background/60 text-sm"
+              />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="login-password">Password</Label>
-              <Input id="login-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="••••••••" autoComplete="current-password" />
+            <div className="login-input-wrap space-y-1.5">
+              <Label htmlFor="login-password" className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                Password
+              </Label>
+              <Input
+                id="login-password"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="••••••••••"
+                autoComplete="current-password"
+                className="h-11 border-border/60 bg-background/60 text-sm"
+              />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="login-role">Login role</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="login-role" className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                Login role
+              </Label>
               <Select value={role} onChange={setRole} options={ROLE_OPTIONS} />
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <Button type="submit" disabled={auth.isBusy || !username.trim() || !password}>
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              <Button
+                type="submit"
+                disabled={auth.isBusy || !username.trim() || !password}
+                className="min-w-[120px] gap-2"
+                style={{
+                  background: 'hsl(var(--primary))',
+                  color: 'hsl(var(--primary-foreground))',
+                  boxShadow: '0 0 28px hsl(38 96% 56% / 0.25)',
+                }}
+              >
                 <LockKeyhole className="h-4 w-4" />
                 {auth.isBusy ? 'Signing in…' : 'Sign in'}
               </Button>
 
-              <Button type="button" variant="outline" onClick={() => navigate('/mobile-capture')}>
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-muted-foreground hover:text-foreground"
+                onClick={() => navigate('/mobile-capture')}
+              >
                 Mobile capture
               </Button>
             </div>
@@ -132,49 +177,68 @@ export function LoginPanel() {
         </CardContent>
       </Card>
 
-      <div className="space-y-6">
-        <Card className="border-border/80 bg-card/95 shadow-[0_16px_48px_rgba(0,0,0,0.14)]">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
+      {/* ── Right column: compact info ── */}
+      <div className="flex flex-col gap-4">
+
+        {/* Session policy card */}
+        <Card className="border-border/50 bg-card/60 backdrop-blur-sm shadow-[0_16px_48px_rgba(0,0,0,0.22)]">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
               <ShieldCheck className="h-4 w-4 text-primary" />
               Session policy
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
+          <CardContent className="space-y-3 text-xs text-muted-foreground">
             <p>
-              The shell bootstraps through <code>/api/auth/me</code>. Access token refresh, route guards, and realtime all read from the same user session runtime.
+              Shell bootstraps via <code className="font-mono-data text-[10px] text-foreground/70 bg-muted/60 px-1 py-0.5 rounded">/api/auth/me</code>. Token refresh, route guards, and realtime all share the same session runtime.
             </p>
+
             {policy ? (
-              <div className="rounded-2xl border border-border/70 bg-muted/30 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Password policy</p>
-                <p className="mt-2 text-foreground">{policy.description || 'No policy description returned from backend.'}</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Badge variant="outline">min {policy.policy.minLength}</Badge>
-                  {policy.policy.requireUppercase ? <Badge variant="outline">uppercase</Badge> : null}
-                  {policy.policy.requireLowercase ? <Badge variant="outline">lowercase</Badge> : null}
-                  {policy.policy.requireDigit ? <Badge variant="outline">digit</Badge> : null}
-                  {policy.policy.requireSpecial ? <Badge variant="outline">special</Badge> : null}
+              <div className="rounded-xl border border-border/50 bg-muted/30 p-3 space-y-2">
+                <p className="font-mono-data text-[10px] uppercase tracking-[0.16em] text-muted-foreground/60">
+                  Password policy
+                </p>
+                <p className="text-foreground/80">{policy.description || 'No description returned.'}</p>
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  <Badge variant="outline" className="text-[10px]">min {policy.policy.minLength}</Badge>
+                  {policy.policy.requireUppercase && <Badge variant="outline" className="text-[10px]">uppercase</Badge>}
+                  {policy.policy.requireLowercase && <Badge variant="outline" className="text-[10px]">lowercase</Badge>}
+                  {policy.policy.requireDigit && <Badge variant="outline" className="text-[10px]">digit</Badge>}
+                  {policy.policy.requireSpecial && <Badge variant="outline" className="text-[10px]">special</Badge>}
                 </div>
               </div>
             ) : null}
           </CardContent>
         </Card>
 
-        <Card className="border-border/80 bg-card/95 shadow-[0_16px_48px_rgba(0,0,0,0.14)]">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
-              <AlertCircle className="h-4 w-4 text-primary" />
+        {/* Access notes card */}
+        <Card className="border-border/50 bg-card/60 backdrop-blur-sm shadow-[0_16px_48px_rgba(0,0,0,0.22)]">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+              <Zap className="h-4 w-4 text-primary" />
               Access notes
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
+          <CardContent className="space-y-3 text-xs text-muted-foreground">
             <p>Settings only exposes diagnostics and default context. Manual token entry is not part of the normal login flow.</p>
             <p>Device-signed mobile requests are isolated from the user auth shell and must be debugged separately.</p>
-            <Button asChild variant="ghost" className="px-0 text-primary hover:bg-transparent">
-              <Link to="/settings">View diagnostics</Link>
+            <Button
+              asChild
+              variant="ghost"
+              className="h-auto p-0 text-xs text-primary hover:bg-transparent hover:text-primary/80"
+            >
+              <Link to="/settings">View diagnostics →</Link>
             </Button>
           </CardContent>
         </Card>
+
+        {/* Subtle status indicator */}
+        <div className="flex items-center gap-2 rounded-xl border border-border/40 bg-muted/20 px-3 py-2.5">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
+          <span className="font-mono-data text-[10px] text-muted-foreground/60 uppercase tracking-[0.14em]">
+            System operational
+          </span>
+        </div>
       </div>
     </div>
   )
