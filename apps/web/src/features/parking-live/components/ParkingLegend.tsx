@@ -1,11 +1,13 @@
 import { memo } from 'react'
 
 const LEGEND = [
-  { label: 'Empty', dot: 'bg-success', ring: '' },
-  { label: 'Matched', dot: 'bg-primary shadow-[0_0_4px_hsl(var(--primary))]', ring: '' },
-  { label: 'Unknown occupancy', dot: 'bg-amber-400', ring: '' },
-  { label: 'Violation', dot: 'bg-destructive', ring: '' },
-  { label: 'Sensor stale', dot: 'bg-muted-foreground/40', ring: '' },
+  { label: 'Empty', dot: 'bg-success' },
+  { label: 'Matched', dot: 'bg-primary shadow-[0_0_4px_hsl(var(--primary))]' },
+  { label: 'Unknown occupancy', dot: 'bg-amber-400' },
+  { label: 'Violation', dot: 'bg-destructive' },
+  { label: 'Sensor stale', dot: 'bg-muted-foreground/40' },
+  { label: 'Reserved', dot: 'bg-cyan-300' },
+  { label: 'Blocked', dot: 'bg-border' },
 ] as const
 
 export const ParkingLegend = memo(function ParkingLegend() {

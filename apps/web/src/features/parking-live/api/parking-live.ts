@@ -1,49 +1,49 @@
-// Backend routes:
-// GET /api/ops/spot-occupancy?siteCode=X  — list all projection rows (ADMIN, OPS, GUARD)
-// GET /api/ops/spot-occupancy/:spotCode?siteCode=X — single slot detail
-// ?refresh=true triggers on-demand reconciliation on backend
-//
-// NO dedicated realtime SSE stream exists for occupancy.
-// This module implements polling fallback (see hooks/useParkingLiveData.ts).
-
 import { apiFetch, buildQuery } from '@/lib/http/client'
-import { isRecord } from '@/lib/http/errors'
-import { normalizeSpotProjectionList, normalizeSpotProjectionRow } from '../mappers'
-import type { OccupancyStatus, SpotProjectionRow } from '../types'
+import {
+  normalizeParkingLiveBoard,
+  normalizeParkingLiveSpotDetail,
+  normalizeParkingLiveSummary,
+} from '../mappers'
+import type { OccupancyStatus, ParkingLiveBoard, ParkingLiveSpotDetail, ParkingLiveSummary } from '../types'
 
-export function getSpotOccupancy(params: {
+export function getParkingLiveBoard(params: {
   siteCode: string
-  spotCode?: string
+  floorKey?: string
   zoneCode?: string
   status?: OccupancyStatus | ''
-  limit?: number
+  q?: string
   refresh?: boolean
-}): Promise<SpotProjectionRow[]> {
+}): Promise<ParkingLiveBoard> {
   const qs = buildQuery({
     siteCode: params.siteCode,
-    spotCode: params.spotCode || undefined,
+    floorKey: params.floorKey || undefined,
     zoneCode: params.zoneCode || undefined,
     status: params.status || undefined,
-    limit: params.limit ?? 500,
+    q: params.q || undefined,
     refresh: params.refresh ? true : undefined,
   })
-  return apiFetch<SpotProjectionRow[]>(
-    `/api/ops/spot-occupancy${qs ? `?${qs}` : ''}`,
+
+  return apiFetch<ParkingLiveBoard>(
+    `/api/ops/parking-live${qs ? `?${qs}` : ''}`,
     undefined,
-    normalizeSpotProjectionList,
+    normalizeParkingLiveBoard,
   )
 }
 
-export function getSpotOccupancyDetail(siteCode: string, spotCode: string, refresh = false): Promise<SpotProjectionRow | null> {
+export function getParkingLiveSummary(siteCode: string, refresh = false): Promise<ParkingLiveSummary> {
   const qs = buildQuery({ siteCode, refresh: refresh ? true : undefined })
-  return apiFetch<SpotProjectionRow | null>(
-    `/api/ops/spot-occupancy/${encodeURIComponent(spotCode)}${qs ? `?${qs}` : ''}`,
+  return apiFetch<ParkingLiveSummary>(
+    `/api/ops/parking-live/summary${qs ? `?${qs}` : ''}`,
     undefined,
-    (raw) => {
-      const r = isRecord(raw) ? raw : {}
-      const data = isRecord(r.data) ? r.data : r
-      const row = isRecord(data.row) ? data.row : data
-      return normalizeSpotProjectionRow(row)
-    },
+    normalizeParkingLiveSummary,
+  )
+}
+
+export function getParkingLiveSpotDetail(siteCode: string, spotCode: string, refresh = false): Promise<ParkingLiveSpotDetail | null> {
+  const qs = buildQuery({ siteCode, refresh: refresh ? true : undefined })
+  return apiFetch<ParkingLiveSpotDetail | null>(
+    `/api/ops/parking-live/spots/${encodeURIComponent(spotCode)}${qs ? `?${qs}` : ''}`,
+    undefined,
+    normalizeParkingLiveSpotDetail,
   )
 }

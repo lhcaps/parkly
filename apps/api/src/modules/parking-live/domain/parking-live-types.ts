@@ -103,7 +103,7 @@ export type ParkingLiveBoard = {
   connection: {
     source: 'projection'
     reconciledAt: string | null
-    streamSupported: false
+    streamSupported: boolean
   }
 }
 

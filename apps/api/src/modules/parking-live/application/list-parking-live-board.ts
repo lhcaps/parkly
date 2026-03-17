@@ -94,7 +94,7 @@ export async function listParkingLiveBoard(
     connection: {
       source: 'projection',
       reconciledAt,
-      streamSupported: false,
+      streamSupported: true,
     },
   }
 }

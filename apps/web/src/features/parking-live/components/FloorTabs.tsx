@@ -17,7 +17,7 @@ export const FloorTabs = memo(function FloorTabs({ floors, activeFloorKey, onCha
         const active = floor.floorKey === activeFloorKey
         const { summary } = floor
         const occupancyRate =
-          summary.total > 0 ? Math.round((summary.occupied / summary.total) * 100) : 0
+          summary.total > 0 ? Math.round((summary.occupiedTotal / summary.total) * 100) : 0
 
         return (
           <button
@@ -36,7 +36,7 @@ export const FloorTabs = memo(function FloorTabs({ floors, activeFloorKey, onCha
             </span>
             <div className="mt-0.5 flex items-center gap-2">
               <span className="font-mono-data text-[11px]">
-                {summary.occupied}/{summary.total}
+                {summary.occupiedTotal}/{summary.total}
               </span>
               <span
                 className={cn(

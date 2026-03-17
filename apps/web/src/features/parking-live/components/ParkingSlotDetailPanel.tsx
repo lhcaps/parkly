@@ -5,22 +5,30 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { SurfaceState } from '@/components/ops/console'
-import { getSpotOccupancyDetail } from '../api/parking-live'
-import type { SlotViewModel, SpotProjectionRow } from '../types'
+import { getParkingLiveSpotDetail } from '../api/parking-live'
+import type { ParkingLiveSpotDetail, SlotViewModel } from '../types'
 
-const STATUS_BADGE: Record<string, 'entry' | 'amber' | 'destructive' | 'muted' | 'outline'> = {
+const STATUS_BADGE: Record<string, 'entry' | 'secondary' | 'amber' | 'destructive' | 'muted' | 'outline'> = {
   EMPTY: 'entry',
-  OCCUPIED_MATCHED: 'secondary' as any,
+  OCCUPIED_MATCHED: 'secondary',
   OCCUPIED_UNKNOWN: 'amber',
   OCCUPIED_VIOLATION: 'destructive',
   SENSOR_STALE: 'muted',
+  BLOCKED: 'outline',
+  RESERVED: 'outline',
 }
 
-function fmtTime(v: string | null | undefined) {
+function fmtDateTime(v: string | null | undefined) {
   if (!v) return '—'
   const d = new Date(v)
   if (isNaN(d.getTime())) return '—'
-  return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  return d.toLocaleString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    day: '2-digit',
+    month: '2-digit',
+  })
 }
 
 function MetaRow({ label, value }: { label: string; value: string }) {
@@ -39,14 +47,14 @@ type Props = {
 }
 
 export function ParkingSlotDetailPanel({ slot, siteCode, onClose }: Props) {
-  const [detail, setDetail] = useState<SpotProjectionRow | null>(null)
+  const [detail, setDetail] = useState<ParkingLiveSpotDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   function loadDetail(reconcile = false) {
     setLoading(true)
     setError('')
-    getSpotOccupancyDetail(siteCode, slot.spotCode, reconcile)
+    getParkingLiveSpotDetail(siteCode, slot.spotCode, reconcile)
       .then((row) => {
         setDetail(row)
         setLoading(false)
@@ -58,7 +66,7 @@ export function ParkingSlotDetailPanel({ slot, siteCode, onClose }: Props) {
   }
 
   useEffect(() => {
-    loadDetail(false)
+    void loadDetail(false)
   }, [slot.spotId, siteCode])
 
   const statusBadge = STATUS_BADGE[slot.occupancyStatus] ?? 'outline'
@@ -69,7 +77,7 @@ export function ParkingSlotDetailPanel({ slot, siteCode, onClose }: Props) {
         <div className="flex items-start justify-between gap-2">
           <div>
             <CardTitle className="font-mono-data text-base">{slot.spotCode}</CardTitle>
-            <p className="mt-0.5 text-xs text-muted-foreground">Zone {slot.zoneCode}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{slot.zoneCode ? `Zone ${slot.zoneCode}` : `Floor ${slot.floorKey}`}</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-4 w-4" />
@@ -79,6 +87,7 @@ export function ParkingSlotDetailPanel({ slot, siteCode, onClose }: Props) {
           <Badge variant={statusBadge}>{slot.occupancyStatus.replace(/_/g, ' ')}</Badge>
           {slot.hasSubscription ? <Badge variant="outline">subscription</Badge> : null}
           {slot.isStale ? <Badge variant="muted">stale</Badge> : null}
+          {slot.slotKind ? <Badge variant="outline">{slot.slotKind}</Badge> : null}
         </div>
       </CardHeader>
 
@@ -90,29 +99,20 @@ export function ParkingSlotDetailPanel({ slot, siteCode, onClose }: Props) {
         ) : detail ? (
           <>
             <div className="rounded-2xl border border-border/60 bg-background/40 px-3">
-              <MetaRow label="Spot code" value={detail.spotCode} />
-              <MetaRow label="Zone" value={detail.zoneCode ?? '—'} />
-              <MetaRow label="Spot ID" value={detail.spotId} />
-              <MetaRow label="Status" value={detail.occupancyStatus} />
-              <MetaRow label="Updated" value={fmtTime(detail.updatedAt)} />
-              {detail.observedPlateCompact ? (
-                <MetaRow label="Observed plate" value={detail.observedPlateCompact} />
-              ) : null}
-              {detail.expectedPlateCompact ? (
-                <MetaRow label="Expected plate" value={detail.expectedPlateCompact} />
-              ) : null}
-              {detail.matchedSubscriptionId ? (
-                <MetaRow label="Subscription" value={detail.matchedSubscriptionId} />
-              ) : null}
-              {detail.reasonCode ? (
-                <MetaRow label="Reason code" value={detail.reasonCode} />
-              ) : null}
-              {detail.reasonDetail ? (
-                <MetaRow label="Reason detail" value={detail.reasonDetail} />
-              ) : null}
-              {detail.staleAt ? (
-                <MetaRow label="Stale at" value={fmtTime(detail.staleAt)} />
-              ) : null}
+              <MetaRow label="Spot code" value={detail.spot.spotCode} />
+              <MetaRow label="Zone" value={detail.spot.zoneCode ?? '—'} />
+              <MetaRow label="Floor" value={detail.spot.floorKey} />
+              <MetaRow label="Spot ID" value={detail.spot.spotId} />
+              <MetaRow label="State" value={detail.occupancy.occupancyStatus} />
+              <MetaRow label="Updated" value={fmtDateTime(detail.occupancy.updatedAt)} />
+              {detail.occupancy.plateNumber ? <MetaRow label="Plate" value={detail.occupancy.plateNumber} /> : null}
+              {detail.subscription?.subscriptionCode ? <MetaRow label="Subscription" value={detail.subscription.subscriptionCode} /> : null}
+              {detail.occupancy.reasonCode ? <MetaRow label="Reason code" value={detail.occupancy.reasonCode} /> : null}
+              {detail.occupancy.reasonDetail ? <MetaRow label="Reason detail" value={detail.occupancy.reasonDetail} /> : null}
+              {detail.history.lastTransitionCode ? <MetaRow label="Last transition" value={detail.history.lastTransitionCode} /> : null}
+              {detail.history.lastTransitionAt ? <MetaRow label="Transition at" value={fmtDateTime(detail.history.lastTransitionAt)} /> : null}
+              {detail.session?.sessionId ? <MetaRow label="Session" value={detail.session.sessionId} /> : null}
+              {detail.incident?.incidentId ? <MetaRow label="Incident" value={detail.incident.title || detail.incident.incidentId} /> : null}
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -123,12 +123,12 @@ export function ParkingSlotDetailPanel({ slot, siteCode, onClose }: Props) {
                 disabled={loading}
               >
                 <RefreshCw className="h-3.5 w-3.5" />
-                Reconcile slot
+                Refresh slot
               </Button>
 
-              {detail.matchedSubscriptionId ? (
+              {detail.subscription?.subscriptionId ? (
                 <Button asChild variant="ghost" size="sm">
-                  <Link to={`/subscriptions?id=${detail.matchedSubscriptionId}`}>
+                  <Link to={`/subscriptions?id=${detail.subscription.subscriptionId}`}>
                     <ExternalLink className="h-3.5 w-3.5" />
                     View subscription
                   </Link>
@@ -138,11 +138,11 @@ export function ParkingSlotDetailPanel({ slot, siteCode, onClose }: Props) {
           </>
         ) : (
           <SurfaceState
-            title="No projection data"
-            description="This slot has not been projected yet. Run a reconciliation to generate occupancy state."
+            title="No parking live detail"
+            description="This slot has not been projected yet. Refresh the site to rebuild the board snapshot."
             tone="empty"
             className="min-h-[80px]"
-            action={{ label: 'Reconcile', onClick: () => loadDetail(true) }}
+            action={{ label: 'Refresh slot', onClick: () => loadDetail(true) }}
           />
         )}
       </CardContent>
