@@ -1,6 +1,7 @@
 import { listSubscriptionOccupancyLookup } from '../../../server/services/subscription-occupancy.service'
 import { ApiError } from '../../../server/http'
 import { runReconciliation } from '../../reconciliation/application/run-reconciliation'
+import { apiLogger } from '../../../server/logger'
 import type { ParkingLiveSpotDetail } from '../domain/parking-live-types'
 import { createParkingLiveRepository, type ParkingLiveRepository } from '../infrastructure/parking-live-repository'
 import { mapBaseRowToSpotDetail } from '../mappers/parking-live-mappers'
@@ -51,7 +52,7 @@ export async function getParkingLiveSpotDetail(
     deps.repo.getSubscriptionById(effectiveSubscriptionId),
   ])
 
-  return mapBaseRowToSpotDetail({
+  const detail = mapBaseRowToSpotDetail({
     row,
     subscriptionLookup,
     subscriptionStatus: subscription?.status ?? null,
@@ -59,4 +60,14 @@ export async function getParkingLiveSpotDetail(
     session,
     incident,
   })
+  apiLogger.debug({
+    msg: 'parking-live spot detail served',
+    siteCode: input.siteCode,
+    spotCode: input.spotCode,
+    occupancyStatus: detail.occupancy.occupancyStatus,
+    hasSubscription: detail.subscription != null,
+    hasSession: detail.session != null,
+    hasIncident: detail.incident != null,
+  })
+  return detail
 }

@@ -82,6 +82,7 @@ import { createGateReadMediaRecord, resolveLaneContext } from '../modules/gate/i
 import { registerZonePresenceRoutes } from '../modules/presence/interfaces/http/register-zone-presence-routes';
 import { registerSpotOccupancyRoutes } from '../modules/reconciliation/interfaces/http/register-spot-occupancy-routes';
 import { registerParkingLiveRoutes } from '../modules/parking-live/interfaces/http/register-parking-live-routes';
+import { registerParkingLiveStream } from '../modules/parking-live/interfaces/sse/register-parking-live-stream';
 import { registerGateIncidentRoutes } from '../modules/incidents/interfaces/http/register-gate-incident-routes';
 import { registerIncidentStream } from '../modules/incidents/interfaces/sse/register-incident-stream';
 import { runWithAuditContext } from './services/audit-service';
@@ -734,6 +735,7 @@ export async function buildApp() {
       '/admin/subscription-vehicles': {},
       '/admin/subscription-vehicles/{subscriptionVehicleId}': {},
       '/stream/incidents': {},
+      '/stream/parking-live': {},
     },
   };
   app.get('/openapi.json', (_req, res) => res.json(openapi));
@@ -821,6 +823,7 @@ export async function buildApp() {
   registerZonePresenceRoutes(api);
   registerSpotOccupancyRoutes(api);
   registerParkingLiveRoutes(api);
+  registerParkingLiveStream(api);
   registerSubscriptionAdminRoutes(api);
   registerDashboardRoutes(api);
   registerAuditRoutes(api);

@@ -22,6 +22,15 @@ export type ParkingLiveBaseRow = {
   spotId: string
   spotCode: string
   spotStatus: string | null
+  // Direct layout columns from spots table (V25 migration)
+  floorKeyDirect: string | null
+  layoutRowDirect: number | null
+  layoutColDirect: number | null
+  layoutOrderDirect: number | null
+  slotKindDirect: string | null
+  isBlockedDirect: boolean
+  isReservedDirect: boolean
+  displayLabelDirect: string | null
   projectionId: string | null
   occupancyStatus: SpotOccupancyStatus | null
   observedPlateCompact: string | null

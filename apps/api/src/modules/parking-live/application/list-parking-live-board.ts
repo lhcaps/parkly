@@ -1,4 +1,5 @@
 import { listSubscriptionOccupancyLookup } from '../../../server/services/subscription-occupancy.service'
+import { apiLogger } from '../../../server/logger'
 import { ApiError } from '../../../server/http'
 import { runReconciliation } from '../../reconciliation/application/run-reconciliation'
 import type { ParkingLiveBoard, ParkingLiveBoardQuery, ParkingLiveDerivedStatus } from '../domain/parking-live-types'
@@ -28,6 +29,7 @@ export async function listParkingLiveBoard(
   input: ParkingLiveBoardQuery,
   deps: ParkingLiveServiceDeps = getDefaultParkingLiveServiceDeps(),
 ): Promise<ParkingLiveBoard> {
+  const _startMs = Date.now()
   let site
   try {
     site = await deps.repo.requireSite(input.siteCode)
@@ -68,6 +70,16 @@ export async function listParkingLiveBoard(
     .filter((value): value is string => Boolean(value))
     .sort((a, b) => a.localeCompare(b))
     .at(-1) ?? null
+
+  const _elapsedMs = Date.now() - _startMs
+  apiLogger.debug({
+    msg: 'parking-live board served',
+    siteCode: input.siteCode,
+    floorCount: floors.length,
+    slotCount: floors.reduce((n, f) => n + f.slots.length, 0),
+    refresh: Boolean(input.refresh),
+    elapsedMs: _elapsedMs,
+  })
 
   return {
     site: { siteCode: site.siteCode, name: site.name },

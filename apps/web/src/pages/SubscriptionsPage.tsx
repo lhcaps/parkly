@@ -38,10 +38,10 @@ import type {
 
 const STATUS_OPTIONS: SelectOption[] = [
   { value: '', label: 'All statuses' },
-  { value: 'ACTIVE', label: 'ACTIVE', badge: 'active', badgeVariant: 'entry' },
-  { value: 'EXPIRED', label: 'EXPIRED', badge: 'expired', badgeVariant: 'muted' },
-  { value: 'SUSPENDED', label: 'SUSPENDED', badge: 'suspended', badgeVariant: 'amber' },
-  { value: 'CANCELLED', label: 'CANCELLED', badge: 'cancelled', badgeVariant: 'destructive' },
+  { value: 'ACTIVE', label: 'ACTIVE', badge: 'active', badgeVariant: 'success' },
+  { value: 'EXPIRED', label: 'EXPIRED', badge: 'expired', badgeVariant: 'neutral' },
+  { value: 'SUSPENDED', label: 'SUSPENDED', badge: 'suspended', badgeVariant: 'warning' },
+  { value: 'CANCELLED', label: 'CANCELLED', badge: 'cancelled', badgeVariant: 'error' },
 ]
 
 function statusVariant(s: string): 'entry' | 'amber' | 'destructive' | 'muted' | 'outline' {

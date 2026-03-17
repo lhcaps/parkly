@@ -31,6 +31,14 @@ const baseRows: ParkingLiveBaseRow[] = [
     reasonCode: 'EMPTY',
     reasonDetail: 'spot empty',
     staleAt: null,
+    floorKeyDirect: 'F1',
+    layoutRowDirect: 1,
+    layoutColDirect: 2,
+    layoutOrderDirect: 2,
+    slotKindDirect: 'CAR',
+    isBlockedDirect: false,
+    isReservedDirect: false,
+    displayLabelDirect: null,
     snapshot: { layout: { order: 2, row: 1, col: 2 } },
     updatedAt: '2026-03-16T18:10:00.000Z',
   },
@@ -56,6 +64,14 @@ const baseRows: ParkingLiveBaseRow[] = [
     reasonCode: 'VIP_MATCHED',
     reasonDetail: 'matched subscription',
     staleAt: null,
+    floorKeyDirect: 'F1',
+    layoutRowDirect: 1,
+    layoutColDirect: 1,
+    layoutOrderDirect: 1,
+    slotKindDirect: 'CAR',
+    isBlockedDirect: false,
+    isReservedDirect: false,
+    displayLabelDirect: 'VIP-01',
     snapshot: { layout: { order: 1, row: 1, col: 1 } },
     updatedAt: '2026-03-16T18:12:00.000Z',
   },
@@ -81,6 +97,14 @@ const baseRows: ParkingLiveBaseRow[] = [
     reasonCode: null,
     reasonDetail: null,
     staleAt: null,
+    floorKeyDirect: 'F2',
+    layoutRowDirect: 1,
+    layoutColDirect: 1,
+    layoutOrderDirect: 1,
+    slotKindDirect: 'CAR',
+    isBlockedDirect: false,
+    isReservedDirect: false,
+    displayLabelDirect: null,
     snapshot: { layout: { order: 1, row: 1, col: 1 } },
     updatedAt: null,
   },
@@ -228,4 +252,64 @@ test('parking live service returns NOT_FOUND for missing site', async () => {
     ),
     (error: unknown) => error instanceof ApiError && error.code === 'NOT_FOUND',
   )
+})
+
+test('parking live board prefers direct layout columns over snapshot', async () => {
+  const result = await listParkingLiveBoard(
+    { siteCode: 'SITE_HCM_01' },
+    {
+      repo: createRepo(),
+      refresh: noopRefresh,
+      listSubscriptionLookup: async () => lookup as any,
+    },
+  )
+
+  const f1 = result.floors.find((f) => f.floorKey === 'F1')
+  assert.ok(f1, 'F1 floor exists')
+  // Direct layoutOrderDirect=1 for F1-A01 → comes before F1-A02 (order=2)
+  assert.equal(f1.slots[0].spotCode, 'F1-A01')
+  assert.equal(f1.slots[0].layoutRow, 1)
+  assert.equal(f1.slots[0].layoutCol, 1)
+  assert.equal(f1.slots[0].layoutOrder, 1)
+  assert.equal(f1.slots[0].slotKind, 'CAR')
+})
+
+test('parking live board marks is_blocked spots as BLOCKED status', async () => {
+  const blockedRow = {
+    ...baseRows[2]!,
+    isBlockedDirect: true,
+    spotStatus: 'FREE', // not OUT_OF_SERVICE, but is_blocked=true
+  }
+  const result = await listParkingLiveBoard(
+    { siteCode: 'SITE_HCM_01' },
+    {
+      repo: {
+        ...createRepo(),
+        async listBaseRows() { return [blockedRow] },
+      },
+      refresh: noopRefresh,
+      listSubscriptionLookup: async () => lookup as any,
+    },
+  )
+  assert.equal(result.floors[0]?.slots[0]?.occupancyStatus, 'BLOCKED')
+})
+
+test('parking live board marks is_reserved=true empty spots as RESERVED', async () => {
+  const reservedRow = {
+    ...baseRows[0]!, // EMPTY
+    isReservedDirect: true,
+    occupancyStatus: 'EMPTY' as const,
+  }
+  const result = await listParkingLiveBoard(
+    { siteCode: 'SITE_HCM_01' },
+    {
+      repo: {
+        ...createRepo(),
+        async listBaseRows() { return [reservedRow] },
+      },
+      refresh: noopRefresh,
+      listSubscriptionLookup: async () => ({ byPlate: {}, bySpotId: {} }),
+    },
+  )
+  assert.equal(result.floors[0]?.slots[0]?.occupancyStatus, 'RESERVED')
 })

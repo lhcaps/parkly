@@ -310,8 +310,8 @@ export function buildHttpLoggerOptions(): PinoHttpOptions {
     customProps: (req) => ({
       requestId: sanitizeNullableString((req as any).id) ?? null,
       correlationId: sanitizeNullableString((req as any).correlationId) ?? sanitizeNullableString((req as any).id) ?? null,
-      surface: classifyLogSurface(req as RequestLike),
-      ...buildLogFieldContext(req as RequestLike),
+      surface: classifyLogSurface(req as unknown as RequestLike),
+      ...buildLogFieldContext(req as unknown as RequestLike),
     }),
   }
 }

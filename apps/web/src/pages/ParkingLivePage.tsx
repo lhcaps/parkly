@@ -20,11 +20,11 @@ import { useEffect } from 'react'
 
 const STATUS_FILTER_OPTIONS: SelectOption[] = [
   { value: '', label: 'All statuses' },
-  { value: 'EMPTY', label: 'Empty', badge: 'empty', badgeVariant: 'entry' },
-  { value: 'OCCUPIED_MATCHED', label: 'Occupied (matched)', badge: 'matched', badgeVariant: 'secondary' },
-  { value: 'OCCUPIED_UNKNOWN', label: 'Occupied (unknown)', badge: 'unknown', badgeVariant: 'amber' },
-  { value: 'OCCUPIED_VIOLATION', label: 'Violation', badge: 'violation', badgeVariant: 'destructive' },
-  { value: 'SENSOR_STALE', label: 'Sensor stale', badge: 'stale', badgeVariant: 'muted' },
+  { value: 'EMPTY', label: 'Empty', badge: 'empty', badgeVariant: 'neutral' },
+  { value: 'OCCUPIED_MATCHED', label: 'Occupied (matched)', badge: 'matched', badgeVariant: 'success' },
+  { value: 'OCCUPIED_UNKNOWN', label: 'Occupied (unknown)', badge: 'unknown', badgeVariant: 'warning' },
+  { value: 'OCCUPIED_VIOLATION', label: 'Violation', badge: 'violation', badgeVariant: 'error' },
+  { value: 'SENSOR_STALE', label: 'Sensor stale', badge: 'stale', badgeVariant: 'warning' },
 ]
 
 function buildSiteOptions(sites: SiteRow[]): SelectOption[] {

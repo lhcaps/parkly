@@ -350,3 +350,56 @@ SELECT u.user_id, ps.site_id, 'MANAGER'
 FROM users u
 JOIN parking_sites ps ON ps.site_code IN ('SITE_HCM_01', 'SITE_DN_01')
 WHERE u.username = 'worker';
+
+-- PR PL-02: Backfill layout metadata for SITE_HCM_01 demo spots
+-- floor_key derives from zone; layout_order is sequential within floor row.
+-- This seed makes SITE_HCM_01 display a proper grid in Parking Live.
+-- Sites without this data fall back to spotCode-based sort in the mapper.
+
+UPDATE spots
+SET
+  floor_key    = 'F1',
+  layout_row   = 1,
+  layout_col   = 1,
+  layout_order = 1,
+  slot_kind    = 'CAR',
+  is_reserved  = 1,
+  display_label = 'VIP-01'
+WHERE site_id = @site_hcm_01
+  AND code = 'HCM-VIP-01';
+
+UPDATE spots
+SET
+  floor_key    = 'F1',
+  layout_row   = 1,
+  layout_col   = 2,
+  layout_order = 2,
+  slot_kind    = 'CAR',
+  is_reserved  = 1,
+  display_label = 'VIP-02'
+WHERE site_id = @site_hcm_01
+  AND code = 'HCM-VIP-02';
+
+UPDATE spots
+SET
+  floor_key    = 'F2',
+  layout_row   = 1,
+  layout_col   = 1,
+  layout_order = 1,
+  slot_kind    = 'CAR',
+  is_reserved  = 0,
+  display_label = 'GEN-01'
+WHERE site_id = @site_hcm_01
+  AND code = 'HCM-GEN-01';
+
+UPDATE spots
+SET
+  floor_key    = 'F1',
+  layout_row   = 1,
+  layout_col   = 1,
+  layout_order = 1,
+  slot_kind    = 'CAR',
+  is_reserved  = 1,
+  display_label = 'DN-VIP-01'
+WHERE site_id = @site_dn_01
+  AND code = 'DN-VIP-01';

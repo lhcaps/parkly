@@ -37,8 +37,10 @@ function getSnapshotNumber(snapshot: Record<string, unknown>, path: string[]) {
 }
 
 export function resolveFloorKey(row: ParkingLiveBaseRow) {
+  // Prefer direct DB column (V25) → snapshot fallback → zoneCode fallback
   return (
-    getSnapshotString(row.snapshot, ['layout', 'floorKey'])
+    row.floorKeyDirect
+    ?? getSnapshotString(row.snapshot, ['layout', 'floorKey'])
     ?? getSnapshotString(row.snapshot, ['floorKey'])
     ?? row.zoneCode
     ?? 'UNASSIGNED'
@@ -46,8 +48,10 @@ export function resolveFloorKey(row: ParkingLiveBaseRow) {
 }
 
 export function resolveFloorLabel(row: ParkingLiveBaseRow, floorKey: string) {
+  // zoneName or snapshot label; floorKey as last resort
   return (
-    getSnapshotString(row.snapshot, ['layout', 'floorLabel'])
+    row.displayLabelDirect
+    ?? getSnapshotString(row.snapshot, ['layout', 'floorLabel'])
     ?? getSnapshotString(row.snapshot, ['floorLabel'])
     ?? row.zoneName
     ?? floorKey
@@ -55,20 +59,21 @@ export function resolveFloorLabel(row: ParkingLiveBaseRow, floorKey: string) {
 }
 
 export function resolveLayoutRow(row: ParkingLiveBaseRow) {
-  return getSnapshotNumber(row.snapshot, ['layout', 'row']) ?? getSnapshotNumber(row.snapshot, ['layoutRow'])
+  return row.layoutRowDirect ?? getSnapshotNumber(row.snapshot, ['layout', 'row']) ?? getSnapshotNumber(row.snapshot, ['layoutRow'])
 }
 
 export function resolveLayoutCol(row: ParkingLiveBaseRow) {
-  return getSnapshotNumber(row.snapshot, ['layout', 'col']) ?? getSnapshotNumber(row.snapshot, ['layoutCol'])
+  return row.layoutColDirect ?? getSnapshotNumber(row.snapshot, ['layout', 'col']) ?? getSnapshotNumber(row.snapshot, ['layoutCol'])
 }
 
 export function resolveLayoutOrder(row: ParkingLiveBaseRow) {
-  return getSnapshotNumber(row.snapshot, ['layout', 'order']) ?? getSnapshotNumber(row.snapshot, ['layoutOrder'])
+  return row.layoutOrderDirect ?? getSnapshotNumber(row.snapshot, ['layout', 'order']) ?? getSnapshotNumber(row.snapshot, ['layoutOrder'])
 }
 
 export function resolveSlotKind(row: ParkingLiveBaseRow) {
   return (
-    getSnapshotString(row.snapshot, ['layout', 'slotKind'])
+    row.slotKindDirect
+    ?? getSnapshotString(row.snapshot, ['layout', 'slotKind'])
     ?? getSnapshotString(row.snapshot, ['slotKind'])
     ?? row.zoneVehicleType
     ?? null
@@ -76,7 +81,9 @@ export function resolveSlotKind(row: ParkingLiveBaseRow) {
 }
 
 export function resolveDerivedStatus(row: ParkingLiveBaseRow, subscriptionLookup: SubscriptionOccupancyLookup): ParkingLiveDerivedStatus {
-  if (String(row.spotStatus ?? '').toUpperCase() === 'OUT_OF_SERVICE') return 'BLOCKED'
+  // Direct column takes precedence over status-derived BLOCKED/RESERVED
+  if (row.isBlockedDirect || String(row.spotStatus ?? '').toUpperCase() === 'OUT_OF_SERVICE') return 'BLOCKED'
+  if (row.isReservedDirect && (row.occupancyStatus == null || row.occupancyStatus === 'EMPTY')) return 'RESERVED'
   if (subscriptionLookup.bySpotId[row.spotId] && (row.occupancyStatus == null || row.occupancyStatus === 'EMPTY')) return 'RESERVED'
   if (row.occupancyStatus == null) return 'SENSOR_STALE'
   return row.occupancyStatus

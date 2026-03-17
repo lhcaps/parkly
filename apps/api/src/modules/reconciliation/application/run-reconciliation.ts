@@ -1,5 +1,6 @@
 import { prisma } from '../../../lib/prisma'
 import { syncIncidentFromSpotProjection } from '../../incidents/application/incident-service'
+import { publishParkingLiveDelta } from '../../parking-live/application/publish-parking-live-delta'
 import { listSubscriptionOccupancyLookup, type SubscriptionOccupancyLookup } from '../../../server/services/subscription-occupancy.service'
 import {
   reconcileSpotProjection,
@@ -429,6 +430,8 @@ export async function runReconciliation(
 
     const persisted = await deps.persistProjection({ spot, decision })
     await syncIncidentFromSpotProjection(persisted)
+    // PR PL-03: publish delta to SSE subscribers (fire-and-forget, no I/O)
+    publishParkingLiveDelta(persisted, input.siteCode, spot.zoneCode ? String(spot.zoneCode) : null)
     rows.push(persisted)
     summary[persisted.occupancyStatus] += 1
   }
