@@ -407,14 +407,14 @@ export function isAuthInvalidCredentials(error: unknown): boolean {
 }
 
 export function getSafeLoginErrorMessage(error: unknown): string {
-  if (isAuthInvalidCredentials(error)) return 'Sai tên đăng nhập hoặc mật khẩu.'
+  if (isAuthInvalidCredentials(error)) return 'Incorrect username or password.'
 
   const kind = classifyAppError(error)
   if (kind === 'dependencyDown' || kind === 'internal') {
-    return 'Không thể đăng nhập lúc này. Kiểm tra kết nối hoặc backend rồi thử lại.'
+    return 'Unable to sign in right now. Check API availability or connectivity, then retry.'
   }
   if (kind === 'forbidden') {
-    return 'Tài khoản không có quyền truy cập vào console này.'
+    return 'This account is not allowed to open the current console workspace.'
   }
-  return 'Đăng nhập thất bại. Vui lòng thử lại.'
+  return 'Sign-in failed. Retry after checking the current session state.'
 }

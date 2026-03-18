@@ -78,7 +78,9 @@ export function normalizeSubscriptionVehicleRow(raw: unknown): SubscriptionVehic
     subscriptionId: str(raw.subscriptionId),
     siteCode: str(raw.siteCode),
     vehicleId: str(raw.vehicleId),
+    licensePlate: strNull(raw.licensePlate),
     plateCompact: strNull(raw.plateCompact),
+    vehicleType: strNull(raw.vehicleType),
     status: str(raw.status) || 'ACTIVE',
     isPrimary: bool(raw.isPrimary),
     validFrom: strNull(raw.validFrom),
@@ -102,32 +104,40 @@ export function normalizeSubscriptionDetail(raw: unknown): SubscriptionDetail | 
   }
 }
 
-export function normalizeSubscriptionList(raw: unknown): SubscriptionListRes {
+function normalizeListEnvelope<T>(raw: unknown, normalizeRow: (value: unknown) => T | null) {
   const r = isRecord(raw) ? raw : {}
   const page = isRecord(r.data) ? r.data : r
   const items = Array.isArray(page.rows) ? page.rows : Array.isArray(page.items) ? page.items : []
   return {
-    rows: items.map(normalizeSubscriptionRow).filter((x): x is SubscriptionRow => x !== null),
+    rows: items.map(normalizeRow).filter((x): x is T => x !== null),
     nextCursor: strNull(page.nextCursor),
   }
+}
+
+export function normalizeSubscriptionList(raw: unknown): SubscriptionListRes {
+  return normalizeListEnvelope(raw, normalizeSubscriptionRow)
 }
 
 export function normalizeSubscriptionSpotList(raw: unknown): SubscriptionSpotListRes {
-  const r = isRecord(raw) ? raw : {}
-  const page = isRecord(r.data) ? r.data : r
-  const items = Array.isArray(page.rows) ? page.rows : Array.isArray(page.items) ? page.items : []
-  return {
-    rows: items.map(normalizeSubscriptionSpotRow).filter((x): x is SubscriptionSpotRow => x !== null),
-    nextCursor: strNull(page.nextCursor),
-  }
+  return normalizeListEnvelope(raw, normalizeSubscriptionSpotRow)
 }
 
 export function normalizeSubscriptionVehicleList(raw: unknown): SubscriptionVehicleListRes {
+  return normalizeListEnvelope(raw, normalizeSubscriptionVehicleRow)
+}
+
+export function normalizeSubscriptionSpotResult(raw: unknown): SubscriptionSpotRow {
   const r = isRecord(raw) ? raw : {}
-  const page = isRecord(r.data) ? r.data : r
-  const items = Array.isArray(page.rows) ? page.rows : Array.isArray(page.items) ? page.items : []
-  return {
-    rows: items.map(normalizeSubscriptionVehicleRow).filter((x): x is SubscriptionVehicleRow => x !== null),
-    nextCursor: strNull(page.nextCursor),
-  }
+  const inner = r.data ?? raw
+  const result = normalizeSubscriptionSpotRow(inner)
+  if (!result) throw new Error('Invalid subscription spot response')
+  return result
+}
+
+export function normalizeSubscriptionVehicleResult(raw: unknown): SubscriptionVehicleRow {
+  const r = isRecord(raw) ? raw : {}
+  const inner = r.data ?? raw
+  const result = normalizeSubscriptionVehicleRow(inner)
+  if (!result) throw new Error('Invalid subscription vehicle response')
+  return result
 }

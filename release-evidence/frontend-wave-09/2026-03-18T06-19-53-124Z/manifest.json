@@ -1,0 +1,22 @@
+{
+  "generatedAt": "2026-03-18T06:19:53.148Z",
+  "outDir": "/mnt/data/work/repo/release-evidence/frontend-wave-09/2026-03-18T06-19-53-124Z",
+  "docs": [
+    "runbook.md",
+    "routes.md",
+    "acceptance-checklist.md",
+    "evidence-template.md",
+    "manual-qa-signoff.md",
+    "role-matrix.md"
+  ],
+  "logs": [],
+  "screenshots": [],
+  "smokeJson": true,
+  "manualSignoff": true,
+  "smokeSummary": {
+    "baseUrl": "http://127.0.0.1:4173",
+    "passCount": 10,
+    "failCount": 0,
+    "apiOk": false
+  }
+}

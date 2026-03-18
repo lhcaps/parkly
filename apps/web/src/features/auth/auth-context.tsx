@@ -11,14 +11,15 @@ import {
 } from '@/lib/http/client'
 import { getAuthMe, loginWithPassword, logoutAuthSession } from '@/lib/api/auth'
 import type { AuthPrincipal, AuthRole } from '@/lib/contracts/auth'
+import {
+  createBootstrapFailureNotice,
+  createExpiredNotice,
+  createForbiddenNotice,
+  createLogoutNotice,
+  type SessionNotice,
+} from '@/features/auth/auth-session-notices'
 
 export type AuthStatus = 'booting' | 'authenticated' | 'expired' | 'forbidden' | 'anonymous'
-
-type SessionNotice = {
-  tone: 'warning' | 'info' | 'error'
-  title: string
-  message: string
-}
 
 type AuthContextValue = {
   status: AuthStatus
@@ -35,30 +36,6 @@ type AuthContextValue = {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
-
-function createExpiredNotice(): SessionNotice {
-  return {
-    tone: 'warning',
-    title: 'Phiên đăng nhập đã hết hạn',
-    message: 'Vui lòng đăng nhập lại để tiếp tục sử dụng hệ thống.',
-  }
-}
-
-function createForbiddenNotice(): SessionNotice {
-  return {
-    tone: 'warning',
-    title: 'Không đủ quyền truy cập',
-    message: 'Phiên đăng nhập còn hiệu lực nhưng vai trò hiện tại không được phép dùng màn hình này.',
-  }
-}
-
-function createLogoutNotice(): SessionNotice {
-  return {
-    tone: 'info',
-    title: 'Đã đăng xuất',
-    message: 'Toàn bộ phiên người dùng và kết nối realtime của shell đã được dọn sạch.',
-  }
-}
 
 function hasStoredTokens() {
   return Boolean(getToken() || getRefreshToken())
@@ -130,9 +107,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return null
       }
 
+      const bootstrapFailure = formatInlineApiError(error, 'Could not initialise session')
       setPrincipal(null)
       setStatus('anonymous')
-      setBootstrapError(formatInlineApiError(error, 'Could not initialise session'))
+      setBootstrapError(bootstrapFailure)
+      setSessionNotice(createBootstrapFailureNotice({ detail: bootstrapFailure }))
       return null
     }
   }, [applyAnonymous, applyAuthenticated, applyExpired, applyForbidden])
@@ -145,7 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     function onExpired(event: Event) {
       const detail = event instanceof CustomEvent ? (event.detail as AuthExpiredDetail | undefined) : undefined
       if (isDeviceSignedExpiredEvent(detail)) return
-      applyExpired(createExpiredNotice())
+      applyExpired(createExpiredNotice({ requestId: detail?.requestId }))
     }
 
     function onChanged(event: Event) {
@@ -193,6 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (input: { username: string; password: string; role?: AuthRole | null }) => {
     setIsBusy(true)
     setBootstrapError('')
+    setSessionNotice(null)
     try {
       const result = await loginWithPassword(input)
       storeAuthTokens({ accessToken: result.accessToken, refreshToken: result.refreshToken }, 'login-success')

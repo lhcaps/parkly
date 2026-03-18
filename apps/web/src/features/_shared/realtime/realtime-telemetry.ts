@@ -6,6 +6,8 @@ export type RealtimeTelemetryEvent =
   | 'snapshot_mismatch'
   | 'manual_resync'
   | 'lost_context'
+  | 'stream_failed'
+  | 'snapshot_refreshed'
 
 export type RealtimeTelemetryDetail = {
   stream: string
@@ -16,6 +18,8 @@ export type RealtimeTelemetryDetail = {
   receivedAt?: string | null
   lastSnapshotAt?: string | null
   staleSince?: string | null
+  requestIdHint?: string | null
+  nextRetryAt?: string | null
 }
 
 const REALTIME_TELEMETRY_EVENT = 'parkly:realtime-telemetry'

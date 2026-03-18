@@ -7,6 +7,7 @@ export type SubscriptionPlanType = 'MONTHLY' | 'VIP'
 export type SubscriptionSpotStatus = 'ACTIVE' | 'SUSPENDED' | 'RELEASED'
 export type SubscriptionVehicleStatus = 'ACTIVE' | 'SUSPENDED' | 'REMOVED'
 export type AssignedMode = 'ASSIGNED' | 'PREFERRED'
+export type SubscriptionDetailTab = 'overview' | 'spots' | 'vehicles'
 
 export type SubscriptionRow = {
   subscriptionId: string
@@ -42,7 +43,9 @@ export type SubscriptionVehicleRow = {
   subscriptionId: string
   siteCode: string
   vehicleId: string
+  licensePlate: string | null
   plateCompact: string | null
+  vehicleType: string | null
   status: SubscriptionVehicleStatus | string
   isPrimary: boolean
   validFrom: string | null
@@ -76,3 +79,66 @@ export type PatchSubscriptionBody = {
   endDate?: string
   status?: SubscriptionStatus
 }
+
+export type SubscriptionCreateInput = {
+  siteCode: string
+  customerId: string
+  planType: SubscriptionPlanType
+  startDate: string
+  endDate: string
+}
+
+export type SubscriptionVehicleMutationInput = {
+  subscriptionId: string
+  siteCode: string
+  vehicleId: string
+  status?: SubscriptionVehicleStatus
+  isPrimary?: boolean
+  validFrom?: string | null
+  validTo?: string | null
+  note?: string | null
+}
+
+export type SubscriptionVehiclePatchInput = {
+  status?: SubscriptionVehicleStatus
+  isPrimary?: boolean
+  validFrom?: string | null
+  validTo?: string | null
+  note?: string | null
+}
+
+export type SubscriptionSpotMutationInput = {
+  subscriptionId: string
+  siteCode: string
+  spotId: string
+  assignedMode?: AssignedMode
+  status?: SubscriptionSpotStatus
+  isPrimary?: boolean
+  assignedFrom?: string | null
+  assignedUntil?: string | null
+  note?: string | null
+}
+
+export type SubscriptionSpotPatchInput = {
+  status?: SubscriptionSpotStatus
+  assignedMode?: AssignedMode
+  isPrimary?: boolean
+  assignedFrom?: string | null
+  assignedUntil?: string | null
+  note?: string | null
+}
+
+export type SubscriptionMutationState = {
+  busy: boolean
+  error: string
+  success: string
+  action: string
+}
+
+export const SUBSCRIPTION_DETAIL_TABS: readonly SubscriptionDetailTab[] = ['overview', 'spots', 'vehicles'] as const
+export const SUBSCRIPTION_STATUS_VALUES: readonly SubscriptionStatus[] = ['ACTIVE', 'EXPIRED', 'SUSPENDED', 'CANCELLED'] as const
+export const SUBSCRIPTION_MUTABLE_STATUS_VALUES: readonly SubscriptionStatus[] = ['ACTIVE', 'SUSPENDED', 'CANCELLED'] as const
+export const SUBSCRIPTION_PLAN_VALUES: readonly SubscriptionPlanType[] = ['MONTHLY', 'VIP'] as const
+export const SUBSCRIPTION_SPOT_STATUS_VALUES: readonly SubscriptionSpotStatus[] = ['ACTIVE', 'SUSPENDED', 'RELEASED'] as const
+export const SUBSCRIPTION_VEHICLE_STATUS_VALUES: readonly SubscriptionVehicleStatus[] = ['ACTIVE', 'SUSPENDED', 'REMOVED'] as const
+export const SUBSCRIPTION_ASSIGNED_MODE_VALUES: readonly AssignedMode[] = ['ASSIGNED', 'PREFERRED'] as const

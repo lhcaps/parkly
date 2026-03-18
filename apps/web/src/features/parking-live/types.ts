@@ -7,6 +7,8 @@ export type OccupancyStatus =
   | 'BLOCKED'
   | 'RESERVED'
 
+export type ParkingLiveConnectionStatus = 'idle' | 'loading' | 'connected' | 'stale' | 'retrying' | 'error'
+
 export type OccupancySummary = {
   total: number
   empty: number
@@ -172,4 +174,28 @@ export type ParkingLiveDataState = {
   isStale: boolean
   loading: boolean
   error: string
+}
+
+export type ParkingLiveFreshnessView = {
+  status: ParkingLiveConnectionStatus
+  lastFetchedAt: string | null
+  lastSummaryAt: string | null
+  lastReconciledAt: string | null
+  lastDeltaAt: string | null
+  staleSince: string | null
+  nextRetryAt: string | null
+  fallbackPolling: boolean
+  reconnectCount: number
+  error: string
+  hasSnapshot: boolean
+  requestIdHint: string | null
+}
+
+export type ParkingLiveFeedState = {
+  status: ParkingLiveConnectionStatus
+  reconnectCount: number
+  error: string
+  staleSince: string | null
+  lastDeltaAt: string | null
+  nextRetryAt: string | null
 }

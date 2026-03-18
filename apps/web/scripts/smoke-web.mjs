@@ -43,9 +43,10 @@ const ROUTES = [
   { name: 'run-lane', path: '/run-lane?siteCode=SITE_HCM_01&gateCode=GATE_01&laneCode=GATE_01_ENTRY' },
   { name: 'review-queue', path: '/review-queue?siteCode=SITE_HCM_01&status=OPEN&q=43A&reviewId=RV-1001' },
   { name: 'session-history', path: '/session-history?siteCode=SITE_HCM_01&status=OPEN&q=43A&sessionId=GS-1001' },
-  { name: 'audit-viewer', path: '/audit-viewer?siteCode=SITE_HCM_01&quick=request&requestId=req-demo-001&auditId=AU-1001' },
   { name: 'sync-outbox', path: '/sync-outbox?siteCode=SITE_HCM_01&status=FAILED&quick=failed&outboxId=OB-1001' },
   { name: 'reports', path: '/reports?siteCode=SITE_HCM_01&days=7' },
+  { name: 'subscriptions', path: '/subscriptions?siteCode=SITE_HCM_01&id=sub_demo_01&tab=vehicles' },
+  { name: 'parking-live', path: '/parking-live?siteCode=SITE_HCM_01&floor=F1&density=compact' },
   { name: 'mobile-camera-pair', path: '/mobile-camera-pair' },
   { name: 'mobile-capture', path: '/mobile-capture?siteCode=SITE_HCM_01&laneCode=GATE_01_ENTRY' },
 ]

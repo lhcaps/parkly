@@ -226,33 +226,41 @@ export function normalizeParkingLiveSpotDetail(raw: unknown): ParkingLiveSpotDet
       reasonCode: strOrNull(occupancy.reasonCode),
       reasonDetail: strOrNull(occupancy.reasonDetail),
     },
-    subscription: subscriptionRaw ? {
-      subscriptionId: strOrNull(subscriptionRaw.subscriptionId),
-      subscriptionCode: strOrNull(subscriptionRaw.subscriptionCode),
-      status: strOrNull(subscriptionRaw.status),
-    } : null,
-    presence: presenceRaw ? {
-      presenceId: strOrNull(presenceRaw.presenceId),
-      capturedAt: strOrNull(presenceRaw.capturedAt),
-      cameraCode: strOrNull(presenceRaw.cameraCode),
-      traceId: strOrNull(presenceRaw.traceId),
-    } : null,
-    session: sessionRaw ? {
-      gatePresenceId: strOrNull(sessionRaw.gatePresenceId),
-      sessionId: strOrNull(sessionRaw.sessionId),
-      ticketId: strOrNull(sessionRaw.ticketId),
-      status: strOrNull(sessionRaw.status),
-      enteredAt: strOrNull(sessionRaw.enteredAt),
-      lastSeenAt: strOrNull(sessionRaw.lastSeenAt),
-    } : null,
-    incident: incidentRaw ? {
-      incidentId: strOrNull(incidentRaw.incidentId) ?? '',
-      incidentType: strOrNull(incidentRaw.incidentType) ?? '',
-      status: strOrNull(incidentRaw.status) ?? '',
-      severity: strOrNull(incidentRaw.severity) ?? '',
-      title: strOrNull(incidentRaw.title) ?? '',
-      updatedAt: strOrNull(incidentRaw.updatedAt) ?? '',
-    } : null,
+    subscription: subscriptionRaw
+      ? {
+          subscriptionId: strOrNull(subscriptionRaw.subscriptionId),
+          subscriptionCode: strOrNull(subscriptionRaw.subscriptionCode),
+          status: strOrNull(subscriptionRaw.status),
+        }
+      : null,
+    presence: presenceRaw
+      ? {
+          presenceId: strOrNull(presenceRaw.presenceId),
+          capturedAt: strOrNull(presenceRaw.capturedAt),
+          cameraCode: strOrNull(presenceRaw.cameraCode),
+          traceId: strOrNull(presenceRaw.traceId),
+        }
+      : null,
+    session: sessionRaw
+      ? {
+          gatePresenceId: strOrNull(sessionRaw.gatePresenceId),
+          sessionId: strOrNull(sessionRaw.sessionId),
+          ticketId: strOrNull(sessionRaw.ticketId),
+          status: strOrNull(sessionRaw.status),
+          enteredAt: strOrNull(sessionRaw.enteredAt),
+          lastSeenAt: strOrNull(sessionRaw.lastSeenAt),
+        }
+      : null,
+    incident: incidentRaw
+      ? {
+          incidentId: strOrNull(incidentRaw.incidentId) ?? '',
+          incidentType: strOrNull(incidentRaw.incidentType) ?? '',
+          status: strOrNull(incidentRaw.status) ?? '',
+          severity: strOrNull(incidentRaw.severity) ?? '',
+          title: strOrNull(incidentRaw.title) ?? '',
+          updatedAt: strOrNull(incidentRaw.updatedAt) ?? '',
+        }
+      : null,
     history: {
       lastTransitionAt: strOrNull(historyRaw.lastTransitionAt),
       lastTransitionCode: strOrNull(historyRaw.lastTransitionCode),
@@ -260,11 +268,11 @@ export function normalizeParkingLiveSpotDetail(raw: unknown): ParkingLiveSpotDet
   }
 }
 
-export function boardSlotToViewModel(slot: ParkingLiveBoardSlot): SlotViewModel {
+function buildSlotViewModel(slot: ParkingLiveBoardSlot): SlotViewModel {
   return {
     spotId: slot.spotId,
     spotCode: slot.spotCode,
-    zoneCode: slot.zoneCode ?? '',
+    zoneCode: slot.zoneCode ?? 'Unzoned',
     floorKey: slot.floorKey,
     layoutRow: slot.layoutRow,
     layoutCol: slot.layoutCol,
@@ -272,12 +280,13 @@ export function boardSlotToViewModel(slot: ParkingLiveBoardSlot): SlotViewModel 
     slotKind: slot.slotKind,
     occupancyStatus: slot.occupancyStatus,
     observedPlate: slot.plateNumber,
-    hasSubscription: Boolean(slot.subscriptionId || slot.subscriptionCode),
+    hasSubscription: Boolean(slot.subscriptionId),
     subscriptionId: slot.subscriptionId,
     subscriptionCode: slot.subscriptionCode,
     incidentCode: slot.incidentCode,
     updatedAt: slot.updatedAt,
-    isStale: slot.stale || slot.occupancyStatus === 'SENSOR_STALE',
+    isStale: slot.stale,
+    recentlyChanged: false,
   }
 }
 
@@ -285,63 +294,47 @@ export function groupBoardIntoFloors(board: ParkingLiveBoard): FloorGroup[] {
   return board.floors.map((floor) => ({
     floorKey: floor.floorKey,
     label: floor.label,
-    zones: Array.from(new Set(floor.slots.map((slot) => slot.zoneCode || 'Unknown'))).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
-    slots: floor.slots.map(boardSlotToViewModel),
+    zones: Array.from(new Set(floor.slots.map((slot) => slot.zoneCode ?? 'Unzoned'))).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
+    slots: floor.slots.map(buildSlotViewModel),
     summary: floor.summary,
   }))
 }
 
-const RECENT_CHANGE_MS = 30_000
-
-function slotFingerprint(slot: SlotViewModel) {
-  return [slot.occupancyStatus, slot.observedPlate ?? '', slot.subscriptionCode ?? '', slot.incidentCode ?? '', slot.isStale ? '1' : '0'].join('::')
-}
-
-export function markRecentlyChanged(current: SlotViewModel[], previous: SlotViewModel[]) {
-  const prevMap = new Map(previous.map((slot) => [slot.spotId, slotFingerprint(slot)]))
-  return current.map((slot) => {
-    const previousFingerprint = prevMap.get(slot.spotId)
-    const changed = previousFingerprint !== undefined && previousFingerprint !== slotFingerprint(slot)
-    return {
-      ...slot,
-      recentlyChanged: changed ? true : Boolean(slot.recentlyChanged),
-    }
-  })
-}
-
-export function applyRecentChangeWindow(slots: SlotViewModel[]) {
-  const now = Date.now()
-  return slots.map((slot) => {
-    if (!slot.recentlyChanged) return slot
-    const updatedMs = slot.updatedAt ? Date.parse(slot.updatedAt) : Number.NaN
-    if (!Number.isFinite(updatedMs)) return { ...slot, recentlyChanged: false }
-    return {
-      ...slot,
-      recentlyChanged: now - updatedMs <= RECENT_CHANGE_MS,
-    }
-  })
-}
-
-export function applyRecentChangesToFloors(floors: FloorGroup[], previous: SlotViewModel[]) {
-  const current = floors.flatMap((floor) => floor.slots)
-  const marked = applyRecentChangeWindow(markRecentlyChanged(current, previous))
-  const nextMap = new Map(marked.map((slot) => [slot.spotId, slot]))
+export function applyRecentChangesToFloors(floors: FloorGroup[], previousSlots: SlotViewModel[]): FloorGroup[] {
+  const previousBySpot = new Map(previousSlots.map((slot) => [slot.spotId, slot]))
 
   return floors.map((floor) => ({
     ...floor,
-    slots: floor.slots
-      .map((slot) => nextMap.get(slot.spotId) ?? slot)
-      .sort((a, b) => {
-        const orderA = a.layoutOrder ?? Number.MAX_SAFE_INTEGER
-        const orderB = b.layoutOrder ?? Number.MAX_SAFE_INTEGER
-        if (orderA !== orderB) return orderA - orderB
-        const rowA = a.layoutRow ?? Number.MAX_SAFE_INTEGER
-        const rowB = b.layoutRow ?? Number.MAX_SAFE_INTEGER
-        if (rowA !== rowB) return rowA - rowB
-        const colA = a.layoutCol ?? Number.MAX_SAFE_INTEGER
-        const colB = b.layoutCol ?? Number.MAX_SAFE_INTEGER
-        if (colA !== colB) return colA - colB
-        return a.spotCode.localeCompare(b.spotCode, undefined, { numeric: true })
-      }),
+    slots: floor.slots.map((slot) => {
+      const previous = previousBySpot.get(slot.spotId)
+      const recentlyChanged = Boolean(
+        previous && (
+          previous.occupancyStatus !== slot.occupancyStatus
+          || previous.observedPlate !== slot.observedPlate
+          || previous.subscriptionId !== slot.subscriptionId
+          || previous.incidentCode !== slot.incidentCode
+          || previous.isStale !== slot.isStale
+        ),
+      )
+      return {
+        ...slot,
+        recentlyChanged,
+      }
+    }),
   }))
+}
+
+export function getBoardLatestUpdateAt(floors: FloorGroup[]): string | null {
+  let latest: string | null = null
+
+  for (const floor of floors) {
+    for (const slot of floor.slots) {
+      if (!slot.updatedAt) continue
+      if (!latest || Date.parse(slot.updatedAt) > Date.parse(latest)) {
+        latest = slot.updatedAt
+      }
+    }
+  }
+
+  return latest
 }

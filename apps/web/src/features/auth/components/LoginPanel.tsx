@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { LockKeyhole, ShieldCheck, Zap } from 'lucide-react'
 import { InlineMessage } from '@/components/ops/console'
@@ -8,19 +8,20 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, type SelectOption } from '@/components/ui/select'
-import { getDefaultRouteForRole } from '@/app/routes'
 import { useAuth } from '@/features/auth/auth-context'
+import { describeResolvedDestination, readRequestedRoute, resolvePostLoginRoute, type AuthRedirectState } from '@/features/auth/auth-redirect'
 import { getAuthPasswordPolicy } from '@/lib/api/auth'
+import { getRoleHome } from '@/lib/auth/role-policy'
 import { getSafeLoginErrorMessage } from '@/lib/http/errors'
 import type { AuthRole, PasswordPolicyDescriptor } from '@/lib/contracts/auth'
 
-const ROLE_OPTIONS: SelectOption[] = [
-  { value: 'AUTO', label: 'Default role from backend', description: 'Uses the first role assigned to this account.', badge: 'auto', badgeVariant: 'neutral' },
-  { value: 'ADMIN', label: 'ADMIN', description: 'System administration and high-level configuration.', badge: 'rbac', badgeVariant: 'warning' },
-  { value: 'OPS', label: 'OPS', description: 'General operations, coordination, and monitoring.', badge: 'rbac', badgeVariant: 'success' },
-  { value: 'GUARD', label: 'GUARD', description: 'Lane management and vehicle processing at the gate.', badge: 'rbac', badgeVariant: 'success' },
-  { value: 'CASHIER', label: 'CASHIER', description: 'Fee collection and cashier tasks.', badge: 'rbac', badgeVariant: 'warning' },
-  { value: 'WORKER', label: 'WORKER', description: 'Background tasks, sync, and system processing.', badge: 'rbac', badgeVariant: 'neutral' },
+const COMPATIBILITY_ROLE_OPTIONS: SelectOption[] = [
+  { value: 'AUTO', label: 'Use backend-assigned role', description: 'Default flow. The authenticated session decides the workspace.', badge: 'default', badgeVariant: 'neutral' },
+  { value: 'ADMIN', label: 'ADMIN', description: 'Compatibility override for admin demo accounts only.', badge: 'compat', badgeVariant: 'warning' },
+  { value: 'OPS', label: 'OPS', description: 'Compatibility override for operations demo accounts only.', badge: 'compat', badgeVariant: 'success' },
+  { value: 'GUARD', label: 'GUARD', description: 'Compatibility override for guard demo accounts only.', badge: 'compat', badgeVariant: 'success' },
+  { value: 'CASHIER', label: 'CASHIER', description: 'Compatibility override for cashier demo accounts only.', badge: 'compat', badgeVariant: 'warning' },
+  { value: 'WORKER', label: 'WORKER', description: 'Compatibility override for worker demo accounts only.', badge: 'compat', badgeVariant: 'neutral' },
 ]
 
 function isAuthRole(value: string): value is AuthRole {
@@ -33,17 +34,27 @@ export function LoginPanel() {
   const location = useLocation()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [role, setRole] = useState('AUTO')
+  const [compatibilityRole, setCompatibilityRole] = useState('AUTO')
   const [errorMessage, setErrorMessage] = useState('')
   const [policy, setPolicy] = useState<PasswordPolicyDescriptor | null>(null)
 
-  const redirectTo = useMemo(() => {
-    const state = location.state as { from?: { pathname?: string; search?: string } } | null
-    if (state?.from?.pathname) {
-      return `${state.from.pathname}${state.from.search ?? ''}`
+  const redirectState = location.state as AuthRedirectState | null
+  const requestedRoute = useMemo(() => readRequestedRoute(redirectState), [redirectState])
+  const compatibilityRoleValue = isAuthRole(compatibilityRole) ? compatibilityRole : null
+  const compatibilityLanding = compatibilityRoleValue ? getRoleHome(compatibilityRoleValue) : null
+
+  const destinationLabel = useMemo(() => {
+    if (auth.principal?.role) {
+      return describeResolvedDestination({ role: auth.principal.role, state: redirectState })
     }
-    return getDefaultRouteForRole(auth.principal?.role)
-  }, [auth.principal?.role, location.state])
+    if (requestedRoute) {
+      return `${requestedRoute.href} if the authenticated role is allowed; otherwise the role home workspace.`
+    }
+    if (compatibilityLanding) {
+      return compatibilityLanding
+    }
+    return 'Role home from the authenticated session.'
+  }, [auth.principal?.role, compatibilityLanding, redirectState, requestedRoute])
 
   useEffect(() => {
     let active = true
@@ -54,21 +65,20 @@ export function LoginPanel() {
   }, [])
 
   useEffect(() => {
-    if (auth.isAuthenticated) {
-      navigate(redirectTo, { replace: true })
-    }
-  }, [auth.isAuthenticated, navigate, redirectTo])
+    if (!auth.isAuthenticated || !auth.principal) return
+    navigate(resolvePostLoginRoute({ role: auth.principal.role, state: redirectState }), { replace: true })
+  }, [auth.isAuthenticated, auth.principal, navigate, redirectState])
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setErrorMessage('')
     try {
       const principal = await auth.login({
         username: username.trim(),
         password,
-        role: isAuthRole(role) ? role : null,
+        role: compatibilityRoleValue,
       })
-      navigate(location.state ? redirectTo : getDefaultRouteForRole(principal.role), { replace: true })
+      navigate(resolvePostLoginRoute({ role: principal.role, state: redirectState }), { replace: true })
     } catch (error) {
       setErrorMessage(getSafeLoginErrorMessage(error))
     }
@@ -76,11 +86,8 @@ export function LoginPanel() {
 
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
-
-      {/* ── Main login card ── */}
       <Card className="login-card-main border-border/60 bg-card/80 backdrop-blur-sm shadow-[0_24px_80px_rgba(0,0,0,0.32)]">
         <CardHeader className="space-y-4 pb-6">
-          {/* Session notice above form */}
           {auth.sessionNotice ? (
             <InlineMessage tone={auth.sessionNotice.tone}>
               <div>
@@ -100,7 +107,7 @@ export function LoginPanel() {
               Sign in to Parkly Console
             </CardTitle>
             <p className="mt-2 text-sm text-muted-foreground">
-              One session authenticates all routes, guards, and realtime connections.
+              Role access comes from the authenticated backend principal. The login form does not grant permissions on its own.
             </p>
           </div>
         </CardHeader>
@@ -142,12 +149,30 @@ export function LoginPanel() {
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="login-role" className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
-                Login role
-              </Label>
-              <Select value={role} onChange={setRole} options={ROLE_OPTIONS} />
+            <div className="rounded-2xl border border-border/70 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+              <p className="font-medium text-foreground">Session destination</p>
+              <p className="mt-1">{destinationLabel}</p>
+              {requestedRoute ? (
+                <p className="mt-2 text-xs text-muted-foreground/80">
+                  Requested route: <span className="font-mono-data text-foreground/80">{requestedRoute.href}</span>
+                </p>
+              ) : null}
             </div>
+
+            <details className="rounded-2xl border border-border/70 bg-muted/20 px-4 py-3">
+              <summary className="cursor-pointer list-none text-sm font-medium text-foreground">
+                Advanced compatibility options
+              </summary>
+              <div className="mt-3 space-y-1.5">
+                <Label htmlFor="login-role" className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                  Demo role override
+                </Label>
+                <Select value={compatibilityRole} onChange={setCompatibilityRole} options={COMPATIBILITY_ROLE_OPTIONS} />
+                <p className="text-xs text-muted-foreground">
+                  Use this only when the backend login API is still running in demo compatibility mode. Default production-style flow should stay on backend-assigned role.
+                </p>
+              </div>
+            </details>
 
             <div className="flex flex-wrap items-center gap-3 pt-1">
               <Button
@@ -177,10 +202,7 @@ export function LoginPanel() {
         </CardContent>
       </Card>
 
-      {/* ── Right column: compact info ── */}
       <div className="flex flex-col gap-4">
-
-        {/* Session policy card */}
         <Card className="border-border/50 bg-card/60 backdrop-blur-sm shadow-[0_16px_48px_rgba(0,0,0,0.22)]">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold">
@@ -190,11 +212,11 @@ export function LoginPanel() {
           </CardHeader>
           <CardContent className="space-y-3 text-xs text-muted-foreground">
             <p>
-              Shell bootstraps via <code className="font-mono-data text-[10px] text-foreground/70 bg-muted/60 px-1 py-0.5 rounded">/api/auth/me</code>. Token refresh, route guards, and realtime all share the same session runtime.
+              Shell bootstrap runs through <code className="rounded bg-muted/60 px-1 py-0.5 font-mono-data text-[10px] text-foreground/70">/api/auth/me</code>. Route guards, redirects, and realtime session handling all read the same authenticated principal.
             </p>
 
             {policy ? (
-              <div className="rounded-xl border border-border/50 bg-muted/30 p-3 space-y-2">
+              <div className="space-y-2 rounded-xl border border-border/50 bg-muted/30 p-3">
                 <p className="font-mono-data text-[10px] uppercase tracking-[0.16em] text-muted-foreground/60">
                   Password policy
                 </p>
@@ -211,7 +233,6 @@ export function LoginPanel() {
           </CardContent>
         </Card>
 
-        {/* Access notes card */}
         <Card className="border-border/50 bg-card/60 backdrop-blur-sm shadow-[0_16px_48px_rgba(0,0,0,0.22)]">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold">
@@ -220,25 +241,25 @@ export function LoginPanel() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-xs text-muted-foreground">
-            <p>Settings only exposes diagnostics and default context. Manual token entry is not part of the normal login flow.</p>
-            <p>Device-signed mobile requests are isolated from the user auth shell and must be debugged separately.</p>
-            <Button
-              asChild
-              variant="ghost"
-              className="h-auto p-0 text-xs text-primary hover:bg-transparent hover:text-primary/80"
-            >
-              <Link to="/settings">View diagnostics →</Link>
-            </Button>
+            <p>
+              Redirects after sign-in, logout, and session expiry use the same role-policy registry as the shell navigation.
+            </p>
+            <div className="space-y-2 rounded-xl border border-border/50 bg-muted/30 p-3">
+              <p className="font-mono-data text-[10px] uppercase tracking-[0.16em] text-muted-foreground/60">Destination rules</p>
+              <ul className="space-y-1.5">
+                <li>• Return to the requested route only when the authenticated role is allowed to open it.</li>
+                <li>• Otherwise redirect to the role home workspace.</li>
+                <li>• Compatibility overrides are demo-only and should not be treated as the source of truth.</li>
+              </ul>
+            </div>
+            <p>
+              Need the mobile-only capture surface instead of the shell? Open{' '}
+              <Link to="/mobile-capture" className="font-medium text-primary underline-offset-4 hover:underline">
+                Mobile Capture
+              </Link>.
+            </p>
           </CardContent>
         </Card>
-
-        {/* Subtle status indicator */}
-        <div className="flex items-center gap-2 rounded-xl border border-border/40 bg-muted/20 px-3 py-2.5">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
-          <span className="font-mono-data text-[10px] text-muted-foreground/60 uppercase tracking-[0.14em]">
-            System operational
-          </span>
-        </div>
       </div>
     </div>
   )

@@ -9,6 +9,13 @@ export type SseMessage = {
 
 export type RealtimeConnectionState = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'stale' | 'unauthorized' | 'failed'
 
+export type SseStatusDetail = {
+  reconnectCount: number
+  error?: string
+  nextRetryAt?: string | null
+  lastEventId?: string
+}
+
 export class SseHttpError extends Error {
   status: number
 
@@ -177,7 +184,7 @@ export async function connectSseWithRetry(args: {
   onOpen?: () => void
   onMessage: (message: SseMessage) => void
   onError?: (error: unknown) => void
-  onStatusChange?: (status: RealtimeConnectionState, detail: { reconnectCount: number; error?: string }) => void
+  onStatusChange?: (status: RealtimeConnectionState, detail: SseStatusDetail) => void
   retryDelayMs?: number
   maxRetryDelayMs?: number
   maxReconnects?: number
@@ -187,7 +194,7 @@ export async function connectSseWithRetry(args: {
   let reconnectCount = 0
   let hasOpened = false
 
-  args.onStatusChange?.('connecting', { reconnectCount })
+  args.onStatusChange?.('connecting', { reconnectCount, lastEventId })
 
   while (!args.signal.aborted) {
     try {
@@ -196,7 +203,7 @@ export async function connectSseWithRetry(args: {
         signal: args.signal,
         lastEventId: lastEventId || undefined,
         onOpen: () => {
-          args.onStatusChange?.('connected', { reconnectCount })
+          args.onStatusChange?.('connected', { reconnectCount, lastEventId })
           args.onOpen?.()
           hasOpened = true
         },
@@ -220,12 +227,12 @@ export async function connectSseWithRetry(args: {
           surface: 'shell',
           path: args.url,
         })
-        args.onStatusChange?.('unauthorized', { reconnectCount, error: error.message })
+        args.onStatusChange?.('unauthorized', { reconnectCount, error: error.message, lastEventId })
         break
       }
 
       if (error instanceof SseHttpError && error.status === 403) {
-        args.onStatusChange?.('failed', { reconnectCount, error: error.message })
+        args.onStatusChange?.('failed', { reconnectCount, error: error.message, lastEventId })
         break
       }
     }
@@ -237,11 +244,13 @@ export async function connectSseWithRetry(args: {
       args.onStatusChange?.('failed', {
         reconnectCount,
         error: 'Realtime stream reconnect budget exceeded.',
+        lastEventId,
       })
       break
     }
 
-    args.onStatusChange?.(hasOpened ? 'reconnecting' : 'connecting', { reconnectCount })
+    const nextRetryAt = new Date(Date.now() + retryDelayMs).toISOString()
+    args.onStatusChange?.(hasOpened ? 'reconnecting' : 'connecting', { reconnectCount, nextRetryAt, lastEventId })
     await delay(retryDelayMs, args.signal)
     retryDelayMs = normalizeRetryDelay(Math.round(retryDelayMs * 1.6), args.maxRetryDelayMs ?? 12_000)
   }

@@ -28,17 +28,19 @@ export function AppShell() {
           <div className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
             {auth.sessionNotice ? (
               <div className="mb-5">
+                <div role="status" aria-live="polite">
                 <StateBanner className="mb-0">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-medium">{auth.sessionNotice.title}</p>
                       <p className="mt-1">{auth.sessionNotice.message}</p>
                     </div>
-                    <Button type="button" variant="ghost" size="icon" className="-mr-1 -mt-1 h-8 w-8" onClick={auth.clearSessionNotice} aria-label="Dismiss session notice">
+                    <Button type="button" variant="ghost" size="icon" className="-mr-1 -mt-1 h-8 w-8" onClick={auth.clearSessionNotice} aria-label="Dismiss auth notice">
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
                 </StateBanner>
+              </div>
               </div>
             ) : null}
             <Outlet />

@@ -2,17 +2,17 @@
 // POST /api/admin/subscriptions, PATCH /api/admin/subscriptions/:id
 // Roles required: ADMIN, OPS
 
-import { apiFetch, buildQuery, patchJson, postJson } from '@/lib/http/client'
+import { apiFetch, buildQuery, jsonHeaders } from '@/lib/http/client'
 import {
   normalizeSubscriptionDetail,
   normalizeSubscriptionList,
 } from '../mappers'
 import type {
   PatchSubscriptionBody,
+  SubscriptionCreateInput,
   SubscriptionDetail,
   SubscriptionEffectiveStatus,
   SubscriptionListRes,
-  SubscriptionPlanType,
 } from '../types'
 
 export function getSubscriptions(params?: {
@@ -21,44 +21,37 @@ export function getSubscriptions(params?: {
   plate?: string
   limit?: number
   cursor?: string
-}) {
+}, options?: { signal?: AbortSignal }) {
   const qs = buildQuery(params)
   return apiFetch<SubscriptionListRes>(
     `/api/admin/subscriptions${qs ? `?${qs}` : ''}`,
-    undefined,
+    options?.signal ? { signal: options.signal } : undefined,
     normalizeSubscriptionList,
   )
 }
 
-export function getSubscriptionDetail(subscriptionId: string) {
+export function getSubscriptionDetail(subscriptionId: string, options?: { signal?: AbortSignal }) {
   return apiFetch<SubscriptionDetail>(
     `/api/admin/subscriptions/${encodeURIComponent(subscriptionId)}`,
-    undefined,
+    options?.signal ? { signal: options.signal } : undefined,
     (raw) => {
-      const r = raw as Record<string, unknown>
-      // Backend wraps in { data: {...} } envelope
-      const inner = r.data ?? raw
-      const result = normalizeSubscriptionDetail(inner)
+      const result = normalizeSubscriptionDetail(raw)
       if (!result) throw new Error('Invalid subscription detail response')
       return result
     },
   )
 }
 
-export function createSubscription(body: {
-  siteCode: string
-  customerId: string
-  planType: SubscriptionPlanType
-  startDate: string
-  endDate: string
-}) {
-  return postJson<SubscriptionDetail>(
+export function createSubscription(body: SubscriptionCreateInput) {
+  return apiFetch<SubscriptionDetail>(
     '/api/admin/subscriptions',
-    body,
+    {
+      method: 'POST',
+      headers: jsonHeaders(),
+      body: JSON.stringify(body),
+    },
     (raw) => {
-      const r = raw as Record<string, unknown>
-      const inner = r.data ?? raw
-      const result = normalizeSubscriptionDetail(inner)
+      const result = normalizeSubscriptionDetail(raw)
       if (!result) throw new Error('Invalid create subscription response')
       return result
     },
@@ -66,13 +59,15 @@ export function createSubscription(body: {
 }
 
 export function patchSubscription(subscriptionId: string, body: PatchSubscriptionBody) {
-  return patchJson<SubscriptionDetail>(
+  return apiFetch<SubscriptionDetail>(
     `/api/admin/subscriptions/${encodeURIComponent(subscriptionId)}`,
-    body,
+    {
+      method: 'PATCH',
+      headers: jsonHeaders(),
+      body: JSON.stringify(body),
+    },
     (raw) => {
-      const r = raw as Record<string, unknown>
-      const inner = r.data ?? raw
-      const result = normalizeSubscriptionDetail(inner)
+      const result = normalizeSubscriptionDetail(raw)
       if (!result) throw new Error('Invalid patch subscription response')
       return result
     },

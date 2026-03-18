@@ -3,6 +3,7 @@ import { ParkingSquare, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { APP_SHELL_NAV_GROUPS, getNavItemsByGroup } from '@/app/routes'
+import { getRoleLabels } from '@/lib/auth/role-labels'
 import { useAuth } from '@/features/auth/auth-context'
 
 type AppSidebarProps = {
@@ -13,6 +14,7 @@ type AppSidebarProps = {
 export function AppSidebar({ open, onClose }: AppSidebarProps) {
   const auth = useAuth()
   const role = auth.principal?.role
+  const roleLabels = getRoleLabels(role)
 
   return (
     <>
@@ -38,7 +40,7 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold tracking-tight">Parkly Console</p>
-              <p className="mt-0.5 truncate text-[11px] text-muted-foreground">Operations &middot; Review &middot; Sync &middot; Audit</p>
+              <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{role ? `${roleLabels.focusLabel} · canonical workspace` : 'Operations · Review · Sync · Audit'}</p>
             </div>
           </div>
 

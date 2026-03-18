@@ -1,5 +1,5 @@
 import { apiFetch, postJson } from '@/lib/http/client'
-import { isRecord } from '@/lib/http/errors'
+import { ApiError, extractRequestId, isRecord } from '@/lib/http/errors'
 import type { AuthPrincipal, AuthRole, AuthTokenBundle, PasswordPolicyDescriptor, SiteScopeInfo } from '@/lib/contracts/auth'
 
 function normalizeSiteScope(value: unknown): SiteScopeInfo {
@@ -11,22 +11,34 @@ function normalizeSiteScope(value: unknown): SiteScopeInfo {
   }
 }
 
-function normalizeRole(value: unknown): AuthRole {
+export function parseAuthRole(value: unknown): AuthRole | null {
   const role = typeof value === 'string' ? value.trim().toUpperCase() : ''
   if (role === 'ADMIN' || role === 'OPS' || role === 'GUARD' || role === 'CASHIER' || role === 'WORKER') {
     return role
   }
-  return 'GUARD'
+  return null
+}
+
+function requireAuthRole(value: unknown, context: string, requestId?: string): AuthRole {
+  const role = parseAuthRole(value)
+  if (role) return role
+
+  throw new ApiError({
+    code: 'INVALID_AUTH_ROLE',
+    message: `${context} returned an invalid role value.`,
+    requestId,
+  })
 }
 
 function normalizePrincipal(value: unknown): AuthPrincipal {
   const row = isRecord(value) ? value : {}
+  const requestId = extractRequestId(row)
   const principalType = row.principalType === 'SERVICE' ? 'SERVICE' : 'USER'
 
   if (principalType === 'SERVICE') {
     return {
       principalType,
-      role: normalizeRole(row.role),
+      role: requireAuthRole(row.role, 'Auth principal', requestId),
       actorLabel: typeof row.actorLabel === 'string' ? row.actorLabel : '',
       serviceCode: typeof row.serviceCode === 'string' ? row.serviceCode : '',
       siteScopes: [],
@@ -36,12 +48,23 @@ function normalizePrincipal(value: unknown): AuthPrincipal {
   const siteScopes = Array.isArray(row.siteScopes) ? row.siteScopes.map(normalizeSiteScope).filter((item) => item.siteCode) : []
   return {
     principalType,
-    role: normalizeRole(row.role),
+    role: requireAuthRole(row.role, 'Auth principal', requestId),
     actorLabel: typeof row.actorLabel === 'string' ? row.actorLabel : '',
     userId: typeof row.userId === 'string' ? row.userId : '',
     username: typeof row.username === 'string' ? row.username : '',
     sessionId: typeof row.sessionId === 'string' ? row.sessionId : '',
     siteScopes,
+  }
+}
+
+function parseAuthTokenBundle(value: unknown): AuthTokenBundle {
+  const row = isRecord(value) ? value : {}
+  return {
+    accessToken: typeof row.accessToken === 'string' ? row.accessToken : '',
+    refreshToken: typeof row.refreshToken === 'string' ? row.refreshToken : '',
+    accessExpiresAt: typeof row.accessExpiresAt === 'string' ? row.accessExpiresAt : '',
+    refreshExpiresAt: typeof row.refreshExpiresAt === 'string' ? row.refreshExpiresAt : '',
+    principal: normalizePrincipal(row.principal),
   }
 }
 
@@ -69,27 +92,15 @@ export function loginWithPassword(input: { username: string; password: string; r
     username: input.username,
     password: input.password,
     ...(input.role ? { role: input.role } : {}),
-  }, (value) => {
-    const row = isRecord(value) ? value : {}
-    return {
-      accessToken: typeof row.accessToken === 'string' ? row.accessToken : '',
-      refreshToken: typeof row.refreshToken === 'string' ? row.refreshToken : '',
-      accessExpiresAt: typeof row.accessExpiresAt === 'string' ? row.accessExpiresAt : '',
-      refreshExpiresAt: typeof row.refreshExpiresAt === 'string' ? row.refreshExpiresAt : '',
-      principal: normalizePrincipal(row.principal),
-    }
-  })
+  }, parseAuthTokenBundle)
 }
 
 export function refreshAuthSession(refreshToken: string) {
   return postJson<AuthTokenBundle>('/api/auth/refresh', { refreshToken }, (value) => {
-    const row = isRecord(value) ? value : {}
+    const row = parseAuthTokenBundle(value)
     return {
-      accessToken: typeof row.accessToken === 'string' ? row.accessToken : '',
-      refreshToken: typeof row.refreshToken === 'string' ? row.refreshToken : refreshToken,
-      accessExpiresAt: typeof row.accessExpiresAt === 'string' ? row.accessExpiresAt : '',
-      refreshExpiresAt: typeof row.refreshExpiresAt === 'string' ? row.refreshExpiresAt : '',
-      principal: normalizePrincipal(row.principal),
+      ...row,
+      refreshToken: row.refreshToken || refreshToken,
     }
   })
 }

@@ -1,37 +1,36 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type CSSProperties } from 'react'
 import { LoginPanel } from '@/features/auth/components/LoginPanel'
 
 export function LoginPage() {
   const rootRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const el = rootRef.current
-    if (!el) return
+    const root = rootRef.current
+    if (root === null) return
+
+    const rootEl: HTMLDivElement = root
 
     function onMove(e: MouseEvent) {
-      const rect = el!.getBoundingClientRect()
+      const rect = rootEl.getBoundingClientRect()
       const x = ((e.clientX - rect.left) / rect.width) * 100
       const y = ((e.clientY - rect.top) / rect.height) * 100
-      el!.style.setProperty('--lx', `${x.toFixed(2)}%`)
-      el!.style.setProperty('--ly', `${y.toFixed(2)}%`)
+      rootEl.style.setProperty('--lx', `${x.toFixed(2)}%`)
+      rootEl.style.setProperty('--ly', `${y.toFixed(2)}%`)
     }
 
-    el.addEventListener('mousemove', onMove, { passive: true })
-    return () => el.removeEventListener('mousemove', onMove)
+    rootEl.addEventListener('mousemove', onMove, { passive: true })
+    return () => rootEl.removeEventListener('mousemove', onMove)
   }, [])
 
   return (
-    <div ref={rootRef} className="login-root" style={{ '--lx': '65%', '--ly': '35%' } as React.CSSProperties}>
-      {/* Layered background */}
+    <div ref={rootRef} className="login-root" style={{ '--lx': '65%', '--ly': '35%' } as CSSProperties}>
       <div className="login-orb login-orb-a" />
       <div className="login-orb login-orb-b" />
       <div className="login-orb login-orb-c" />
       <div className="login-grid" />
       <div className="login-spotlight" />
 
-      {/* Page content */}
       <div className="login-content min-h-dvh flex flex-col">
-        {/* Top bar */}
         <div className="flex items-center justify-between px-8 py-5">
           <div className="flex items-center gap-3">
             <div
@@ -40,26 +39,29 @@ export function LoginPage() {
             >
               P
             </div>
-            <span className="font-mono-data text-[11px] uppercase tracking-[0.22em] text-muted-foreground/70">
-              Parkly Console
-            </span>
+            <div>
+              <p className="font-mono-data text-[11px] uppercase tracking-[0.22em] text-muted-foreground/70">
+                Parkly Console
+              </p>
+              <p className="mt-1 text-[11px] text-muted-foreground/55">
+                Authenticated role decides the workspace.
+              </p>
+            </div>
           </div>
           <span className="font-mono-data text-[10px] uppercase tracking-[0.18em] text-muted-foreground/40">
-            v1 · ops
+            Sign in
           </span>
         </div>
 
-        {/* Main content */}
         <div className="flex flex-1 items-center justify-center px-4 py-8 sm:px-6 lg:px-8">
           <div className="w-full max-w-5xl">
             <LoginPanel />
           </div>
         </div>
 
-        {/* Bottom bar */}
         <div className="px-8 py-4 text-center">
-          <p className="font-mono-data text-[10px] text-muted-foreground/30 uppercase tracking-[0.16em]">
-            Secure operations console · All sessions are logged
+          <p className="font-mono-data text-[10px] uppercase tracking-[0.16em] text-muted-foreground/30">
+            Secure operations console · Role policy is enforced after authentication
           </p>
         </div>
       </div>

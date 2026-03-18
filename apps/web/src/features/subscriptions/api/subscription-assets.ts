@@ -7,8 +7,13 @@
 // PATCH /api/admin/subscription-vehicles/:id
 // Roles: ADMIN, OPS
 
-import { apiFetch, buildQuery, patchJson, postJson } from '@/lib/http/client'
-import { normalizeSubscriptionSpotList, normalizeSubscriptionVehicleList } from '../mappers'
+import { apiFetch, buildQuery, jsonHeaders } from '@/lib/http/client'
+import {
+  normalizeSubscriptionSpotList,
+  normalizeSubscriptionSpotResult,
+  normalizeSubscriptionVehicleList,
+  normalizeSubscriptionVehicleResult,
+} from '../mappers'
 import type {
   SubscriptionSpotListRes,
   SubscriptionVehicleListRes,
@@ -16,6 +21,11 @@ import type {
   SubscriptionVehicleRow,
   SubscriptionSpotStatus,
   SubscriptionVehicleStatus,
+  SubscriptionSpotMutationInput,
+  SubscriptionSpotPatchInput,
+  SubscriptionVehicleMutationInput,
+  SubscriptionVehiclePatchInput,
+  AssignedMode,
 } from '../types'
 
 // ─── Spots ───────────────────────────────────────────────────
@@ -26,29 +36,39 @@ export function getSubscriptionSpots(params?: {
   status?: SubscriptionSpotStatus | ''
   limit?: number
   cursor?: string
-}) {
+}, options?: { signal?: AbortSignal }) {
   const qs = buildQuery(params)
   return apiFetch<SubscriptionSpotListRes>(
     `/api/admin/subscription-spots${qs ? `?${qs}` : ''}`,
-    undefined,
+    options?.signal ? { signal: options.signal } : undefined,
     normalizeSubscriptionSpotList,
+  )
+}
+
+export function createSubscriptionSpot(body: SubscriptionSpotMutationInput) {
+  return apiFetch<SubscriptionSpotRow>(
+    '/api/admin/subscription-spots',
+    {
+      method: 'POST',
+      headers: jsonHeaders(),
+      body: JSON.stringify(body),
+    },
+    normalizeSubscriptionSpotResult,
   )
 }
 
 export function patchSubscriptionSpot(
   subscriptionSpotId: string,
-  body: {
-    status?: SubscriptionSpotStatus
-    assignedMode?: 'ASSIGNED' | 'PREFERRED'
-    isPrimary?: boolean
-    assignedFrom?: string | null
-    assignedUntil?: string | null
-    note?: string | null
-  },
+  body: SubscriptionSpotPatchInput,
 ) {
-  return patchJson<SubscriptionSpotRow>(
+  return apiFetch<SubscriptionSpotRow>(
     `/api/admin/subscription-spots/${encodeURIComponent(subscriptionSpotId)}`,
-    body,
+    {
+      method: 'PATCH',
+      headers: jsonHeaders(),
+      body: JSON.stringify(body),
+    },
+    normalizeSubscriptionSpotResult,
   )
 }
 
@@ -61,27 +81,47 @@ export function getSubscriptionVehicles(params?: {
   plate?: string
   limit?: number
   cursor?: string
-}) {
+}, options?: { signal?: AbortSignal }) {
   const qs = buildQuery(params)
   return apiFetch<SubscriptionVehicleListRes>(
     `/api/admin/subscription-vehicles${qs ? `?${qs}` : ''}`,
-    undefined,
+    options?.signal ? { signal: options.signal } : undefined,
     normalizeSubscriptionVehicleList,
+  )
+}
+
+export function createSubscriptionVehicle(body: SubscriptionVehicleMutationInput) {
+  return apiFetch<SubscriptionVehicleRow>(
+    '/api/admin/subscription-vehicles',
+    {
+      method: 'POST',
+      headers: jsonHeaders(),
+      body: JSON.stringify(body),
+    },
+    normalizeSubscriptionVehicleResult,
   )
 }
 
 export function patchSubscriptionVehicle(
   subscriptionVehicleId: string,
-  body: {
-    status?: SubscriptionVehicleStatus
-    isPrimary?: boolean
-    validFrom?: string | null
-    validTo?: string | null
-    note?: string | null
-  },
+  body: SubscriptionVehiclePatchInput,
 ) {
-  return patchJson<SubscriptionVehicleRow>(
+  return apiFetch<SubscriptionVehicleRow>(
     `/api/admin/subscription-vehicles/${encodeURIComponent(subscriptionVehicleId)}`,
-    body,
+    {
+      method: 'PATCH',
+      headers: jsonHeaders(),
+      body: JSON.stringify(body),
+    },
+    normalizeSubscriptionVehicleResult,
   )
+}
+
+export type SubscriptionSpotUpdateBody = {
+  status?: SubscriptionSpotStatus
+  assignedMode?: AssignedMode
+  isPrimary?: boolean
+  assignedFrom?: string | null
+  assignedUntil?: string | null
+  note?: string | null
 }

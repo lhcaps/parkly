@@ -1,4 +1,4 @@
-﻿import type { ComponentType, ReactNode } from 'react'
+import type { ComponentType, ReactNode } from 'react'
 import { AlertCircle, AlertTriangle, CheckCircle2, Inbox, Loader2, RefreshCcw } from 'lucide-react'
 import { Badge, type BadgeProps } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -60,6 +60,7 @@ type SurfaceStateProps = {
   className?: string
   action?: { label: string; onClick: () => void }
   busy?: boolean
+  meta?: ReactNode
 }
 
 export function SurfaceState({
@@ -70,6 +71,7 @@ export function SurfaceState({
   className,
   action,
   busy = false,
+  meta,
 }: SurfaceStateProps) {
   const resolvedTone: SurfaceStateTone = busy ? 'loading' : tone
   const ResolvedIcon = Icon ?? (resolvedTone === 'loading' ? Loader2 : resolvedTone === 'error' ? AlertCircle : Inbox)
@@ -92,6 +94,7 @@ export function SurfaceState({
 
       <p className="mt-4 text-sm font-medium text-foreground">{title}</p>
       {description ? <p className="mt-2 max-w-xl text-sm text-muted-foreground">{description}</p> : null}
+      {meta ? <div className="mt-3 w-full max-w-xl">{meta}</div> : null}
 
       {action ? (
         <Button type="button" variant="outline" className="mt-4" onClick={action.onClick}>
@@ -172,6 +175,106 @@ export function FilterCard({
       </CardHeader>
       <CardContent className={contentClassName}>{children}</CardContent>
     </Card>
+  )
+}
+
+export function ConsoleCard({
+  children,
+  className,
+  contentClassName,
+}: {
+  children: ReactNode
+  className?: string
+  contentClassName?: string
+}) {
+  return (
+    <Card className={cn('border-border/80 bg-card/95 shadow-[0_18px_60px_rgba(0,0,0,0.12)]', className)}>
+      <CardContent className={cn('pt-6', contentClassName)}>{children}</CardContent>
+    </Card>
+  )
+}
+
+function StateMeta({ requestId, hint }: { requestId?: string; hint?: string }) {
+  if (!requestId && !hint) return null
+
+  return (
+    <div className="space-y-1 rounded-xl border border-border/60 bg-background/60 px-3 py-2 text-left text-xs text-muted-foreground">
+      {requestId ? <div><span className="font-medium text-foreground">requestId:</span> <span className="font-mono-data">{requestId}</span></div> : null}
+      {hint ? <div><span className="font-medium text-foreground">hint:</span> {hint}</div> : null}
+    </div>
+  )
+}
+
+export function RetryActionBar({
+  onRetry,
+  retryLabel = 'Retry',
+  secondaryAction,
+  className,
+}: {
+  onRetry?: () => void
+  retryLabel?: string
+  secondaryAction?: ReactNode
+  className?: string
+}) {
+  if (!onRetry && !secondaryAction) return null
+
+  return (
+    <div className={cn('flex flex-wrap items-center justify-end gap-2', className)}>
+      {secondaryAction}
+      {onRetry ? (
+        <Button type="button" variant="outline" onClick={onRetry}>
+          <RefreshCcw className="h-4 w-4" />
+          {retryLabel}
+        </Button>
+      ) : null}
+    </div>
+  )
+}
+
+export function EmptySelectionCard({
+  title,
+  description,
+  action,
+  className,
+}: {
+  title: string
+  description?: string
+  action?: { label: string; onClick: () => void }
+  className?: string
+}) {
+  return (
+    <ConsoleCard className={className}>
+      <SurfaceState title={title} description={description} tone="empty" action={action} className="min-h-[220px]" />
+    </ConsoleCard>
+  )
+}
+
+export function DependencyDownCard({
+  title,
+  description,
+  requestId,
+  hint,
+  onRetry,
+  className,
+}: {
+  title: string
+  description: string
+  requestId?: string
+  hint?: string
+  onRetry?: () => void
+  className?: string
+}) {
+  return (
+    <ConsoleCard className={className}>
+      <SurfaceState
+        title={title}
+        description={description}
+        tone="error"
+        meta={<StateMeta requestId={requestId} hint={hint} />}
+        action={onRetry ? { label: 'Retry', onClick: onRetry } : undefined}
+        className="min-h-[220px]"
+      />
+    </ConsoleCard>
   )
 }
 

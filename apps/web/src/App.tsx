@@ -152,7 +152,7 @@ export function App() {
               key={route.path}
               path={route.path}
               element={(
-                <RequireRouteRole allowedRoles={route.allowedRoles}>
+                <RequireRouteRole routePath={route.path}>
                   {renderRouteElement(route.shortLabel, route.element)}
                 </RequireRouteRole>
               )}

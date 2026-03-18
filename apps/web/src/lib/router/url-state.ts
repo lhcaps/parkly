@@ -13,15 +13,29 @@ function toEnumSet<T extends string>(values: readonly T[]) {
   return new Set(values)
 }
 
+
+export function normalizeSearchText(value: string | null | undefined) {
+  return String(value ?? '').trim()
+}
+
+export function normalizeSearchTextInput(value: string | null | undefined) {
+  return normalizeSearchText(value)
+}
+
+export function normalizeEnumValue<T extends string>(value: string | null | undefined, allowed: readonly T[], fallback: T): T
+export function normalizeEnumValue<T extends string>(value: string | null | undefined, allowed: readonly T[], fallback: ''): T | ''
+export function normalizeEnumValue<T extends string>(value: string | null | undefined, allowed: readonly T[], fallback: T | ''): T | '' {
+  const normalized = normalizeSearchText(value)
+  if (!normalized) return fallback
+  return toEnumSet(allowed).has(normalized as T) ? (normalized as T) : fallback
+}
+
 export function readTrimmedSearchParam(searchParams: URLSearchParams, key: string) {
-  const value = searchParams.get(key)
-  return value ? value.trim() : ''
+  return normalizeSearchText(searchParams.get(key))
 }
 
 export function readEnumSearchParam<T extends string>(searchParams: URLSearchParams, key: string, allowed: readonly T[], fallback: T): T {
-  const raw = readTrimmedSearchParam(searchParams, key)
-  if (!raw) return fallback
-  return toEnumSet(allowed).has(raw as T) ? (raw as T) : fallback
+  return normalizeEnumValue(readTrimmedSearchParam(searchParams, key), allowed, fallback) as T
 }
 
 export function readNumberSearchParam(searchParams: URLSearchParams, key: string, options: NumberParamOptions) {

@@ -6,6 +6,11 @@ import {
 } from '../mappers'
 import type { OccupancyStatus, ParkingLiveBoard, ParkingLiveSpotDetail, ParkingLiveSummary } from '../types'
 
+export type ParkingLiveRequestOptions = {
+  signal?: AbortSignal
+  refresh?: boolean
+}
+
 export function getParkingLiveBoard(params: {
   siteCode: string
   floorKey?: string
@@ -13,6 +18,7 @@ export function getParkingLiveBoard(params: {
   status?: OccupancyStatus | ''
   q?: string
   refresh?: boolean
+  signal?: AbortSignal
 }): Promise<ParkingLiveBoard> {
   const qs = buildQuery({
     siteCode: params.siteCode,
@@ -25,25 +31,27 @@ export function getParkingLiveBoard(params: {
 
   return apiFetch<ParkingLiveBoard>(
     `/api/ops/parking-live${qs ? `?${qs}` : ''}`,
-    undefined,
+    { signal: params.signal },
     normalizeParkingLiveBoard,
   )
 }
 
-export function getParkingLiveSummary(siteCode: string, refresh = false): Promise<ParkingLiveSummary> {
-  const qs = buildQuery({ siteCode, refresh: refresh ? true : undefined })
+export function getParkingLiveSummary(siteCode: string, options: ParkingLiveRequestOptions | boolean = false): Promise<ParkingLiveSummary> {
+  const normalizedOptions = typeof options === 'boolean' ? { refresh: options } : options
+  const qs = buildQuery({ siteCode, refresh: normalizedOptions.refresh ? true : undefined })
   return apiFetch<ParkingLiveSummary>(
     `/api/ops/parking-live/summary${qs ? `?${qs}` : ''}`,
-    undefined,
+    { signal: normalizedOptions.signal },
     normalizeParkingLiveSummary,
   )
 }
 
-export function getParkingLiveSpotDetail(siteCode: string, spotCode: string, refresh = false): Promise<ParkingLiveSpotDetail | null> {
-  const qs = buildQuery({ siteCode, refresh: refresh ? true : undefined })
+export function getParkingLiveSpotDetail(siteCode: string, spotCode: string, options: ParkingLiveRequestOptions | boolean = false): Promise<ParkingLiveSpotDetail | null> {
+  const normalizedOptions = typeof options === 'boolean' ? { refresh: options } : options
+  const qs = buildQuery({ siteCode, refresh: normalizedOptions.refresh ? true : undefined })
   return apiFetch<ParkingLiveSpotDetail | null>(
     `/api/ops/parking-live/spots/${encodeURIComponent(spotCode)}${qs ? `?${qs}` : ''}`,
-    undefined,
+    { signal: normalizedOptions.signal },
     normalizeParkingLiveSpotDetail,
   )
 }

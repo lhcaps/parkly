@@ -25,6 +25,8 @@ export function DegradedBanner({
   description,
   tone = 'warning',
   meta,
+  requestId,
+  hint,
   actionLabel,
   onAction,
   className,
@@ -34,12 +36,15 @@ export function DegradedBanner({
   description: string
   tone?: BannerTone
   meta?: string
+  requestId?: string
+  hint?: string
   actionLabel?: string
   onAction?: () => void
   className?: string
   children?: ReactNode
 }) {
   const Icon = toneIcon(tone)
+  const details = [meta, requestId ? `requestId=${requestId}` : null].filter(Boolean)
 
   return (
     <div className={cn('rounded-2xl border px-4 py-4', toneClasses(tone), className)} role={tone === 'error' ? 'alert' : 'status'}>
@@ -54,7 +59,8 @@ export function DegradedBanner({
               <StatusBadge tone={tone === 'success' ? 'success' : tone === 'warning' ? 'warning' : tone === 'error' ? 'error' : 'info'} label={tone === 'success' ? 'Healthy' : tone === 'warning' ? 'Degraded' : tone === 'error' ? 'Action needed' : 'Info'} icon={false} />
             </div>
             <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-            {meta ? <p className="mt-2 text-xs font-mono-data text-muted-foreground/80">{meta}</p> : null}
+            {details.length > 0 ? <p className="mt-2 text-xs font-mono-data text-muted-foreground/80">{details.join(' · ')}</p> : null}
+            {hint ? <p className="mt-2 text-xs text-muted-foreground"><span className="font-medium text-foreground">Hint:</span> {hint}</p> : null}
             {children ? <div className="mt-3">{children}</div> : null}
           </div>
         </div>
