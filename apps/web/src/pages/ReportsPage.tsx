@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { BarChart3, CalendarRange, RefreshCw, TrendingDown, TrendingUp } from 'lucide-react'
+import { BarChart3, CalendarRange, ExternalLink, RefreshCw, TrendingDown, TrendingUp, AlertTriangle, Activity } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,14 +9,17 @@ import { PageHeader } from '@/components/ops/console'
 import { PageStateRenderer, StateBanner } from '@/components/state/page-state'
 import { ValidationSummary } from '@/components/forms/validation-summary'
 import { getReportsSummary, getSites, type ReportsSummaryRes, type SiteRow } from '@/lib/api'
+import { getDashboardSummary } from '@/lib/api/dashboard'
 import { extractValidationFieldErrors } from '@/lib/http/errors'
 import { buildSearchParams, readNumberSearchParam, readTrimmedSearchParam, syncSearchParams } from '@/lib/router/url-state'
 import { cn } from '@/lib/utils'
 
 const REPORT_DAY_VALUES = [1, 3, 7, 14, 30] as const
 
-function Metric({ label, value, helper, positive = false, negative = false }: { label: string; value: string | number; helper: string; positive?: boolean; negative?: boolean }) {
-  return (
+type DashboardSummary = Awaited<ReturnType<typeof getDashboardSummary>>
+
+function Metric({ label, value, helper, positive = false, negative = false, href }: { label: string; value: string | number; helper: string; positive?: boolean; negative?: boolean; href?: string }) {
+  const content = (
     <Card>
       <CardContent className="pt-4">
         <p className="text-[11px] font-mono-data uppercase tracking-widest text-muted-foreground">{label}</p>
@@ -25,6 +28,16 @@ function Metric({ label, value, helper, positive = false, negative = false }: { 
       </CardContent>
     </Card>
   )
+  
+  if (href) {
+    return (
+      <a href={href} className="block transition-opacity hover:opacity-80">
+        {content}
+      </a>
+    )
+  }
+  
+  return content
 }
 
 function buildSiteOptions(sites: SiteRow[]): SelectOption[] {
@@ -60,6 +73,7 @@ export function ReportsPage() {
   const [siteCode, setSiteCode] = useState(routeState.siteCode)
   const [days, setDays] = useState(routeState.days)
   const [summary, setSummary] = useState<ReportsSummaryRes | null>(null)
+  const [dashboard, setDashboard] = useState<DashboardSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<unknown>(null)
 
@@ -81,13 +95,19 @@ export function ReportsPage() {
       const effectiveDays = nextDays || days
       if (!effectiveSiteCode) {
         setSummary(null)
+        setDashboard(null)
         return
       }
-      const data = await getReportsSummary(effectiveSiteCode, effectiveDays)
-      setSummary(data)
+      const [summaryData, dashboardData] = await Promise.all([
+        getReportsSummary(effectiveSiteCode, effectiveDays),
+        getDashboardSummary({ siteCode: effectiveSiteCode }).catch(() => null),
+      ])
+      setSummary(summaryData)
+      setDashboard(dashboardData)
     } catch (loadError) {
       setError(loadError)
       setSummary(null)
+      setDashboard(null)
     } finally {
       setLoading(false)
     }
@@ -182,6 +202,91 @@ export function ReportsPage() {
             <Metric label="Total" value={summary?.total || 0} helper="Total gate events" positive={Boolean(summary && summary.total > 0)} />
             <Metric label="Entry vs Exit" value={summary ? `${entryShare}% / ${exitShare}%` : '—'} helper="Entry vs exit split" />
           </div>
+
+          {dashboard && (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-sm">
+                    <AlertTriangle className="h-4 w-4 text-amber-500" />
+                    Incidents
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-mono-data text-2xl font-semibold">{dashboard.incidents.openCount}</span>
+                    <span className="text-xs text-muted-foreground">open</span>
+                  </div>
+                  {dashboard.incidents.criticalOpenCount > 0 && (
+                    <Badge variant="destructive" className="mt-2">
+                      {dashboard.incidents.criticalOpenCount} critical
+                    </Badge>
+                  )}
+                  <a
+                    href={`/review-queue?siteCode=${siteCode}&status=OPEN`}
+                    className="mt-3 flex items-center gap-1 text-xs text-primary hover:underline"
+                  >
+                    View in Review Queue <ExternalLink className="h-3 w-3" />
+                  </a>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-sm">
+                    <Activity className="h-4 w-4 text-success" />
+                    Lanes
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-mono-data text-2xl font-semibold">{dashboard.lanes.totalLanes}</span>
+                    <span className="text-xs text-muted-foreground">total</span>
+                  </div>
+                  <div className="mt-2 flex gap-3 text-xs">
+                    {dashboard.lanes.attentionCount > 0 && (
+                      <span className="text-amber-600">{dashboard.lanes.attentionCount} attention</span>
+                    )}
+                    {dashboard.lanes.offlineCount > 0 && (
+                      <span className="text-destructive">{dashboard.lanes.offlineCount} offline</span>
+                    )}
+                  </div>
+                  <a
+                    href={`/lane-monitor?siteCode=${siteCode}`}
+                    className="mt-3 flex items-center gap-1 text-xs text-primary hover:underline"
+                  >
+                    View Lane Monitor <ExternalLink className="h-3 w-3" />
+                  </a>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-sm">
+                    <TrendingUp className="h-4 w-4 text-primary" />
+                    Subscriptions
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-mono-data text-2xl font-semibold">{dashboard.subscriptions.activeCount}</span>
+                    <span className="text-xs text-muted-foreground">active</span>
+                  </div>
+                  {dashboard.subscriptions.expiringSoonCount > 0 && (
+                    <Badge variant="amber" className="mt-2">
+                      {dashboard.subscriptions.expiringSoonCount} expiring soon
+                    </Badge>
+                  )}
+                  <a
+                    href={`/subscriptions?siteCode=${siteCode}`}
+                    className="mt-3 flex items-center gap-1 text-xs text-primary hover:underline"
+                  >
+                    View Subscriptions <ExternalLink className="h-3 w-3" />
+                  </a>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.1fr_360px]">
             <Card>
