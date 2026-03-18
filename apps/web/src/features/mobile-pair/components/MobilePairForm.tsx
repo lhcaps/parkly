@@ -1,4 +1,4 @@
-﻿import { Button } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, type SelectOption } from '@/components/ui/select'
 import type { Direction } from '@/lib/contracts/common'
@@ -120,7 +120,10 @@ export function MobilePairForm({
           disabled={loading}
         />
 
-        <Input value={value.deviceSecret} onChange={(e) => onChange({ deviceSecret: e.target.value })} placeholder="Device secret" disabled={loading} />
+        <div>
+          <Input value={value.deviceSecret} onChange={(e) => onChange({ deviceSecret: e.target.value })} placeholder="Device secret (optional for Create pair)" disabled={loading} />
+          <p className="mt-1 text-[11px] text-muted-foreground">Optional when using Create pair — the server issues the pair token.</p>
+        </div>
 
         <div className="flex gap-2">
           <Input value={value.token} onChange={(e) => onChange({ token: e.target.value })} placeholder="Pair token" disabled={loading} />

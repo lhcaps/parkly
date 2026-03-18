@@ -184,6 +184,49 @@ export function normalizeApiError(error: unknown): ApiError {
     })
   }
 
+  // Handle raw response objects from fetch() that may contain the backend's error envelope.
+  // This catches DEP_UNAVAILABLE, NOT_FOUND, BAD_REQUEST, etc. returned by the API
+  // before they get wrapped in a generic Error by the caller.
+  if (
+    error
+    && typeof error === 'object'
+    && !Array.isArray(error)
+    && typeof (error as any).code === 'string'
+  ) {
+    const raw = error as any
+    // Map server error codes to HTTP-like status
+    const statusFromCode: Record<string, number> = {
+      DEP_UNAVAILABLE: 503,
+      SERVICE_UNAVAILABLE: 503,
+      UNAUTHENTICATED: 401,
+      FORBIDDEN: 403,
+      NOT_FOUND: 404,
+      BAD_REQUEST: 400,
+      CONFLICT: 409,
+      UNPROCESSABLE_ENTITY: 422,
+      PAYLOAD_TOO_LARGE: 413,
+      UNSUPPORTED_MEDIA_TYPE: 415,
+      INTERNAL_ERROR: 500,
+    }
+    const KNOWN_CODES = new Set([
+      'BAD_REQUEST', 'UNAUTHENTICATED', 'FORBIDDEN', 'NOT_FOUND',
+      'CONFLICT', 'UNPROCESSABLE_ENTITY', 'UNSUPPORTED_MEDIA_TYPE',
+      'PAYLOAD_TOO_LARGE', 'SERVICE_UNAVAILABLE', 'DEP_UNAVAILABLE',
+      'INTERNAL_ERROR', 'REQUEST_ABORTED',
+    ])
+    return new ApiError({
+      code: KNOWN_CODES.has(raw.code) ? raw.code : 'INTERNAL_ERROR',
+      message: typeof raw.message === 'string' ? raw.message : 'API request failed',
+      // Prefer: 1. explicit .status on the object, 2. code→status mapping, 3. undefined
+      status: typeof raw.status === 'number'
+        ? raw.status
+        : (statusFromCode[raw.code] ?? undefined),
+      details: raw.details,
+      requestId: typeof raw.requestId === 'string' ? raw.requestId : undefined,
+      cause: error,
+    })
+  }
+
   if (error instanceof Error) {
     return new ApiError({ message: error.message, cause: error })
   }
@@ -218,6 +261,7 @@ export function classifyAppError(error: unknown, opts?: { realtimeStale?: boolea
   if (
     normalized.status === 503
     || normalized.code === 'SERVICE_UNAVAILABLE'
+    || normalized.code === 'DEP_UNAVAILABLE'
     || normalized.code === 'NETWORK_ERROR'
     || normalized.status === 0
   ) return 'dependencyDown'
@@ -329,18 +373,38 @@ export function toAppErrorDisplay(error: unknown, fallbackTitle = 'Unable to com
         nextAction: 'Refresh the live detail, confirm the latest state, then retry only if the action is still allowed.',
         fieldErrors,
       }
-    case 'dependencyDown':
+    case 'dependencyDown': {
+      const isNetworkError = normalized.code === 'NETWORK_ERROR' || normalized.status === 0
+      const depName = normalized.details && typeof normalized.details === 'object' && !Array.isArray(normalized.details)
+        ? (normalized.details as any).dependency as string | undefined
+        : undefined
+      const hint = normalized.details && typeof normalized.details === 'object' && !Array.isArray(normalized.details)
+        ? (normalized.details as any).hint as string | undefined
+        : undefined
+      const extraDetails = normalized.details && typeof normalized.details === 'object' && !Array.isArray(normalized.details)
+        ? (normalized.details as any).extra as string | undefined
+        : undefined
+      const detailSuffix = hint || extraDetails ? ` ${hint || extraDetails}.` : ''
+      const depNote = depName && depName !== 'UNKNOWN'
+        ? ` (${depName})`
+        : ''
+      const nextAction = isNetworkError
+        ? 'Retry after checking connectivity. If using from another device (e.g. phone), set VITE_API_BASE_URL to the API URL (e.g. http://<host-ip>:3000) and ensure the API is running with API_HOST=0.0.0.0.'
+        : depName
+          ? `Check that ${depName} is running and reachable.`
+          : 'Retry after checking connectivity and dependent services.'
       return {
         kind,
         title: 'Service temporarily unavailable',
-        message: withRequestId(`The request could not complete because the API, worker, or network path is unstable.${detailSuffix}`.trim(), normalized.requestId),
+        message: withRequestId(`The request could not complete because the API, worker, or network path is unstable${depNote}.${detailSuffix}`.trim(), normalized.requestId),
         tone: 'error',
         status: normalized.status || null,
         code: normalized.code,
         requestId: normalized.requestId,
-        nextAction: 'Retry after checking connectivity and dependent services.',
+        nextAction,
         fieldErrors,
       }
+    }
     case 'realtimeStale':
       return {
         kind,

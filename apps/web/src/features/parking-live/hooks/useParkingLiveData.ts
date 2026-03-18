@@ -14,9 +14,9 @@ import type {
   SlotViewModel,
 } from '../types'
 
-const POLL_INTERVAL_MS = 30_000
-const STALE_THRESHOLD_MS = 45_000
-const EVENT_COALESCE_MS = 400
+const POLL_INTERVAL_MS = 5_000
+const STALE_THRESHOLD_MS = 20_000
+const EVENT_COALESCE_MS = 200
 
 const PARKING_STREAM_NAME = 'parking-live'
 
@@ -296,9 +296,9 @@ export function useParkingLiveData(siteCode: string): UseParkingLiveDataResult {
           staleSince: current.staleSince ?? new Date().toISOString(),
         }))
       },
-      retryDelayMs: 1500,
-      maxRetryDelayMs: 10000,
-      maxReconnects: 10,
+      retryDelayMs: 500,
+      maxRetryDelayMs: 5000,
+      maxReconnects: 20,
     })
 
     return () => {

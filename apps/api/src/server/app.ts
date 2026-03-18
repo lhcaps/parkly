@@ -18,7 +18,7 @@ import { closeMongo } from '../lib/mongo';
 import { closeRedis, ensureRedisStartupReadiness, getRedisHealth } from '../lib/redis';
 import { getObjectStorageHealth } from '../lib/object-storage';
 
-import { ApiError, buildCursorPageInfo, defaultMessageForCode, fail, ok, statusToCode, withCursorPage } from './http';
+import { ApiError, buildCursorPageInfo, defaultMessageForCode, DependencyUnavailableError, fail, ok, statusToCode, withCursorPage } from './http';
 import { getRequestActor, requireAuth } from './auth';
 import { nowTrimMs, simulateVietnamPlate, stringifyBigint } from './utils';
 
@@ -62,13 +62,14 @@ import { registerGateSessionRoutes } from '../modules/gate/interfaces/http/regis
 import { registerAuthRoutes } from '../modules/auth/interfaces/http/register-auth-routes';
 import { registerGateOpsQueryRoutes } from '../modules/gate/interfaces/http/register-gate-ops-query-routes';
 import { assertNoClientCanonicalPlateFields, deriveAuthoritativePlateResult } from './plate-authority';
+import { buildPlateCanonical } from '@parkly/gate-core';
 import { registerGateCaptureRoutes } from '../modules/gate/interfaces/http/register-gate-capture-routes';
 import { registerLaneStatusStream } from '../modules/gate/interfaces/sse/register-lane-status-stream';
 import { registerDeviceHealthStream } from '../modules/gate/interfaces/sse/register-device-health-stream';
 import { registerOutboxStream } from '../modules/gate/interfaces/sse/register-outbox-stream';
 import { drainOutboxOnce, listOutbox, requeueOutbox } from './services/outbox.service';
 import { recognizeLocalPlate } from './services/local-alpr.service';
-import { createMobilePairing, getMobilePairing, invalidateMobilePairing } from './services/mobile-pairing.service';
+import { createMobilePairing, getMobilePairing, invalidateMobilePairing, logMobilePairingInfo } from './services/mobile-pairing.service';
 import { recordDeviceHeartbeat } from '../modules/gate/application/record-device-heartbeat';
 import { ingestAlprRead } from '../modules/gate/application/ingest-alpr-read';
 import { openOrReuseSessionAndResolve } from '../modules/gate/application/resolve-session';
@@ -1379,10 +1380,14 @@ export async function buildApp() {
     .stack { display: grid; gap: 12px; }
     .btn { width: 100%; border: 0; border-radius: 12px; background: #f7b027; color: #111; font-weight: 700; padding: 14px 16px; font-size: 16px; }
     .btn.secondary { background: transparent; color: #f3f5f7; border: 1px solid #26354d; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .inp { width: 100%; border-radius: 12px; border: 1px solid #22314a; background: #0a101b; color: #f3f5f7; padding: 12px 14px; font-size: 16px; }
     .preview { width: 100%; max-height: 420px; object-fit: contain; border-radius: 14px; border: 1px solid #22314a; background: #05080f; }
     .log { white-space: pre-wrap; word-break: break-word; border-radius: 12px; border: 1px solid #22314a; background: #0a101b; padding: 12px 14px; font-size: 14px; }
     label.file { display: block; border: 1px dashed #354766; border-radius: 16px; padding: 24px 16px; text-align: center; background: #0a101b; }
+    .status-ok { color: #4ade80; }
+    .status-error { color: #f87171; }
+    .status-warning { color: #fbbf24; }
   </style>
 </head>
 <body>
@@ -1527,7 +1532,15 @@ export async function buildApp() {
     });
 
     loadPairing().catch((error) => setStatus(error instanceof Error ? error.message : String(error)));
-    window.setInterval(() => { pulseHeartbeat().catch(() => void 0); }, 15000);
+    
+    // Start periodic session refresh (every 60 seconds)
+    setInterval(async () => {
+      try {
+        await api('/api/mobile-capture/session?pairToken=' + encodeURIComponent(pairToken));
+      } catch (error) {
+        console.warn('[MobileCapture] Session refresh failed:', error.message);
+      }
+    }, 60000);
   </script>
 </body>
 </html>`;
@@ -1586,11 +1599,11 @@ export async function buildApp() {
     try {
       const pairToken = String((req.query as any)?.pairToken ?? '').trim();
       if (!pairToken) {
-        throw new ApiError({ code: 'BAD_REQUEST', message: 'ThiÃ¡ÂºÂ¿u pairToken Ã„â€˜Ã¡Â»Æ’ mÃ¡Â»Å¸ mobile capture surface' });
+        throw new ApiError({ code: 'BAD_REQUEST', message: 'Thiếu pairToken cho mobile capture surface' });
       }
-      const pairing = await getMobilePairing(pairToken);
+      const pairing = await getMobilePairing(pairToken, { refreshTtlOnAccess: true });
       if (!pairing) {
-        throw new ApiError({ code: 'NOT_FOUND', message: 'Pair token mobile camera khÃƒÂ´ng cÃƒÂ²n hiÃ¡Â»â€¡u lÃ¡Â»Â±c hoÃ¡ÂºÂ·c khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i' });
+        throw new ApiError({ code: 'NOT_FOUND', message: 'Pair token mobile camera không còn hiệu lực hoặc đã hết hạn. Vui lòng tạo pairing mới từ trang quản lý.' });
       }
       res.type('html').send(renderMobileCaptureHtml(pairToken));
     } catch (e) {
@@ -1598,15 +1611,27 @@ export async function buildApp() {
     }
   });
 
+  // Mobile capture endpoints - public, uses pairToken for authentication
+  // Registered on `api` router (under /api prefix) so they pass through standard middleware
+  // and return structured JSON errors instead of 404 from the catch-all.
   api.get('/mobile-capture/session', async (req, res, next) => {
     try {
       const pairToken = String((req.query as any)?.pairToken ?? '').trim();
-      const pairing = await getMobilePairing(pairToken);
-      if (!pairing) {
-        throw new ApiError({ code: 'NOT_FOUND', message: 'Pair token mobile camera khÃƒÂ´ng cÃƒÂ²n hiÃ¡Â»â€¡u lÃ¡Â»Â±c hoÃ¡ÂºÂ·c khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i' });
+      
+      if (!pairToken) {
+        throw new ApiError({ code: 'BAD_REQUEST', message: 'Thiếu pairToken để lấy thông tin session' });
       }
+      
+      const pairing = await getMobilePairing(pairToken, { refreshTtlOnAccess: true });
+      if (!pairing) {
+        throw new ApiError({ 
+          code: 'NOT_FOUND', 
+          message: 'Pair token mobile camera không còn hiệu lực hoặc đã hết hạn. Vui lòng tạo pairing mới.' 
+        });
+      }
+      
       const rid = (req as any).id;
-      res.json(ok(rid, pairing));
+      res.json(ok(rid, { ...pairing, refreshed: true }));
     } catch (e) {
       next(e);
     }
@@ -1656,12 +1681,21 @@ export async function buildApp() {
     }
   });
 
+  // Mobile capture upload - public, uses pairToken
   api.post('/mobile-capture/upload', upload.single('file'), async (req, res, next) => {
     try {
       const pairToken = String((req.query as any)?.pairToken ?? '').trim();
-      const pairing = await getMobilePairing(pairToken);
+      
+      if (!pairToken) {
+        throw new ApiError({ code: 'BAD_REQUEST', message: 'Thiếu pairToken cho upload' });
+      }
+      
+      const pairing = await getMobilePairing(pairToken, { refreshTtlOnAccess: true });
       if (!pairing) {
-        throw new ApiError({ code: 'NOT_FOUND', message: 'Pair token mobile camera khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡' });
+        throw new ApiError({ 
+          code: 'NOT_FOUND', 
+          message: 'Pair token mobile camera không còn hiệu lực hoặc đã hết hạn. Vui lòng tạo pairing mới.' 
+        });
       }
 
       const f = (req as any).file as Express.Multer.File | undefined;
@@ -1677,6 +1711,14 @@ export async function buildApp() {
         laneCode: pairing.laneCode,
         deviceCode: pairing.deviceCode,
         expectedDirection: pairing.direction,
+      });
+
+      logMobilePairingInfo('upload', 'Uploading media from mobile device', {
+        pairToken: pairing.pairToken.slice(0, 8) + '...',
+        siteCode: pairing.siteCode,
+        deviceCode: pairing.deviceCode,
+        mime,
+        size: f.size,
       });
 
       const stored = await storeUploadedMedia({
@@ -1736,51 +1778,111 @@ export async function buildApp() {
         objectEtag: stored.objectEtag,
         widthPx: stored.widthPx,
         heightPx: stored.heightPx,
+        refreshed: true,
       }));
     } catch (e) {
       next(e);
     }
   });
 
+  // Mobile capture heartbeat - public, uses pairToken
   api.post('/mobile-capture/heartbeat', async (req, res, next) => {
     try {
       const pairToken = String((req.query as any)?.pairToken ?? '').trim();
-      const pairing = await getMobilePairing(pairToken);
-      if (!pairing) {
-        throw new ApiError({ code: 'NOT_FOUND', message: 'Pair token mobile camera khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡' });
+      
+      if (!pairToken) {
+        throw new ApiError({ code: 'BAD_REQUEST', message: 'Thiếu pairToken cho heartbeat' });
       }
+      
+      const pairing = await getMobilePairing(pairToken, { refreshTtlOnAccess: true });
+      if (!pairing) {
+        throw new ApiError({ 
+          code: 'NOT_FOUND', 
+          message: 'Pair token mobile camera không còn hiệu lực hoặc đã hết hạn. Vui lòng tạo pairing mới.' 
+        });
+      }
+      
       const body = (req.body && typeof req.body === 'object' && !Array.isArray(req.body)) ? req.body as Record<string, unknown> : {};
       const status = String(body.status ?? 'ONLINE').trim().toUpperCase();
-      const result = await recordDeviceHeartbeat({
-        requestId: `mobile-hb:${randomUUID()}`,
-        idempotencyKey: `mobile-hb:${Date.now()}:${pairing.deviceCode}`,
+      const latencyMs = Number(body.latencyMs ?? 25) || 25;
+      
+      const heartbeatRequestId = `mobile-hb:${randomUUID()}`;
+      
+      logMobilePairingInfo('heartbeat', 'Received heartbeat from mobile device', {
+        requestId: heartbeatRequestId,
+        pairToken: pairing.pairToken.slice(0, 8) + '...',
         siteCode: pairing.siteCode,
         deviceCode: pairing.deviceCode,
-        reportedAt: new Date(),
-        status: status === 'DEGRADED' ? 'DEGRADED' : status === 'OFFLINE' ? 'OFFLINE' : 'ONLINE',
-        latencyMs: Number(body.latencyMs ?? 25) || 25,
-        firmwareVersion: 'mobile-web-camera',
-        ipAddress: req.ip,
-        rawPayload: {
-          source: 'MOBILE_CAPTURE_PAIR',
-          laneCode: pairing.laneCode,
-          pairToken: pairing.pairToken,
-        },
+        status,
+        latencyMs,
       });
+      
+      let result: Awaited<ReturnType<typeof recordDeviceHeartbeat>> | null = null;
+      let heartbeatError: { code: string; message: string } | null = null;
+      try {
+        result = await recordDeviceHeartbeat({
+          requestId: heartbeatRequestId,
+          idempotencyKey: `mobile-hb:${Date.now()}:${pairing.deviceCode}`,
+          siteCode: pairing.siteCode,
+          deviceCode: pairing.deviceCode,
+          reportedAt: new Date(),
+          status: status === 'DEGRADED' ? 'DEGRADED' : status === 'OFFLINE' ? 'OFFLINE' : 'ONLINE',
+          latencyMs,
+          firmwareVersion: 'mobile-web-camera',
+          ipAddress: req.ip,
+          rawPayload: {
+            source: 'MOBILE_CAPTURE_PAIR',
+            laneCode: pairing.laneCode,
+            pairToken: pairing.pairToken,
+          },
+        });
+      } catch (rawErr) {
+        // If device not in DB, return a soft success so mobile camera doesn't keep failing.
+        // Log the error but don't block the heartbeat.
+        const err = rawErr as any;
+        heartbeatError = {
+          code: err.code ?? 'DEVICE_CONTEXT_ERROR',
+          message: err.message ?? String(rawErr),
+        };
+        logMobilePairingInfo('heartbeat-error', 'Heartbeat DB write failed (device may not exist in DB)', {
+          requestId: heartbeatRequestId,
+          pairToken: pairing.pairToken.slice(0, 8) + '...',
+          siteCode: pairing.siteCode,
+          deviceCode: pairing.deviceCode,
+          errorCode: heartbeatError.code,
+          errorMessage: heartbeatError.message,
+        });
+      }
+
       const rid = (req as any).id;
-      res.json(ok(rid, { pairing, heartbeat: result }));
+      res.json(ok(rid, stringifyBigint({
+        pairing,
+        heartbeat: result,
+        refreshed: true,
+        heartbeatError: heartbeatError ?? undefined,
+      })));
     } catch (e) {
       next(e);
     }
   });
 
+  // Mobile capture ALPR - public, uses pairToken
   api.post('/mobile-capture/alpr', async (req, res, next) => {
     try {
       const pairToken = String((req.query as any)?.pairToken ?? '').trim();
-      const pairing = await getMobilePairing(pairToken);
-      if (!pairing) {
-        throw new ApiError({ code: 'NOT_FOUND', message: 'Pair token mobile camera khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡' });
+      
+      if (!pairToken) {
+        throw new ApiError({ code: 'BAD_REQUEST', message: 'Thiếu pairToken cho ALPR capture' });
       }
+      
+      const pairing = await getMobilePairing(pairToken, { refreshTtlOnAccess: true });
+      if (!pairing) {
+        throw new ApiError({ 
+          code: 'NOT_FOUND', 
+          message: 'Pair token mobile camera không còn hiệu lực hoặc đã hết hạn. Vui lòng tạo pairing mới.' 
+        });
+      }
+      
       const body = (req.body && typeof req.body === 'object' && !Array.isArray(req.body)) ? req.body as Record<string, unknown> : {};
       const mediaId = body.mediaId == null ? null : String(body.mediaId).trim();
       const mediaView = mediaId ? await resolveMediaViewById(mediaId).catch(() => null) : null;
@@ -1788,23 +1890,51 @@ export async function buildApp() {
         ? body.imageUrl
         : mediaView?.viewUrl ?? null;
 
+      const captureRequestId = `mobile-alpr:${randomUUID()}`;
+      
+      logMobilePairingInfo('alpr-capture', 'Processing ALPR capture from mobile device', {
+        requestId: captureRequestId,
+        pairToken: pairing.pairToken.slice(0, 8) + '...',
+        siteCode: pairing.siteCode,
+        deviceCode: pairing.deviceCode,
+        laneCode: pairing.laneCode,
+        hasMedia: !!mediaId,
+      });
+
       const recognition = await recognizeLocalPlate({
         imageUrl,
         plateHint: typeof body.plateHint === 'string' ? body.plateHint : null,
       });
 
+      // Smart plate selection: if plateHint is valid VN format, use it instead of Tesseract garbage.
+      // Tesseract on mobile/casual photos often produces garbage → invalid.
+      const plateHintRaw = typeof body.plateHint === 'string' ? body.plateHint.trim() : '';
+      const plateHintCanonical = plateHintRaw ? buildPlateCanonical(plateHintRaw) : null;
+      const usePlateHint = plateHintCanonical && plateHintCanonical.plateValidity !== 'INVALID';
+      // If no valid plateHint: only use Tesseract result if it's valid VN format.
+      // Garbage Tesseract output → pass undefined so session opens as sensor event (no plate).
+      const tesseractIsValid = buildPlateCanonical(recognition.recognizedPlate).plateValidity !== 'INVALID';
+      const effectivePlateRaw = usePlateHint
+        ? (plateHintCanonical.plateRaw ?? plateHintRaw)
+        : tesseractIsValid
+          ? recognition.recognizedPlate
+          : undefined;
+
       const capture = await ingestAlprRead({
-        requestId: `mobile-alpr:${randomUUID()}`,
+        requestId: captureRequestId,
         idempotencyKey: `mobile-alpr:${Date.now()}:${pairing.deviceCode}`,
         siteCode: pairing.siteCode,
         laneCode: pairing.laneCode,
         deviceCode: pairing.deviceCode,
         direction: pairing.direction,
         occurredAt: new Date(),
-        plateRaw: recognition.recognizedPlate,
+        plateRaw: effectivePlateRaw,
         imageUrl: imageUrl ?? undefined,
         sourceMediaId: mediaId ?? undefined,
-        ocrConfidence: recognition.confidence,
+        ocrConfidence: usePlateHint ? 0.99 : recognition.confidence,
+        // Mobile capture: always skip strict validation — low-quality camera photos
+        // may produce Tesseract garbage. Let REVIEW queue handle uncertain plates.
+        skipStrictPlateValidation: true,
         rawPayload: {
           source: 'MOBILE_CAPTURE_PAIR',
           pairToken: pairing.pairToken,
@@ -1812,10 +1942,32 @@ export async function buildApp() {
           imagePath: recognition.imagePath,
           rawOcrText: recognition.rawText,
           originalFilename: recognition.originalFilename,
+          plateHintUsed: usePlateHint,
+          plateHintSource: usePlateHint ? plateHintRaw : null,
+          tesseractPlate: recognition.recognizedPlate,
+          tesseractIsValid,
+          tesseractConfidence: recognition.confidence,
         },
       });
+      
+      logMobilePairingInfo('alpr-capture-complete', 'ALPR capture processed successfully', {
+        requestId: captureRequestId,
+        pairToken: pairing.pairToken.slice(0, 8) + '...',
+        plateRaw: effectivePlateRaw,
+        plateHintUsed: usePlateHint,
+        confidence: usePlateHint ? 0.99 : recognition.confidence,
+        sessionId: capture.sessionId,
+      });
+      
       const rid = (req as any).id;
-      res.json(ok(rid, { pairing, mediaId, viewUrl: mediaView?.viewUrl ?? imageUrl, recognition, capture }));
+      res.json(ok(rid, stringifyBigint({
+        pairing,
+        mediaId,
+        viewUrl: mediaView?.viewUrl ?? imageUrl,
+        recognition,
+        capture,
+        refreshed: true,
+      })));
     } catch (e) {
       next(e);
     }
@@ -1908,7 +2060,22 @@ export async function buildApp() {
             && recognition.previewStatus !== 'INVALID'
             && recognition.candidates.length > 0;
 
-          if (!hasUsableRecognition && !isPreviewSurface) {
+          // Fallback "dữ liệu chạy": khi preview không đọc được biển số nhưng có plateHint thì dùng hint
+          const plateHintTrimmed = parsed.plateHint?.trim() ?? '';
+          const useHintAsFallback = !hasUsableRecognition && plateHintTrimmed.length > 0;
+          const effectivePlate = hasUsableRecognition
+            ? recognition.recognizedPlate
+            : useHintAsFallback
+              ? plateHintTrimmed
+              : '';
+          const effectiveConfidence = hasUsableRecognition ? recognition.confidence : (useHintAsFallback ? 0.99 : 0);
+          const effectiveCandidates = hasUsableRecognition
+            ? recognition.candidates
+            : useHintAsFallback
+              ? [{ plate: plateHintTrimmed.replace(/\s+/g, '').toUpperCase(), score: 99, votes: 0, cropVariants: [], psmModes: [], suspiciousFlags: [] as string[] }]
+              : recognition.candidates;
+
+          if (!hasUsableRecognition && !useHintAsFallback && !isPreviewSurface) {
             throw new ApiError({
               code: 'BAD_REQUEST',
               statusCode: 422,
@@ -1917,8 +2084,8 @@ export async function buildApp() {
             });
           }
 
-          const recognizedPlate = hasUsableRecognition ? recognition.recognizedPlate : '';
-          const confidence = hasUsableRecognition ? recognition.confidence : 0;
+          const recognizedPlate = effectivePlate;
+          const confidence = effectiveConfidence;
           const plateCanonical = recognizedPlate
             ? deriveAuthoritativePlateResult({
                 surface,
@@ -1940,9 +2107,9 @@ export async function buildApp() {
           return responseSchema.parse({
             recognizedPlate,
             confidence,
-            previewStatus: hasUsableRecognition ? recognition.previewStatus : 'INVALID',
+            previewStatus: hasUsableRecognition ? recognition.previewStatus : (useHintAsFallback ? 'NEEDS_REVIEW' : 'INVALID'),
             needsConfirm: hasUsableRecognition ? recognition.needsConfirm : true,
-            candidates: recognition.candidates.map((candidate) => ({
+            candidates: effectiveCandidates.map((candidate) => ({
               plate: candidate.plate,
               score: candidate.score,
               votes: candidate.votes,
@@ -1957,7 +2124,9 @@ export async function buildApp() {
                   rawText: recognition.winner.rawText,
                   score: recognition.winner.score,
                 }
-              : null,
+              : useHintAsFallback
+                ? { cropVariant: 'hint', psm: 0, rawText: plateHintTrimmed, score: 99 }
+                : null,
             raw: diagnostics,
             ...plateCanonical,
             plate: plateCanonical,
@@ -2194,6 +2363,23 @@ export async function buildApp() {
       const level = err.statusCode >= 500 ? 'error' : err.statusCode === 409 || err.statusCode === 412 || err.statusCode === 422 || err.statusCode === 401 || err.statusCode === 403 ? 'warn' : 'info';
       (req as any).log?.[level]?.(payload, 'api_error');
       res.status(err.statusCode).json(fail(rid, { code: err.code, message: err.message, details: err.details }));
+      return;
+    }
+
+    if (err instanceof DependencyUnavailableError) {
+      const payload = buildErrorLogPayload(err, req);
+      (req as any).log?.error?.({ ...payload, code: 'DEP_UNAVAILABLE', dependency: err.dependency }, 'api_error');
+      res.status(503).json(fail(rid, {
+        code: 'DEP_UNAVAILABLE',
+        message: err.message,
+        details: {
+          dependency: err.dependency,
+          hint: err.dependency === 'Redis'
+            ? 'Start Redis or set REDIS_REQUIRED=OFF if Redis is optional.'
+            : `Ensure ${err.dependency} is running and reachable.`,
+          ...(err.details != null ? { extra: err.details } : {}),
+        },
+      }));
       return;
     }
 

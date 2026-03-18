@@ -8,6 +8,7 @@ export type ApiErrorCode =
   | 'UNSUPPORTED_MEDIA_TYPE'
   | 'PAYLOAD_TOO_LARGE'
   | 'SERVICE_UNAVAILABLE'
+  | 'DEP_UNAVAILABLE'
   | 'INTERNAL_ERROR';
 
 export type ApiErrorEnvelope = {
@@ -42,6 +43,7 @@ const CODE_SET: ReadonlySet<string> = new Set<ApiErrorCode>([
   'UNSUPPORTED_MEDIA_TYPE',
   'PAYLOAD_TOO_LARGE',
   'SERVICE_UNAVAILABLE',
+  'DEP_UNAVAILABLE',
   'INTERNAL_ERROR',
 ]);
 
@@ -82,6 +84,8 @@ export function defaultMessageForCode(code: ApiErrorCode): string {
       return 'Payload too large';
     case 'SERVICE_UNAVAILABLE':
       return 'Service unavailable';
+    case 'DEP_UNAVAILABLE':
+      return 'Dependency unavailable';
     case 'INTERNAL_ERROR':
     default:
       return 'Unexpected server error';
@@ -117,6 +121,20 @@ export class ApiError extends Error {
   }
 }
 
+export class DependencyUnavailableError extends Error {
+  public readonly code = 'DEP_UNAVAILABLE' as const;
+  public readonly statusCode = 503;
+  public readonly dependency: string;
+  public readonly details?: unknown;
+
+  constructor(dependency: string, opts?: { message?: string; details?: unknown }) {
+    super(opts?.message ?? `${dependency} is unavailable`);
+    this.name = 'DependencyUnavailableError';
+    this.dependency = dependency;
+    this.details = opts?.details;
+  }
+}
+
 export function codeToStatus(code: ApiErrorCode): number {
   switch (code) {
     case 'BAD_REQUEST':
@@ -136,6 +154,8 @@ export function codeToStatus(code: ApiErrorCode): number {
     case 'UNPROCESSABLE_ENTITY':
       return 422;
     case 'SERVICE_UNAVAILABLE':
+      return 503;
+    case 'DEP_UNAVAILABLE':
       return 503;
     case 'INTERNAL_ERROR':
     default:

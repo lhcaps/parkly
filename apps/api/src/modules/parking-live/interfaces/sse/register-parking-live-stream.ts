@@ -11,8 +11,8 @@ import { getDefaultParkingLiveServiceDeps } from '../../application/list-parking
 import type { ParkingLiveDerivedStatus } from '../../domain/parking-live-types'
 
 const PARKING_LIVE_POLL_MS = (() => {
-  const raw = Number(process.env['PARKING_LIVE_STREAM_POLL_MS'] ?? 15_000)
-  return Number.isFinite(raw) && raw >= 2_000 ? raw : 15_000
+  const raw = Number(process.env['PARKING_LIVE_STREAM_POLL_MS'] ?? 5_000)
+  return Number.isFinite(raw) && raw >= 1_000 ? raw : 5_000
 })()
 
 const STALE_AFTER_MS = 3 * PARKING_LIVE_POLL_MS

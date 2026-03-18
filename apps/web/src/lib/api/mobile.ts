@@ -1,4 +1,4 @@
-import { apiFetch, postJson } from '@/lib/http/client'
+import { apiFetch, buildUrl, postJson } from '@/lib/http/client'
 import { isRecord } from '@/lib/http/errors'
 import { makeSseUrl } from '@/lib/http/sse'
 import type { CaptureReadRes, CaptureSignatureArgs, DeviceHeartbeatRes, GateEventWriteRes } from '@/lib/contracts/mobile'
@@ -39,6 +39,23 @@ export function validateEffectiveDeviceContext(
   if (!effective.laneCode) missing.push('laneCode')
   if (!effective.deviceCode) missing.push('deviceCode')
   if (!effective.deviceSecret) missing.push('deviceSecret')
+  return missing.length === 0 ? { valid: true } : { valid: false, missing }
+}
+
+/**
+ * Validation for mobile capture when using pair token: deviceSecret is optional.
+ * Use this for canSend / readiness when pairToken is present.
+ */
+export function validateForMobileCapture(
+  ctx: EffectiveDeviceContext,
+  options: { pairToken?: string | null },
+): { valid: true } | { valid: false; missing: string[] } {
+  const effective = normalizeEffectiveDeviceContext(ctx)
+  const missing: string[] = []
+  if (!effective.siteCode) missing.push('siteCode')
+  if (!effective.laneCode) missing.push('laneCode')
+  if (!effective.deviceCode) missing.push('deviceCode')
+  if (!options.pairToken && !effective.deviceSecret) missing.push('deviceSecret')
   return missing.length === 0 ? { valid: true } : { valid: false, missing }
 }
 
@@ -400,12 +417,13 @@ export function buildMobileCapturePairUrl(
   const originInfo = getMobilePairOriginInfo(options?.originOverride)
   if (!originInfo.effectiveOrigin) return ''
   const url = new URL('/mobile-capture', originInfo.effectiveOrigin)
+  // pairToken is required for backend; when from "Create pair" it is the backend-created token
+  if (context.token) url.searchParams.set('pairToken', context.token)
+  // Include context in URL so QR updates when user changes lane/device (backend uses pairToken only)
   if (context.siteCode) url.searchParams.set('siteCode', context.siteCode)
   if (context.laneCode) url.searchParams.set('laneCode', context.laneCode)
   if (context.direction) url.searchParams.set('direction', context.direction === 'EXIT' ? 'EXIT' : 'ENTRY')
   if (context.deviceCode) url.searchParams.set('deviceCode', context.deviceCode)
-  if (context.deviceSecret) url.searchParams.set('deviceSecret', context.deviceSecret)
-  if (context.token) url.searchParams.set('token', context.token)
   return url.toString()
 }
 
@@ -516,7 +534,7 @@ export function readMobileCaptureSeedFromLocation(
     direction: params.get('direction') === 'EXIT' ? 'EXIT' : 'ENTRY',
     deviceCode: params.get('deviceCode') || '',
     deviceSecret: params.get('deviceSecret') || '',
-    token: params.get('token') || '',
+    token: params.get('pairToken') || params.get('token') || '',  // Support both pairToken and token
     prefilledAt: new Date().toISOString(),
     source: 'empty',
   }
@@ -746,6 +764,178 @@ export async function sendDeviceHeartbeat(body: Omit<CaptureSignatureArgs, 'surf
       alreadyExists: typeof row.alreadyExists === 'boolean' ? row.alreadyExists : false,
     }
   })
+}
+
+/**
+ * Mobile capture heartbeat - uses pairToken instead of user auth
+ */
+export type MobileCaptureHeartbeatRes = {
+  pairing: unknown
+  heartbeat: unknown
+  refreshed: boolean
+  heartbeatError?: { code: string; message: string } | null
+}
+
+export async function sendMobileCaptureHeartbeat(args: {
+  pairToken: string
+  status: 'ONLINE' | 'DEGRADED' | 'OFFLINE'
+  latencyMs?: number | null
+  firmwareVersion?: string | null
+  ipAddress?: string | null
+  rawPayload?: unknown
+}): Promise<MobileCaptureHeartbeatRes> {
+  const path = `/api/mobile-capture/heartbeat?pairToken=${encodeURIComponent(args.pairToken)}`
+  const res = await fetch(buildUrl(path), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      status: args.status,
+      latencyMs: args.latencyMs ?? undefined,
+      firmwareVersion: args.firmwareVersion ?? undefined,
+      ipAddress: args.ipAddress ?? undefined,
+      rawPayload: args.rawPayload,
+    }),
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    // Try to extract structured API error from response body so callers
+    // (normalizeApiError) get code + details instead of a plain string.
+    let code: string | undefined
+    let message: string | undefined
+    let details: unknown = undefined
+    let requestId: string | undefined
+    try {
+      const parsed = JSON.parse(text)
+      if (parsed && typeof parsed === 'object') {
+        code = parsed.code
+        message = parsed.message
+        details = parsed.details
+        requestId = parsed.requestId
+      }
+    } catch { /* fall through to string message */ }
+    const err = new Error(
+      code
+        ? `Heartbeat failed: ${res.status} — ${code}: ${message ?? text}`
+        : `Heartbeat failed: ${res.status} ${res.statusText} - ${text}`,
+    ) as Error & { code?: string; details?: unknown; requestId?: string }
+    err.code = code
+    err.details = details
+    err.requestId = requestId
+    throw err
+  }
+  const envelope = await res.json() as { requestId?: string; data?: MobileCaptureHeartbeatRes }
+  return (envelope?.data ?? envelope) as MobileCaptureHeartbeatRes
+}
+
+/**
+ * Mobile capture ALPR - uses pairToken instead of user auth
+ */
+/** Response shape from POST /api/mobile-capture/upload */
+export type MobileCaptureUploadRes = {
+  mediaId?: string
+  imageUrl?: string
+  viewUrl?: string
+  filePath?: string
+  filename?: string
+}
+
+/** Response shape from POST /api/mobile-capture/alpr */
+export type MobileCaptureAlprRes = {
+  pairing: unknown
+  mediaId: string | null
+  viewUrl: string | null
+  recognition: unknown
+  capture: unknown
+  refreshed: boolean
+}
+
+export async function sendMobileCaptureAlpr(args: {
+  pairToken: string
+  mediaId?: string | null
+  imageUrl?: string | null
+  plateHint?: string | null
+}): Promise<MobileCaptureAlprRes> {
+  const path = `/api/mobile-capture/alpr?pairToken=${encodeURIComponent(args.pairToken)}`
+  const res = await fetch(buildUrl(path), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      mediaId: args.mediaId ?? undefined,
+      imageUrl: args.imageUrl ?? undefined,
+      plateHint: args.plateHint ?? undefined,
+    }),
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    let code: string | undefined
+    let message: string | undefined
+    let details: unknown = undefined
+    let requestId: string | undefined
+    try {
+      const parsed = JSON.parse(text)
+      if (parsed && typeof parsed === 'object') {
+        code = parsed.code
+        message = parsed.message
+        details = parsed.details
+        requestId = parsed.requestId
+      }
+    } catch { /* fall through */ }
+    const err = new Error(
+      code
+        ? `ALPR capture failed: ${res.status} — ${code}: ${message ?? text}`
+        : `ALPR capture failed: ${res.status} ${res.statusText} - ${text}`,
+    ) as Error & { code?: string; details?: unknown; requestId?: string; status?: number }
+    err.code = code
+    err.details = details
+    err.requestId = requestId
+    err.status = res.status
+    throw err
+  }
+  const envelope = await res.json() as { requestId?: string; data?: MobileCaptureAlprRes }
+  return (envelope?.data ?? envelope) as MobileCaptureAlprRes
+}
+
+/**
+ * Mobile capture upload - uses pairToken instead of user auth
+ */
+export async function sendMobileCaptureUpload(args: {
+  pairToken: string
+  file: File
+}): Promise<MobileCaptureUploadRes> {
+  const fd = new FormData()
+  fd.append('file', args.file)
+  const path = `/api/mobile-capture/upload?pairToken=${encodeURIComponent(args.pairToken)}`
+  const res = await fetch(buildUrl(path), {
+    method: 'POST',
+    body: fd,
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    let code: string | undefined
+    let message: string | undefined
+    let details: unknown = undefined
+    let requestId: string | undefined
+    try {
+      const parsed = JSON.parse(text)
+      if (parsed && typeof parsed === 'object') {
+        code = parsed.code
+        message = parsed.message
+        details = parsed.details
+        requestId = parsed.requestId
+      }
+    } catch { /* fall through */ }
+    const err = new Error(
+      code
+        ? `Upload failed: ${res.status} — ${code}: ${message ?? text}`
+        : `Upload failed: ${res.status} ${res.statusText} - ${text}`,
+    ) as Error & { code?: string; details?: unknown; requestId?: string }
+    err.code = code
+    err.details = details
+    err.requestId = requestId
+    throw err
+  }
+  const envelope = await res.json() as { requestId?: string; data?: MobileCaptureUploadRes }
+  return (envelope?.data ?? envelope) as MobileCaptureUploadRes
 }
 
 /**

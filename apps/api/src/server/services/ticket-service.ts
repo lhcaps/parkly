@@ -1,4 +1,5 @@
 import { prisma } from '../../lib/prisma'
+import type { Tx } from './with-actor'
 
 function normalizePlate(value?: string | null) {
   const v = String(value ?? '').trim().toUpperCase()
@@ -760,7 +761,7 @@ export async function resolveSubscriptionDecisionContext(args: {
   }
 }
 
-async function ensureVehicleTx(tx: any, args: { plateCompact?: string | null; rfidUid?: string | null; sessionId: bigint }) {
+async function ensureVehicleTx(tx: Tx, args: { plateCompact?: string | null; rfidUid?: string | null; sessionId: bigint }) {
   const licensePlate = normalizePlate(args.plateCompact) ?? buildFallbackVehiclePlate({ rfidUid: args.rfidUid, sessionId: args.sessionId })
   const existing = await tx.vehicles.findFirst({
     where: { license_plate: licensePlate },
@@ -779,7 +780,7 @@ async function ensureVehicleTx(tx: any, args: { plateCompact?: string | null; rf
   return BigInt(created.vehicle_id)
 }
 
-export async function createOrGetEntryTicketTx(tx: any, args: {
+export async function createOrGetEntryTicketTx(tx: Tx, args: {
   siteId: bigint
   siteCode: string
   sessionId: bigint
@@ -867,7 +868,7 @@ export async function createOrGetEntryTicketTx(tx: any, args: {
   }
 }
 
-export async function touchCredentialDirectionTx(tx: any, args: {
+export async function touchCredentialDirectionTx(tx: Tx, args: {
   siteId: bigint
   rfidUid?: string | null
   direction: 'ENTRY' | 'EXIT'

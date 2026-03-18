@@ -1,0 +1,34 @@
+# FastAPI + YOLOv8 + PaddleOCR ALPR Service
+# GPU-accelerated license plate recognition for Parkly parking system
+#
+# Python: 3.12+ supported. Works on Python 3.10/3.11 as well.
+
+# ── Server ────────────────────────────────────────────────────────────────────
+uvicorn[standard]==0.32.1
+fastapi==0.115.6
+python-multipart==0.0.20   # FastAPI file upload support
+
+# ── Model inference ─────────────────────────────────────────────────────────────
+# YOLOv8 (Ultralytics) — downloads yolov8n.pt on first run.
+ultralytics==8.3.52
+
+# PaddlePaddle: use GPU build if you have CUDA, otherwise CPU fallback.
+#   GPU: pip install paddlepaddle-gpu  (or paddlepaddle-gpu==3.3.0)
+#   CPU: pip install paddlepaddle==3.3.0
+paddlepaddle==3.3.0
+
+# PaddleOCR — works with paddlepaddle 3.x
+paddleocr==3.4.0
+
+# ── Utilities ────────────────────────────────────────────────────────────────
+numpy==1.26.4
+Pillow==10.4.0
+opencv-python-headless==4.10.0.84   # headless = no GUI dep, works in server env
+
+# ── HTTP client (for image URL fetching) ─────────────────────────────────────
+httpx==0.27.2
+
+# ── Dev / testing ───────────────────────────────────────────────────────────
+pytest==8.3.4
+pytest-asyncio==0.25.2
+

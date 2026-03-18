@@ -1,13 +1,15 @@
+import { prisma } from '../../../lib/prisma'
 import { ApiError } from '../../../server/http'
 import { createOrGetEntryTicketTx, touchCredentialDirectionTx } from '../../../server/services/ticket-service'
 import { clearActivePresenceTx, upsertActivePresenceTx } from '../../../server/services/presence-service'
 import type { DecisionEngineEvalResult } from './decision-engine'
+import type { Tx } from '../../../server/services/with-actor'
 
 function jsonSafe(value: unknown) {
   return JSON.parse(JSON.stringify(value ?? null, (_k, v) => (typeof v === 'bigint' ? v.toString() : v)))
 }
 
-export async function resolveBarrierDeviceIdTx(tx: any, args: {
+export async function resolveBarrierDeviceIdTx(tx: Tx, args: {
   laneId: bigint
   primaryDeviceId?: bigint | null
 }) {
@@ -27,7 +29,7 @@ export async function resolveBarrierDeviceIdTx(tx: any, args: {
   return args.primaryDeviceId ?? null
 }
 
-export async function ensureBarrierOpenCommandTx(tx: any, args: {
+export async function ensureBarrierOpenCommandTx(tx: Tx, args: {
   sessionId: bigint
   siteId: bigint
   laneId: bigint
@@ -70,7 +72,7 @@ export async function ensureBarrierOpenCommandTx(tx: any, args: {
 }
 
 export type ProcessEntryApprovalInput = {
-  tx: any
+  tx: Tx
   siteId: bigint
   siteCode: string
   laneId: bigint
@@ -159,7 +161,7 @@ export async function processApprovedEntryTx(input: ProcessEntryApprovalInput) {
   }
 }
 
-export async function markExitPassEffectsTx(tx: any, args: {
+export async function markExitPassEffectsTx(tx: Tx, args: {
   siteId: bigint
   sessionId: bigint
   ticketId?: bigint | null

@@ -1,1 +1,239 @@
-node_modules
+# =============================================
+# Python
+# =============================================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+*.venv/
+venv/
+.venv/
+
+# pip/poetry lock files (commit the template, not the lock)
+# pip freeze output (local dev artifact)
+requirements.txt
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Environments
+.env
+.env.local
+.env.*.local
+*.log
+local_settings.py
+db.json
+
+# Flask stuff
+instance/
+.webassets-cache
+
+# Scrapy
+.scrapy
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# FastAPI / uvicorn
+*.pid
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# PEP 582
+__pypackages__/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments (Django/ninja)
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# =============================================
+# Node.js / npm
+# =============================================
+# Dependencies
+node_modules/
+jspm_packages/
+
+# Build outputs
+.next/
+out/
+build/
+dist/
+*.tgz
+
+# Generated files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Diagnostic reports
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional stylelint cache
+.stylelintcache
+
+# Microbundle
+*.tsbuildinfo
+
+# =============================================
+# Services / ML Models
+# =============================================
+# ML model weights - use Git LFS for large models
+*.pt
+*.pth
+*.onnx
+*.h5
+*.pb
+*.tflite
+*.mlmodel
+*.pkl
+*.pickle
+!services/alpr/yolov8n.pt
+
+# Dataset cache
+*.cache
+
+# Model checkpoints
+checkpoints/
+*.ckpt
+
+# =============================================
+# IDE / OS
+# =============================================
+# IDE
+.idea/
+.idea_modules/
+*.iml
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Project specific
+cursor.env
+.cursor/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.orig
+*___jb_tmp___*
+
+# OS
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.lnk
+
+# =============================================
+# Docker / Dev
+# =============================================
+.dockerignore
+
+# Docker volumes
+*.vol
+
+# Local development
+*.local
+.local/
+
+# =============================================
+# Backup & Evidence artifacts
+# =============================================
+apps/api/.backups/
+apps/api/.runtime/
+release-evidence/*/artifacts/
+*.backup
+*.sql.bak
+
+# Media / Uploads
+media/
+uploads/
+*.media
+
+# Observability (runtime)
+*.prom
+*.metrics

@@ -1,7 +1,8 @@
-﻿import { useCallback } from 'react'
+import { useCallback } from 'react'
 import { useRunLaneActions, useRunLaneStoreApi } from '@/features/run-lane/store/runLaneStoreContext'
 import { submitLaneFlow } from '@/lib/api/laneFlow'
 import { cancelSession, confirmPass, getSessionDetail } from '@/lib/api/sessions'
+import type { DeviceRow } from '@/lib/contracts/devices'
 
 function rid(prefix: string) {
   return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`
@@ -11,13 +12,13 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error)
 }
 
-function findPrimaryCamera(devices: any[], laneCode: string) {
+function findPrimaryCamera(devices: DeviceRow[], laneCode: string) {
   return devices.find((device) => device.laneCode === laneCode && device.deviceRole === 'CAMERA')
     ?? devices.find((device) => device.laneCode === laneCode && String(device.deviceType ?? '').toUpperCase().includes('CAMERA'))
     ?? null
 }
 
-function findLoopSensor(devices: any[], laneCode: string) {
+function findLoopSensor(devices: DeviceRow[], laneCode: string) {
   return devices.find((device) => device.laneCode === laneCode && device.deviceRole === 'LOOP_SENSOR')
     ?? devices.find((device) => device.laneCode === laneCode && String(device.deviceType ?? '').toUpperCase().includes('SENSOR'))
     ?? null
@@ -30,8 +31,8 @@ export function useRunLaneSubmit() {
   const submitCurrentLaneFlow = useCallback(async () => {
     const state = store.getState()
     const selectedLane = state.topology.lanes.find((lane) => lane.laneCode === state.topology.laneCode) ?? null
-    const primaryCamera = findPrimaryCamera(state.topology.devices as any[], state.topology.laneCode)
-    const loopSensor = findLoopSensor(state.topology.devices as any[], state.topology.laneCode)
+    const primaryCamera = findPrimaryCamera(state.topology.devices, state.topology.laneCode)
+    const loopSensor = findLoopSensor(state.topology.devices, state.topology.laneCode)
 
     if (!state.topology.siteCode || !state.topology.laneCode || !selectedLane) {
       actions.setSubmitError('Insufficient lane context to submit.')

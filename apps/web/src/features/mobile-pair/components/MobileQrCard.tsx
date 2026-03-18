@@ -133,6 +133,7 @@ export function MobileQrCard({
 
           <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm text-muted-foreground">
             The pair QR only sets the mobile context. Preview, capture, and heartbeat still go through the API.
+            When opening the link on another device (e.g. phone), set <span className="font-mono text-[11px]">VITE_API_BASE_URL</span> to your API URL (e.g. <span className="font-mono text-[11px]">http://&lt;your-pc-ip&gt;:3000</span>) and run the API with <span className="font-mono text-[11px]">API_HOST=0.0.0.0</span> so the device can reach it.
           </div>
         </div>
       </div>

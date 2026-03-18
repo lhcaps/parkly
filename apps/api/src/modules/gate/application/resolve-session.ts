@@ -1,4 +1,4 @@
-﻿import { prisma } from '../../../lib/prisma';
+import { prisma } from '../../../lib/prisma';
 import { ApiError } from '../../../server/http';
 import { buildPlateCanonical } from '@parkly/gate-core';
 import {
@@ -275,7 +275,7 @@ export async function resolveGateSession(input: ResolveGateSessionInput) {
   type SessionReadRecord = NonNullable<Awaited<ReturnType<typeof recordSessionReadEvent>>>;
   let readEvent: SessionReadRecord['event'] | null = null;
 
-  await prisma.$transaction(async (tx: any) => {
+  await prisma.$transaction(async (tx) => {
     await tx.gate_passage_sessions.update({
       where: { session_id: session.session_id },
       data: {
@@ -469,7 +469,7 @@ export async function confirmGateSessionPass(input: ConfirmPassInput) {
     });
   }
 
-  await prisma.$transaction(async (tx: any) => {
+  await prisma.$transaction(async (tx) => {
     await tx.gate_passage_sessions.update({
       where: { session_id: sessionId },
       data: {
@@ -531,7 +531,7 @@ export async function cancelGateSession(input: CancelSessionInput) {
 
   ensureSessionTransition(session.status as SessionStatus, 'CANCELLED');
 
-  await prisma.$transaction(async (tx: any) => {
+  await prisma.$transaction(async (tx) => {
     await tx.gate_passage_sessions.update({
       where: { session_id: sessionId },
       data: {

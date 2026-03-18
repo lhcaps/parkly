@@ -1,4 +1,5 @@
 import { prisma } from '../../lib/prisma'
+import type { Tx } from './with-actor'
 
 function normalizePlate(value?: string | null) {
   const v = String(value ?? '').trim().toUpperCase()
@@ -91,13 +92,13 @@ export async function findActivePresenceConflicts(args: {
   })
 }
 
-async function findExistingActivePresenceTx(tx: any, args: {
+async function findExistingActivePresenceTx(tx: Tx, args: {
   siteId: bigint
   ticketId?: bigint | null
   plateCompact?: string | null
   rfidUid?: string | null
 }) {
-  const rows = await tx.$queryRawUnsafe(
+  const rows = await tx.$queryRawUnsafe<Array<{ presenceId: string }>>(
     `
       SELECT presence_id AS presenceId
       FROM gate_active_presence
@@ -120,10 +121,10 @@ async function findExistingActivePresenceTx(tx: any, args: {
     normalizeRfid(args.rfidUid),
   )
 
-  return rows[0]?.presenceId == null ? null : BigInt(rows[0].presenceId as any)
+  return rows[0]?.presenceId == null ? null : BigInt(rows[0].presenceId)
 }
 
-export async function upsertActivePresenceTx(tx: any, args: {
+export async function upsertActivePresenceTx(tx: Tx, args: {
   siteId: bigint
   sessionId: bigint
   ticketId?: bigint | null
@@ -203,7 +204,7 @@ export async function upsertActivePresenceTx(tx: any, args: {
   }
 }
 
-export async function clearActivePresenceTx(tx: any, args: {
+export async function clearActivePresenceTx(tx: Tx, args: {
   siteId: bigint
   ticketId?: bigint | null
   plateCompact?: string | null

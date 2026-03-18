@@ -134,7 +134,10 @@ function parseJsonObject(value: unknown): Record<string, unknown> {
     try {
       const parsed = JSON.parse(value)
       return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {}
-    } catch { return {} }
+    } catch (err) {
+      console.warn('[incident-service] failed to parse JSON:', err)
+      return {}
+    }
   }
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
 }

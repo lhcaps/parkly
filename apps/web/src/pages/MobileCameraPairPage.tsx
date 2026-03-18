@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/ops/console'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ValidationSummary } from '@/components/forms/validation-summary'
+import { DegradedBanner } from '@/components/state/degraded-banner'
 import { ConfirmActionButton, PageStateRenderer, StateBanner } from '@/components/state/page-state'
 import { MobilePairForm, type MobilePairDraft } from '@/features/mobile-pair/components/MobilePairForm'
 import { MobileQrCard } from '@/features/mobile-pair/components/MobileQrCard'
@@ -20,7 +21,8 @@ import {
 } from '@/lib/api/mobile'
 import { getDevices } from '@/lib/api/devices'
 import { getLanes, getSites } from '@/lib/api/topology'
-import { extractValidationFieldErrors } from '@/lib/http/errors'
+import { extractValidationFieldErrors, normalizeApiError } from '@/lib/http/errors'
+import { postJson } from '@/lib/http/client'
 import type { DeviceRow } from '@/lib/contracts/devices'
 import type { LaneRow, SiteRow } from '@/lib/contracts/topology'
 
@@ -45,12 +47,12 @@ async function copyText(value: string) {
   }
 }
 
-function validatePairDraft(draft: MobilePairDraft) {
+/** Validation for Create pair (backend creates pairToken; deviceSecret not required). */
+function validatePairDraftForCreate(draft: MobilePairDraft) {
   const items: Array<{ field: string; message: string }> = []
   if (!draft.siteCode) items.push({ field: 'siteCode', message: 'Select site before creating a pair.' })
   if (!draft.laneCode) items.push({ field: 'laneCode', message: 'Select lane so the pair link retains context.' })
-  if (!draft.deviceCode) items.push({ field: 'deviceCode', message: 'Device missingCode để mobile gửi heartbeat/capture đúng devices.' })
-  if (!draft.deviceSecret) items.push({ field: 'deviceSecret', message: 'Device missingSecret để ký request từ mobile.' })
+  if (!draft.deviceCode) items.push({ field: 'deviceCode', message: 'Select device so mobile heartbeat/capture are attributed correctly.' })
   return items
 }
 
@@ -62,6 +64,7 @@ export function MobileCameraPairPage() {
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
   const [message, setMessage] = useState('')
+  const [messageTone, setMessageTone] = useState<'success' | 'info'>('success')
   const [error, setError] = useState<unknown>(null)
   const [activePairs, setActivePairs] = useState<ActiveMobilePair[]>(() => listActiveMobilePairs())
 
@@ -127,7 +130,7 @@ export function MobileCameraPairPage() {
     () => buildMobileCapturePairUrl(draft, { originOverride: originInfo.effectiveOrigin }),
     [draft, originInfo.effectiveOrigin],
   )
-  const draftValidation = useMemo(() => validatePairDraft(draft), [draft])
+  const draftValidation = useMemo(() => validatePairDraftForCreate(draft), [draft])
   const backendValidation = useMemo(
     () => extractValidationFieldErrors(error instanceof Error ? (error as any).details : undefined),
     [error],
@@ -138,7 +141,8 @@ export function MobileCameraPairPage() {
     setCopied(ok)
     if (ok) {
       window.setTimeout(() => setCopied(false), 1800)
-      setMessage('Pair link copied.')
+      setMessage('Pair link copied to clipboard.')
+      setMessageTone('info')
     }
   }
 
@@ -151,21 +155,63 @@ export function MobileCameraPairPage() {
     window.open(url, '_blank', 'noopener,noreferrer')
   }
 
-  function handleCreatePair() {
+  async function handleCreatePair() {
     if (draftValidation.length > 0) {
       setMessage('Required context missing to create pair.')
       return
     }
 
-    const row = registerActiveMobilePair(draft, { originOverride: originInfo.effectiveOrigin })
-    setActivePairs(listActiveMobilePairs())
-    setMessage(`Created pair ${row.pairId}.`)
+    setBusy(true)
+    setMessage('')
+    setError(null)
+
+    try {
+      // Call backend API to create real pairing with pairToken
+      const result = await postJson<{
+        pairToken: string
+        siteCode: string
+        laneCode: string
+        direction: string
+        deviceCode: string
+        mobileUrl: string
+      }>('/api/mobile-capture/pair', {
+        siteCode: draft.siteCode,
+        laneCode: draft.laneCode,
+        direction: draft.direction,
+        deviceCode: draft.deviceCode,
+      })
+
+      // Update draft with the backend-created pairToken
+      const updatedDraft = { ...draft, token: result.pairToken }
+      setDraft(updatedDraft)
+
+      // Register in local storage with the backend-created pairToken
+      const localRow = registerActiveMobilePair(
+        {
+          ...updatedDraft,
+          token: result.pairToken,
+        },
+        { originOverride: originInfo.effectiveOrigin }
+      )
+
+      setActivePairs(listActiveMobilePairs())
+      setMessage(`Created pair ${localRow.pairId}. Use the updated URL or QR below.`)
+      setMessageTone('success')
+    } catch (err) {
+      const normalizedErr = normalizeApiError(err)
+      setError(normalizedErr)
+      setMessage('Failed to create pair: ' + (normalizedErr.message || 'Unknown error'))
+      setMessageTone('info')
+    } finally {
+      setBusy(false)
+    }
   }
 
   function handleRemovePair(pairId: string) {
     removeActiveMobilePair(pairId)
     setActivePairs(listActiveMobilePairs())
-    setMessage(`Deleted pair ${pairId}.`)
+    setMessage(`Removed pair "${pairId}" from this browser's registry.`)
+    setMessageTone('info')
   }
 
   return (
@@ -185,7 +231,14 @@ export function MobileCameraPairPage() {
       />
 
       <ValidationSummary items={[...draftValidation, ...backendValidation]} />
-      {message ? <StateBanner className="border-border/80 bg-card/95">{message}</StateBanner> : null}
+      {message && !error ? (
+        <DegradedBanner
+          title={messageTone === 'success' ? 'Success' : 'Notice'}
+          description={message}
+          tone={messageTone}
+          className="rounded-2xl"
+        />
+      ) : null}
       {error ? <StateBanner error={error} /> : null}
 
       <PageStateRenderer
@@ -223,7 +276,7 @@ export function MobileCameraPairPage() {
                 </div>
 
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <Button type="button" onClick={handleCreatePair} disabled={busy || draftValidation.length > 0 || !pairUrl}>
+                  <Button type="button" onClick={handleCreatePair} disabled={busy || draftValidation.length > 0}>
                     {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wifi className="h-4 w-4" />}
                     Create pair
                   </Button>
@@ -253,10 +306,7 @@ export function MobileCameraPairPage() {
             effectiveOrigin={originInfo.effectiveOrigin}
             onOpen={(row) => handleOpenPairUrl(row.pairUrl, row.pairId)}
             onCopy={(row) => void copyText(row.pairUrl)}
-            onRemove={(pairId) => {
-              if (!window.confirm(`Delete pair ${pairId}?\n\nThis only removes the local registry entry on this browser.`)) return
-              handleRemovePair(pairId)
-            }}
+            onRemove={handleRemovePair}
           />
 
           {activePairs.length > 0 ? (
@@ -269,7 +319,8 @@ export function MobileCameraPairPage() {
                 onConfirm={() => {
                   activePairs.forEach((row) => removeActiveMobilePair(row.pairId))
                   setActivePairs(listActiveMobilePairs())
-                  setMessage('All local pair registry entries cleared.')
+                  setMessage('All pair entries have been removed from this browser\'s local registry.')
+                  setMessageTone('info')
                 }}
               >
                 Clear local registry

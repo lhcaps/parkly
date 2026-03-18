@@ -1,6 +1,7 @@
 import { ApiError } from '../../../../server/http'
 import { buildAuditActorSnapshot, writeAuditLog } from '../../../../server/services/audit-service'
 import { getAllowedActions, isTerminalSessionStatus, type SessionAllowedAction, type SessionStatus } from '../../domain/session'
+import type { Tx } from '../../../../server/services/with-actor'
 
 export type ReviewActor = {
   role: string
@@ -28,7 +29,7 @@ export function auditActorSnapshot(actor: ReviewActor) {
   }
 }
 
-export async function resolveExistingActorUserIdTx(tx: any, actorUserId?: bigint): Promise<bigint | null> {
+export async function resolveExistingActorUserIdTx(tx: Tx, actorUserId?: bigint): Promise<bigint | null> {
   if (actorUserId == null) return null
 
   const found = await tx.users.findUnique({
@@ -54,7 +55,7 @@ export function appendAuditTrail(existing: unknown, entry: Record<string, unknow
   }
 }
 
-export async function captureSessionReviewSnapshotTx(tx: any, args: {
+export async function captureSessionReviewSnapshotTx(tx: Tx, args: {
   sessionId: bigint
   reviewId?: bigint | null
 }) {
@@ -196,7 +197,7 @@ export function ensureReviewMutationAllowed(review: any, args: {
   }
 }
 
-export async function ensureReviewRowTx(tx: any, args: {
+export async function ensureReviewRowTx(tx: Tx, args: {
   sessionId: bigint
   siteId: bigint
   laneId: bigint

@@ -3,6 +3,19 @@ import { randomUUID } from 'node:crypto'
 import { config } from '../config'
 import { buildRedisKey, runRedisCommand } from '../../lib/redis'
 import { claimReplayGuard, isRevoked, revoke } from './auth-revocation.service'
+import { apiLogger as logger } from '../logger'
+
+function logMobilePairingError(context: string, error: unknown, details?: Record<string, unknown>) {
+  const message = error instanceof Error ? error.message : String(error)
+  const meta = error instanceof Error ? { stack: error.stack, ...details } : details
+  logger.error({ msg: `[mobile-pairing] ${context}: ${message}`, ...meta })
+}
+
+function logMobilePairingInfo(context: string, message: string, details?: Record<string, unknown>) {
+  logger.info({ msg: `[mobile-pairing] ${context}: ${message}`, ...details })
+}
+
+export { logMobilePairingInfo }
 
 export type MobilePairingContext = {
   pairToken: string
@@ -116,19 +129,25 @@ async function readStoredPairing(pairToken: string): Promise<MobilePairingContex
   const token = normalizePairToken(pairToken)
   if (!token) return null
 
-  const raw = await runRedisCommand('GET', async (client) => {
-    return await client.get(buildPairingKey(token))
-  })
-
-  if (!raw) return null
-
   try {
-    const parsed = JSON.parse(raw)
-    return normalizePairingContext(parsed)
-  } catch {
-    await runRedisCommand('DEL', async (client) => {
-      await client.del(buildPairingKey(token))
+    const raw = await runRedisCommand('GET', async (client) => {
+      return await client.get(buildPairingKey(token))
     })
+
+    if (!raw) return null
+
+    try {
+      const parsed = JSON.parse(raw)
+      return normalizePairingContext(parsed)
+    } catch (parseError) {
+      logMobilePairingError('JSON parse failed for stored pairing', parseError, { token: token.slice(0, 8) + '...' })
+      await runRedisCommand('DEL', async (client) => {
+        await client.del(buildPairingKey(token))
+      })
+      return null
+    }
+  } catch (redisError) {
+    logMobilePairingError('Redis error reading pairing', redisError, { token: token.slice(0, 8) + '...' })
     return null
   }
 }
@@ -180,6 +199,16 @@ export async function createMobilePairing(args: {
     expiresAt: new Date(createdAt.getTime() + runtime.ttlSec * 1000).toISOString(),
   }
 
+  logMobilePairingInfo('createMobilePairing - created', 'New mobile pairing created', {
+    pairToken: pairing.pairToken.slice(0, 8) + '...',
+    siteCode: pairing.siteCode,
+    laneCode: pairing.laneCode,
+    deviceCode: pairing.deviceCode,
+    direction: pairing.direction,
+    expiresAt: pairing.expiresAt,
+    ttlSec: runtime.ttlSec,
+  })
+
   await writeStoredPairing(pairing, runtime.ttlSec)
   return pairing
 }
@@ -189,18 +218,31 @@ export async function getMobilePairing(
   opts: GetMobilePairingOptions = {},
 ): Promise<MobilePairingContext | null> {
   const token = normalizePairToken(pairToken)
-  if (!token) return null
+  if (!token) {
+    logMobilePairingError('getMobilePairing - invalid token', new Error('empty token'), { hasToken: !!pairToken })
+    return null
+  }
 
   if (await isRevoked(token)) {
+    logMobilePairingError('getMobilePairing - token revoked', new Error('revoked'), { token: token.slice(0, 8) + '...' })
     return null
   }
 
   const pairing = await readStoredPairing(token)
   if (!pairing) {
+    logMobilePairingError('getMobilePairing - pairing not found', new Error('not found'), { token: token.slice(0, 8) + '...' })
     return null
   }
 
-  if (new Date(pairing.expiresAt).getTime() <= Date.now()) {
+  const expiryTime = new Date(pairing.expiresAt).getTime()
+  const now = Date.now()
+  
+  if (expiryTime <= now) {
+    logMobilePairingError('getMobilePairing - token expired', new Error('expired'), { 
+      token: token.slice(0, 8) + '...',
+      expiresAt: pairing.expiresAt,
+      now: new Date(now).toISOString(),
+    })
     await runRedisCommand('DEL', async (client) => {
       await client.del(buildPairingKey(token))
     })
@@ -211,6 +253,13 @@ export async function getMobilePairing(
   const shouldRefresh = opts.refreshTtlOnAccess !== false && runtime.refreshOnAccess
 
   if (!shouldRefresh) {
+    const timeUntilExpiry = Math.floor((expiryTime - now) / 1000 / 60)
+    if (timeUntilExpiry <= 5) {
+      logMobilePairingInfo('getMobilePairing - expiring soon', 'Token will expire soon', { 
+        token: token.slice(0, 8) + '...',
+        minutesUntilExpiry: timeUntilExpiry,
+      })
+    }
     return pairing
   }
 
@@ -223,6 +272,12 @@ export async function getMobilePairing(
     return pairing
   }
 
+  logMobilePairingInfo('getMobilePairing - refreshing TTL', 'Extending session TTL', { 
+    token: token.slice(0, 8) + '...',
+    currentTtlSec: ttlSec,
+    newTtlSec: runtime.ttlSec,
+  })
+  
   return await refreshStoredPairing(pairing)
 }
 

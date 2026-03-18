@@ -380,7 +380,7 @@ function mapProjectionRow(row: any): SpotProjectionRow {
       row.snapshotJson == null
         ? {}
         : typeof row.snapshotJson === 'string'
-          ? (() => { try { return JSON.parse(row.snapshotJson) } catch { return {} } })()
+          ? (() => { try { return JSON.parse(row.snapshotJson) } catch (err) { console.warn('[reconciliation] failed to parse snapshotJson:', err); return {} } })()
           : typeof row.snapshotJson === 'object'
             ? row.snapshotJson
             : {},

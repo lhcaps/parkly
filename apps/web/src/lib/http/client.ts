@@ -226,10 +226,16 @@ function createHttpError(response: Response, payload: unknown, rawText: string) 
         ? payload.error.trim()
         : ''
 
+    // Prefer top-level code (backend fail() envelope) over generic HTTP code
+    const topCode = typeof payload.code === 'string' && payload.code.trim()
+      ? payload.code.trim()
+      : null
+
     const args = {
       status: response.status,
-      code: `HTTP_${response.status}`,
+      code: topCode ?? `HTTP_${response.status}`,
       message: message ? `HTTP ${response.status}: ${message}` : `HTTP ${response.status} ${response.statusText}`,
+      details: 'details' in payload ? payload.details : undefined,
       requestId,
     }
 

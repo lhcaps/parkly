@@ -1,0 +1,23 @@
+# Same as requirements.txt but with PaddlePaddle CPU build.
+# Use when: no GPU, or paddlepaddle-gpu has no wheel for your platform.
+#   pip install -r requirements-cpu.txt
+
+uvicorn[standard]==0.32.1
+fastapi==0.115.6
+python-multipart==0.0.20
+
+ultralytics==8.3.52
+
+# CPU build — no CUDA required; slower for large images.
+paddlepaddle==3.3.0
+
+paddleocr==3.4.0
+
+numpy==1.26.4
+Pillow==10.4.0
+opencv-python-headless==4.10.0.84
+
+httpx==0.27.2
+
+pytest==8.3.4
+pytest-asyncio==0.25.2

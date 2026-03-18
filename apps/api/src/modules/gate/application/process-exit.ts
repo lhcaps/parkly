@@ -1,11 +1,13 @@
+import { prisma } from '../../../lib/prisma'
 import { ApiError } from '../../../server/http'
 import { clearActivePresenceTx } from '../../../server/services/presence-service'
 import { touchCredentialDirectionTx } from '../../../server/services/ticket-service'
 import type { DecisionEngineEvalResult } from './decision-engine'
 import { ensureBarrierOpenCommandTx, resolveBarrierDeviceIdTx } from './process-entry'
+import type { Tx } from '../../../server/services/with-actor'
 
 export type ProcessExitApprovalInput = {
-  tx: any
+  tx: Tx
   siteId: bigint
   laneId: bigint
   laneCode: string

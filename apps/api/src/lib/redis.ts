@@ -345,7 +345,10 @@ export async function getRedisClient(opts: { connect?: boolean } = {}): Promise<
 export async function runRedisCommand<T>(commandName: string, fn: (client: Redis) => Promise<T>): Promise<T> {
   const client = await getRedisClient({ connect: true })
   if (!client) {
-    throw new Error('Redis client is not configured')
+    const { DependencyUnavailableError } = await import('../server/http')
+    throw new DependencyUnavailableError('Redis', {
+      message: 'Redis client is not configured — ensure Redis is running and REDIS_URL / REDIS_REQUIRED are set correctly.',
+    })
   }
 
   const startedAt = process.hrtime.bigint()
@@ -362,6 +365,21 @@ export async function runRedisCommand<T>(commandName: string, fn: (client: Redis
     return result
   } catch (error) {
     rememberRedisFailure(error, commandName)
+    const { DependencyUnavailableError } = await import('../server/http')
+    const message = error instanceof Error ? error.message : String(error)
+    // Re-throw as DependencyUnavailableError for connection/timeout errors
+    if (
+      message.includes('ECONNREFUSED') ||
+      message.includes('ETIMEDOUT') ||
+      message.includes('ENOTFOUND') ||
+      message.includes('Redis is unable') ||
+      message.includes('Connection is closed') ||
+      message.includes('CLUSTERDOWN') ||
+      /ioredis.*(error|timeout|closed)/i.test(message) ||
+      commandName === 'PING'
+    ) {
+      throw new DependencyUnavailableError('Redis', { message, details: { command: commandName } })
+    }
     throw error
   }
 }

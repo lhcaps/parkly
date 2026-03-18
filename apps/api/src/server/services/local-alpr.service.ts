@@ -568,7 +568,7 @@ export async function recognizeLocalPlate(args: { imageUrl?: string | null; plat
     const orchestration = await runAlprProviderOrchestration({
       imageUrl: args.imageUrl ?? null,
       imagePath: imageSource.absolutePath,
-      plateHint: null,
+      plateHint: args.plateHint ?? null,
       localTopCandidate: ranked.candidates[0] ?? null,
     });
 

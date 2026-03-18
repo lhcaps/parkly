@@ -83,8 +83,8 @@ export type OpenGateSessionInput = {
   payload?: unknown;
 };
 
-function jsonSafe(value: unknown): any {
-  return JSON.parse(JSON.stringify(value ?? null, (_k, v) => (typeof v === 'bigint' ? v.toString() : v)));
+function jsonSafe<T>(value: unknown): T {
+  return JSON.parse(JSON.stringify(value ?? null, (_k, v) => (typeof v === 'bigint' ? v.toString() : v))) as T;
 }
 
 function asDirection(value: string): SessionDirection {

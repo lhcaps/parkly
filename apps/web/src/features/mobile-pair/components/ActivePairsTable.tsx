@@ -1,6 +1,7 @@
 import { Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ConfirmActionButton } from '@/components/state/page-state'
 import { deriveActiveMobilePairOriginState, type ActiveMobilePair } from '@/lib/api/mobile'
 
 export function ActivePairsTable({
@@ -63,10 +64,16 @@ export function ActivePairsTable({
                     <Button type="button" size="sm" onClick={() => onOpen(row)}>
                       Open
                     </Button>
-                    <Button type="button" variant="ghost" size="sm" onClick={() => onRemove(row.pairId)}>
+                    <ConfirmActionButton
+                      variant="ghost"
+                      size="sm"
+                      confirmTitle="Remove pair from list?"
+                      confirmDescription="This only removes the entry from this browser's local registry. The pair token on the server is not revoked; you can still use the link until it expires."
+                      onConfirm={() => onRemove(row.pairId)}
+                    >
                       <Trash2 className="h-4 w-4" />
                       Remove
-                    </Button>
+                    </ConfirmActionButton>
                   </div>
                 </div>
               </div>

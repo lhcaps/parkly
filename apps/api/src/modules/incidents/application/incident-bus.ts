@@ -16,7 +16,11 @@ export async function publishIncidentEnvelope<T = unknown>(args: {
 }) {
   const envelope = await publishSseEnvelope(INCIDENT_SSE_CHANNEL, args)
   for (const listener of listeners) {
-    try { listener(envelope) } catch {}
+    try { 
+      listener(envelope) 
+    } catch (err) {
+      console.error('[incident-bus] listener error:', err)
+    }
   }
   return envelope
 }

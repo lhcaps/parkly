@@ -91,9 +91,13 @@ export function MobileContextSummaryCard({
             <Badge variant="outline">{effectiveCtx.laneCode || 'no-lane'}</Badge>
             <Badge variant={effectiveCtx.direction === 'ENTRY' ? 'entry' : 'exit'}>{effectiveCtx.direction}</Badge>
             <Badge variant="muted">{effectiveCtx.deviceCode || 'no-device'}</Badge>
-            <Badge variant={effectiveCtx.deviceSecret ? 'secondary' : 'destructive'}>
-              secret {maskDeviceSecret(effectiveCtx.deviceSecret)}
-            </Badge>
+            {pairToken ? (
+              <Badge variant="secondary">pair token</Badge>
+            ) : (
+              <Badge variant={effectiveCtx.deviceSecret ? 'secondary' : 'destructive'}>
+                secret {maskDeviceSecret(effectiveCtx.deviceSecret)}
+              </Badge>
+            )}
             {hasManualOverrides ? (
               <Badge variant="amber">
                 <Edit3 className="h-3 w-3" />
@@ -108,9 +112,13 @@ export function MobileContextSummaryCard({
             <Badge variant="outline">{seedCtx.laneCode || 'no-lane'}</Badge>
             <Badge variant={seedCtx.direction === 'ENTRY' ? 'entry' : 'exit'}>{seedCtx.direction}</Badge>
             <Badge variant="muted">{seedCtx.deviceCode || 'no-device'}</Badge>
-            <Badge variant={seedCtx.deviceSecret ? 'secondary' : 'outline'}>
-              secret {maskDeviceSecret(seedCtx.deviceSecret)}
-            </Badge>
+            {pairToken ? (
+              <Badge variant="outline">pair token</Badge>
+            ) : (
+              <Badge variant={seedCtx.deviceSecret ? 'secondary' : 'outline'}>
+                secret {maskDeviceSecret(seedCtx.deviceSecret)}
+              </Badge>
+            )}
             <Badge variant="outline">prefill={formatDateTime(seedCtx.prefilledAt)}</Badge>
           </ContextChipRow>
         </div>

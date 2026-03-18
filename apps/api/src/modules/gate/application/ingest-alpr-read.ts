@@ -22,6 +22,8 @@ export async function ingestAlprRead(input: {
   sourceMediaId?: string | number | bigint | null;
   ocrConfidence?: number;
   rawPayload?: unknown;
+  /** When true, do not throw on INVALID plate (e.g. caller uses ALPR_MOCK or mobile capture). */
+  skipStrictPlateValidation?: boolean;
 }) {
   const context = await resolveLaneContext({
     siteCode: input.siteCode,
@@ -31,11 +33,23 @@ export async function ingestAlprRead(input: {
   });
 
   const plateCanonical = buildPlateCanonical(input.plateRaw);
-  if (input.plateRaw && plateCanonical.plateValidity === 'INVALID') {
+  const looksMock = /^MOCK/i.test(input.plateRaw ?? '');
+  const shouldSkipStrictValidation = Boolean(input.skipStrictPlateValidation) || looksMock;
+
+  if (input.plateRaw && plateCanonical.plateValidity === 'INVALID' && !shouldSkipStrictValidation) {
+    const reasons = (plateCanonical.validationNotes ?? []).join('; ');
     throw new ApiError({
       code: 'BAD_REQUEST',
       message: 'Plate không vượt qua strict validation ở backend',
-      details: plateCanonical,
+      details: {
+        plateRaw: input.plateRaw,
+        validity: plateCanonical.plateValidity,
+        family: plateCanonical.plateFamily,
+        validationNotes: plateCanonical.validationNotes,
+        reasons,
+        suggestion:
+          'Nếu đang dùng ALPR thật, hãy thử chụp lại ảnh rõ hơn. Nếu đang dev/test, đặt ALPR_MODE=MOCK trong .env và dùng plateHint.',
+      },
     });
   }
 
