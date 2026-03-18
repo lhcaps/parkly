@@ -14,6 +14,13 @@ const STATUS_OPTIONS: SelectOption[] = [
   { value: 'CANCELLED', label: 'CANCELLED', badge: 'cancelled', badgeVariant: 'error' },
 ]
 
+const RISK_FILTERS = [
+  { value: 'expiring', label: 'Expiring', description: 'Expires within 30 days' },
+  { value: 'suspended', label: 'Suspended', description: 'Suspended subscriptions' },
+  { value: 'no-vehicle', label: 'No vehicle', description: 'Missing linked vehicles' },
+  { value: 'no-spot', label: 'No spot', description: 'Missing linked spots' },
+]
+
 function buildSiteOptions(sites: SiteRow[]): SelectOption[] {
   return [
     { value: '', label: 'All sites' },
@@ -40,6 +47,8 @@ type Props = {
   onClearPlate: () => void
   onReset: () => void
   onRefresh: () => void
+  onRiskFilterToggle?: (riskFilter: string) => void
+  activeRiskFilters?: string[]
 }
 
 export function SubscriptionsFilterBar({
@@ -55,6 +64,8 @@ export function SubscriptionsFilterBar({
   onClearPlate,
   onReset,
   onRefresh,
+  onRiskFilterToggle,
+  activeRiskFilters = [],
 }: Props) {
   const siteOptions = buildSiteOptions(sites)
 
@@ -63,7 +74,7 @@ export function SubscriptionsFilterBar({
       className="ops-sticky-bar"
       contentClassName="pt-0"
       title="Filters"
-      description="Filter by site, effective status, and plate." 
+      description="Filter by site, effective status, plate, or risk flags." 
       actions={
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={onRefresh} disabled={busy}>
@@ -74,40 +85,62 @@ export function SubscriptionsFilterBar({
         </div>
       }
     >
-      <div className="grid gap-3 md:grid-cols-3">
-        <Select
-          value={siteCode}
-          onChange={onSiteChange}
-          options={siteOptions}
-          placeholder="All sites"
-          disabled={busy}
-        />
-        <Select
-          value={status}
-          onChange={(value) => onStatusChange(value as SubscriptionEffectiveStatus | '')}
-          options={STATUS_OPTIONS}
-          placeholder="All statuses"
-          disabled={busy}
-        />
-        <form
-          onSubmit={(event) => {
-            event.preventDefault()
-            onSubmitPlate()
-          }}
-          className="flex gap-2"
-        >
-          <Input
-            value={plateInput}
-            onChange={(event) => onPlateInputChange(event.target.value.toUpperCase())}
-            placeholder="Filter by plate"
-            className="flex-1 font-mono-data"
+      <div className="space-y-3">
+        <div className="grid gap-3 md:grid-cols-3">
+          <Select
+            value={siteCode}
+            onChange={onSiteChange}
+            options={siteOptions}
+            placeholder="All sites"
+            disabled={busy}
           />
-          {plateInput ? (
-            <Button type="button" variant="ghost" size="icon" onClick={onClearPlate} aria-label="Clear plate filter">
-              <X className="h-4 w-4" />
-            </Button>
-          ) : null}
-        </form>
+          <Select
+            value={status}
+            onChange={(value) => onStatusChange(value as SubscriptionEffectiveStatus | '')}
+            options={STATUS_OPTIONS}
+            placeholder="All statuses"
+            disabled={busy}
+          />
+          <form
+            onSubmit={(event) => {
+              event.preventDefault()
+              onSubmitPlate()
+            }}
+            className="flex gap-2"
+          >
+            <Input
+              value={plateInput}
+              onChange={(event) => onPlateInputChange(event.target.value.toUpperCase())}
+              placeholder="Filter by plate"
+              className="flex-1 font-mono-data"
+            />
+            {plateInput ? (
+              <Button type="button" variant="ghost" size="icon" onClick={onClearPlate} aria-label="Clear plate filter">
+                <X className="h-4 w-4" />
+              </Button>
+            ) : null}
+          </form>
+        </div>
+
+        {onRiskFilterToggle && (
+          <div className="flex flex-wrap gap-2">
+            {RISK_FILTERS.map((filter) => {
+              const isActive = activeRiskFilters.includes(filter.value)
+              return (
+                <Button
+                  key={filter.value}
+                  variant={isActive ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => onRiskFilterToggle(filter.value)}
+                  disabled={busy}
+                  className="h-7 text-xs"
+                >
+                  {filter.label}
+                </Button>
+              )
+            })}
+          </div>
+        )}
       </div>
     </FilterCard>
   )

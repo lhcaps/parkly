@@ -3,6 +3,7 @@ import { defineConfig, devices } from '@playwright/test'
 const PORT = Number(process.env.PLAYWRIGHT_WEB_PORT || '4174')
 const HOST = process.env.PLAYWRIGHT_WEB_HOST || '127.0.0.1'
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || `http://${HOST}:${PORT}`
+const SCREENSHOTS_DIR = process.env.SIGNOFF_SCREENSHOTS_DIR || 'screenshots'
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -17,6 +18,7 @@ export default defineConfig({
     baseURL: BASE_URL,
     headless: true,
     trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
   },
   webServer: {
     command: `pnpm dev --host ${HOST} --port ${PORT}`,

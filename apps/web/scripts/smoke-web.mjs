@@ -4,12 +4,14 @@ import path from 'node:path'
 import process from 'node:process'
 
 function parseArgs(argv) {
+  const requestedMode = process.env.SMOKE_MODE || ''
   const options = {
+    mode: requestedMode === 'dist' ? 'dist' : 'dev',
     baseUrl: process.env.WEB_BASE_URL || '',
     apiUrl: process.env.SMOKE_API_URL || '',
     host: process.env.SMOKE_WEB_HOST || '127.0.0.1',
-    port: Number(process.env.SMOKE_WEB_PORT || '4173'),
-    serveDist: false,
+    port: Number(process.env.SMOKE_WEB_PORT || (requestedMode === 'dist' ? '4173' : '5173')),
+    serveDist: requestedMode === 'dist',
     holdOpen: false,
     strictApi: false,
     jsonOut: process.env.SMOKE_JSON_OUT || '',
@@ -26,7 +28,16 @@ function parseArgs(argv) {
     if (value === '--jsonOut') options.jsonOut = argv[index + 1] || options.jsonOut
     if (value === '--evidenceDir') options.evidenceDir = argv[index + 1] || options.evidenceDir
     if (value === '--waitMs') options.waitMs = Number(argv[index + 1] || options.waitMs)
-    if (value === '--serve-dist') options.serveDist = true
+    if (value === '--serve-dist' || value === '--dist') {
+      options.mode = 'dist'
+      options.serveDist = true
+      if (!process.env.SMOKE_WEB_PORT) options.port = 4173
+    }
+    if (value === '--dev') {
+      options.mode = 'dev'
+      options.serveDist = false
+      if (!process.env.SMOKE_WEB_PORT) options.port = 5173
+    }
     if (value === '--hold-open') options.holdOpen = true
     if (value === '--strict-api') options.strictApi = true
   }

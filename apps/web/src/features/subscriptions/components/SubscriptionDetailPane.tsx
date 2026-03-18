@@ -10,12 +10,18 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type {
   SubscriptionDetail,
+  SubscriptionEffectiveStatus,
   SubscriptionPlanType,
   SubscriptionSpotPatchInput,
   SubscriptionStatus,
   SubscriptionVehiclePatchInput,
 } from '../types'
-import { SUBSCRIPTION_PLAN_VALUES } from '../types'
+import {
+  SUBSCRIPTION_PLAN_VALUES,
+  computeRiskFlags,
+  riskFlagLabel,
+  riskFlagVariant,
+} from '../types'
 import { SubscriptionSelectionEmptyState } from './SubscriptionSelectionEmptyState'
 import { SubscriptionOverviewTab } from './SubscriptionOverviewTab'
 import { SubscriptionSpotsTab } from './SubscriptionSpotsTab'
@@ -235,6 +241,20 @@ export function SubscriptionDetailPane({
             <Badge variant="outline">{formatDate(detail.startDate)} — {formatDate(detail.endDate)}</Badge>
             {headerMeta.map((item) => <Badge key={item} variant="outline">{item}</Badge>)}
           </div>
+
+          {(() => {
+            const riskFlags = computeRiskFlags(detail)
+            if (riskFlags.length === 0) return null
+            return (
+              <div className="flex flex-wrap gap-1.5">
+                {riskFlags.map((flag) => (
+                  <Badge key={flag} variant={riskFlagVariant(flag)} className="text-xs">
+                    {riskFlagLabel(flag)}
+                  </Badge>
+                ))}
+              </div>
+            )
+          })()}
 
           <SubscriptionStatusActions
             detail={detail}

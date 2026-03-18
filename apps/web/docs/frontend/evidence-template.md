@@ -1,49 +1,42 @@
 # Frontend evidence template
 
-Bộ evidence tối thiểu khi bàn giao wave này phải có:
+Bo evidence toi thieu khi ban giao wave nay phai co:
 - build log
 - unit test log
 - e2e log
-- smoke log
-- `latest-smoke.json`
-- screenshot set tối thiểu
-- manual QA sign-off đã điền
-- role matrix đã đối chiếu với runtime
+- smoke dev log
+- smoke dist log
+- `latest-smoke-dev.json`
+- `latest-smoke-dist.json`
+- screenshot set toi thieu
+- manual QA sign-off da dien
+- role matrix da doi chieu voi runtime
+- release-signoff.md
+- signoff-manifest.json
 
-## Screenshot checklist tối thiểu
-1. Login page trước khi sign-in
-2. Role landing đúng sau login
-3. Forbidden direct URL với fallback rõ ràng
-4. Subscriptions deep-link mở đúng detail + đúng tab
-5. Subscriptions read-only hoặc mutate bar tùy role
-6. Parking Live board với summary strip
-7. Parking Live stale fallback banner còn giữ snapshot
-8. Reconcile hoặc force refresh sau stale fallback
-9. Smoke output hoặc latest-smoke.json được lưu
-10. Manual QA sign-off đã điền
+## Screenshot checklist toi thieu
+1. Login page truoc khi sign-in
+2. Role landing dung sau login (ADMIN, OPS, GUARD, CASHIER, WORKER)
+3. Forbidden direct URL voi fallback ro rang
+4. Subscriptions deep-link mo dung detail + dung tab
+5. Subscriptions read-only hoac mutate bar tuy role
+6. Parking Live board voi summary strip
+7. Parking Live stale fallback banner con giu snapshot
+8. Smoke dev output (5173)
+9. Smoke dist output (4173)
+10. Manual QA sign-off da dien
 
-## Naming convention đề xuất
-- `01-login.png`
-- `02-role-landing.png`
-- `03-forbidden-fallback.png`
-- `04-subscriptions-deeplink.png`
-- `05-subscriptions-lifecycle.png`
-- `06-parking-live-board.png`
-- `07-parking-live-stale.png`
-- `08-parking-live-reconcile.png`
-- `09-smoke-output.png`
-- `10-manual-signoff.png`
-
-## Evidence fields bắt buộc
-- build commit hoặc patch id
-- ngày giờ chạy gate
-- web base URL
+## Evidence fields bat buoc
+- build commit hoac patch id
+- ngay gio chay gate
+- web base URL dev (5173)
+- web base URL dist (4173)
 - api base URL
 - backend profile
-- role đã test
-- requestId/hint nếu có lỗi degraded hoặc error
+- role da test
+- requestId/hint neu co loi degraded hoac error
 
-## Manual QA topics bắt buộc
+## Manual QA topics bat buoc
 - login landing per role
 - forbidden direct URL
 - subscriptions selection recovery

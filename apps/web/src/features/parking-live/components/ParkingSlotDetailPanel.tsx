@@ -164,6 +164,24 @@ export function ParkingSlotDetailPanel({ slot, siteCode, onClose }: Props) {
                   </Link>
                 </Button>
               ) : null}
+
+              {detail.session?.sessionId ? (
+                <Button asChild variant="ghost" size="sm">
+                  <Link to={`/session-history?siteCode=${siteCode}&sessionId=${detail.session.sessionId}`}>
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    View session
+                  </Link>
+                </Button>
+              ) : null}
+
+              {detail.incident?.incidentId ? (
+                <Button asChild variant="ghost" size="sm">
+                  <Link to={`/review-queue?siteCode=${siteCode}&status=OPEN&q=${detail.incident.incidentId}`}>
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    View incident
+                  </Link>
+                </Button>
+              ) : null}
             </div>
           </>
         ) : (

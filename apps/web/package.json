@@ -11,11 +11,16 @@
     "preview": "vite preview",
     "serve:dist": "node ./scripts/smoke-web.mjs --serve-dist --hold-open",
     "smoke:web": "node ./scripts/smoke-web.mjs",
+    "smoke:web:dev": "node ./scripts/smoke-web.mjs --dev",
     "smoke:web:dist": "node ./scripts/smoke-web.mjs --serve-dist",
     "evidence:web": "node ./scripts/collect-evidence.mjs",
+    "release:signoff": "node ./scripts/release-signoff.mjs",
+    "release:signoff:dry-run": "node ./scripts/release-signoff.mjs --dry-run",
+    "playwright:runtime:check": "node ./scripts/check-playwright-runtime.mjs",
+    "playwright:runtime:install": "playwright install chromium",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
-    "test:e2e": "playwright test",
+    "test:e2e": "node ./scripts/check-playwright-runtime.mjs && playwright test",
     "test:smoke:auth-routes": "vitest run src/app/__tests__/role-policy.test.ts src/features/auth/__tests__/auth-redirect.test.ts"
   },
   "dependencies": {
