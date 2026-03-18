@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { saveSignoffScreenshot } from './helpers/signoff'
 
 function opsPrincipal() {
   return {
@@ -123,4 +124,5 @@ test('subscriptions deep link survives reload and keeps the selected tab', async
 
   await expect(page).toHaveURL(new RegExp(deepLink.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
   await expect(page.getByText('43A12345')).toBeVisible()
+  await saveSignoffScreenshot(page, 'subscriptions-deeplink.png')
 })

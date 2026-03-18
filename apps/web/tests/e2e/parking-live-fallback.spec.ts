@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { saveSignoffScreenshot } from './helpers/signoff'
 
 function guardPrincipal() {
   return {
@@ -124,4 +125,5 @@ test('parking live keeps the last snapshot visible when realtime falls back to s
 
   await expect.poll(() => telemetry.getBoardFetchCount()).toBeGreaterThan(before)
   await expect(page.getByText('A-01')).toBeVisible()
+  await saveSignoffScreenshot(page, 'parking-live-stale-fallback.png')
 })

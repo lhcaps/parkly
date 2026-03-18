@@ -148,5 +148,11 @@ Các route canonical trong shell hiện tại:
 ## Docs/runtime review gate
 Trước khi merge, phải đối chiếu docs này với:
 - policy registry của app shell
-- smoke output `latest-smoke.json`
+- smoke output `latest-smoke-dev.json` và `latest-smoke-dist.json`
 - manual QA sign-off của wave hiện tại
+
+## Release sign-off expectation
+- Smoke dev phải được chứng minh riêng trên 5173 (`latest-smoke-dev.json`).
+- Smoke dist phải được chứng minh riêng trên 4173 (`latest-smoke-dist.json`).
+- Evidence bundle phải có screenshot cho role landing, forbidden fallback, subscriptions deep-link và parking-live stale fallback.
+
