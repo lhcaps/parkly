@@ -9,6 +9,54 @@ export type SubscriptionVehicleStatus = 'ACTIVE' | 'SUSPENDED' | 'REMOVED'
 export type AssignedMode = 'ASSIGNED' | 'PREFERRED'
 export type SubscriptionDetailTab = 'overview' | 'spots' | 'vehicles'
 
+export type SubscriptionRiskFlag = 'EXPIRING_SOON' | 'SUSPENDED' | 'MISSING_VEHICLE' | 'MISSING_SPOT'
+
+export function computeRiskFlags(detail: SubscriptionDetail): SubscriptionRiskFlag[] {
+  const flags: SubscriptionRiskFlag[] = []
+  
+  if (detail.effectiveStatus === 'SUSPENDED') {
+    flags.push('SUSPENDED')
+  }
+  
+  const now = new Date()
+  const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+  
+  if (detail.endDate) {
+    const endDate = new Date(detail.endDate)
+    if (endDate <= thirtyDaysFromNow && detail.effectiveStatus === 'ACTIVE') {
+      flags.push('EXPIRING_SOON')
+    }
+  }
+  
+  if (detail.vehicles.length === 0) {
+    flags.push('MISSING_VEHICLE')
+  }
+  
+  if (detail.spots.length === 0) {
+    flags.push('MISSING_SPOT')
+  }
+  
+  return flags
+}
+
+export function riskFlagLabel(flag: SubscriptionRiskFlag): string {
+  switch (flag) {
+    case 'EXPIRING_SOON': return 'Expiring soon'
+    case 'SUSPENDED': return 'Suspended'
+    case 'MISSING_VEHICLE': return 'Missing vehicle'
+    case 'MISSING_SPOT': return 'Missing spot'
+  }
+}
+
+export function riskFlagVariant(flag: SubscriptionRiskFlag): 'amber' | 'destructive' | 'secondary' | 'outline' {
+  switch (flag) {
+    case 'EXPIRING_SOON': return 'amber'
+    case 'SUSPENDED': return 'amber'
+    case 'MISSING_VEHICLE': return 'destructive'
+    case 'MISSING_SPOT': return 'destructive'
+  }
+}
+
 export type SubscriptionRow = {
   subscriptionId: string
   siteCode: string
