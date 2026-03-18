@@ -1,0 +1,76 @@
+# Cursor repo rules — Parkly FE
+
+## Operating stance
+- Act like a senior frontend engineer working inside a production-minded operations console.
+- Make one reviewable change-set at a time.
+- Inspect existing files before editing.
+- Prefer small explicit diffs over broad rewrites.
+- Preserve real backend semantics; never hide backend gaps with frontend hacks.
+- Keep Windows PowerShell compatibility first-class for scripts.
+
+## Secret hygiene
+- Never hardcode real secrets, tokens, passwords, API keys, device secrets, refresh tokens, cookies, or connection strings in source code, tests, docs, screenshots, or evidence bundles.
+- Never commit `.env`, `.env.local`, `.env.production`, runtime dumps, or raw secret snapshots.
+- Use placeholders only:
+  - `CHANGE_ME`
+  - `REDACTED`
+  - `EXAMPLE_ONLY`
+  - `YOUR_SECRET_HERE`
+- Only document new environment variables in `.env.example` or dedicated docs with placeholder values.
+- Do not print sensitive headers or bodies to logs. Redact:
+  - `Authorization`
+  - `Cookie`
+  - `Set-Cookie`
+  - refresh/access tokens
+  - device secrets
+  - signed URLs with sensitive query params
+- When collecting evidence, manifests, traces, or screenshots, prefer sanitized content and never claim a bundle is safe if it still contains secrets.
+- If a task would require extracting or exposing real secrets, stop and replace with a redacted/configurable implementation.
+
+## Auth and session rules
+- The backend session/auth contract is the source of truth. Do not spoof permissions in UI to bypass backend restrictions.
+- Keep these three aligned whenever auth/routing changes:
+  1. canonical role home mapping
+  2. route access policy
+  3. main navigation visibility
+- Prefer centralized auth/session handling over page-specific logic.
+- New realtime or stream work must prefer `Authorization: Bearer` semantics over query-token semantics unless explicitly preserving compatibility.
+- Do not add new query-token auth flows for user sessions.
+- Session expiry, refresh failure, auth-expired UI, logout, and forbidden fallbacks must be handled consistently across pages.
+- Never keep mutate actions visible or enabled for a role that cannot actually execute them.
+- Do not persist sensitive session artifacts outside approved storage already used by the app.
+- Do not introduce localStorage/sessionStorage/session caches that weaken logout, refresh, or cross-tab consistency unless the repo already uses that pattern and the PR explicitly requires it.
+- Preserve the last known good read-only snapshot during transient realtime failures when the existing UX pattern supports it.
+
+## Routing and policy invariants
+- If a role lands on a canonical home route, that route must also be accessible for the role and visible in main navigation when intended.
+- Add or update invariant tests whenever canonical home / route policy / nav visibility changes.
+- Role-landing E2E tests should verify stable invariants only:
+  - login succeeds
+  - pathname is canonical
+  - not bounced back to login
+  - not forced into forbidden fallback
+  - no runtime crash
+- Do not make landing E2E depend on fragile page-specific headings unless the PR explicitly targets that page content.
+
+## Realtime and operational UX
+- Reuse shared realtime helpers before creating new SSE logic.
+- Preserve stale / reconnect / auth-expired semantics across Parking Live, Device Health, Lane Monitor, and other stream-driven pages.
+- Do not discard the last good snapshot if a fallback refresh fails after a successful load.
+- Operational UI should be restrained, scan-friendly, and role-oriented. No cosmetic redesigns without product reason.
+
+## Testing and release discipline
+- For each PR, update only the tests needed to lock the invariant behind that PR.
+- Avoid brittle selectors in E2E. Prefer pathname assertions, test ids, or stable shell markers.
+- Release-signoff scripts must not report false success.
+- Evidence bundles must be deterministic, reviewable, and honest about failures.
+- If a script behaves differently on Windows, fix the script instead of documenting a workaround only.
+
+## Output discipline for code agents
+- After changes, always report:
+  - summary
+  - changed files
+  - verification commands
+  - risks / follow-up notes
+  - acceptance checklist
+- Do not perform unrelated cleanup.
