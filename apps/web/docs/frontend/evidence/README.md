@@ -1,28 +1,11 @@
-# Frontend evidence bundle
+# Frontend evidence folder
 
-Bundle này là checkpoint nhẹ cho shell smoke. Nó không thay thế manual operator flow.
+Thu muc nay giu snapshot smoke gan nhat de nguoi review doi chieu nhanh truoc khi mo bundle day du trong `release-evidence/frontend/<timestamp>`.
 
-## Bắt buộc có
+## File mong doi
+- `latest-smoke-dev.json`
+- `latest-smoke-dist.json`
 
-- `latest-smoke.json`
-- build log terminal
-- screenshot pair origin
-- screenshot mobile context summary
-- screenshot heartbeat status
-- screenshot capture status
-- screenshot session/review detail sau mutation
-- screenshot terminal lock banner nếu test case terminal
-- `manual-qa-signoff.md`
-- `release-evidence/frontend-mobile-review/bug-closure-notes.md`
-
-## Cách dùng nhanh
-
-1. Chạy `pnpm smoke:web` hoặc `pnpm smoke:web:dist`.
-2. Lấy `latest-smoke.json` làm bằng chứng route shell.
-3. Chạy manual flow theo `docs/RUNBOOK.md` mục frontend smoke.
-4. Điền signoff và closure notes.
-
-## Không được hiểu sai
-
-- `latest-smoke.json` pass chỉ chứng minh shell route và health check cơ bản.
-- Bug mobile capture hoặc review workflow chỉ được coi là đóng khi có thêm screenshot + requestId tương ứng.
+## Khong hieu sai
+- Hai file nay chi la snapshot smoke gan nhat.
+- Release chi duoc coi la chot khi bundle trong `release-evidence/frontend/<timestamp>` co du log, screenshot, manual QA, release-signoff va signoff-manifest.

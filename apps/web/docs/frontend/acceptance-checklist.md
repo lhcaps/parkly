@@ -1,81 +1,83 @@
 # Frontend acceptance checklist
 
 ## 1. Bootstrap gate
-- [ ] `pnpm install` chạy sạch trên máy sạch
-- [ ] `pnpm build` thành công
-- [ ] `docs/frontend/runbook.md` khớp với script thật trong repo
-- [ ] `docs/frontend/routes.md` khớp với runtime query params thực tế
+- [ ] `pnpm install` chay sach tren may sach
+- [ ] `pnpm build` thanh cong
+- [ ] `docs/frontend/runbook.md` khop voi script that trong repo
+- [ ] `docs/frontend/routes.md` khop voi runtime query params thuc te
 
 ## 2. Role policy + landing gate
-- [ ] Policy registry là single source-of-truth cho guard/sidebar/topbar/landing
-- [ ] Role landing đúng matrix: ADMIN/OPS -> `/overview`, GUARD -> `/run-lane`, CASHIER -> `/reports`, WORKER -> `/lane-monitor`
-- [ ] Direct URL vào route forbidden luôn đi qua `/forbidden`
-- [ ] Forbidden page hiển thị role hiện tại, route yêu cầu, allowed roles và fallback route
+- [ ] Policy registry la single source-of-truth cho guard/sidebar/topbar/landing
+- Role landing dung matrix: ADMIN/OPS -> `/overview`, GUARD -> `/run-lane`, CASHIER -> `/reports`, WORKER -> `/lane-monitor`
+- [ ] Direct URL vao route forbidden luon di qua `/forbidden`
+- [ ] Forbidden page hien thi role hien tai, route yeu cau, allowed roles va fallback route
 
 ## 3. Canonical routes gate
-- [ ] `/overview` mở được
-- [ ] `/run-lane` deep link mở được
-- [ ] `/review-queue` deep link mở được
-- [ ] `/session-history` deep link mở được
-- [ ] `/sync-outbox` deep link mở được
-- [ ] `/reports` deep link mở được
-- [ ] `/subscriptions` deep link mở được
-- [ ] `/parking-live` deep link mở được
-- [ ] `/mobile-camera-pair` mở được
-- [ ] `/mobile-capture` mở được
-- [ ] Refresh nested route không trắng màn hình
-- [ ] Browser back/forward không làm mất filter state cốt lõi
+- [ ] `/overview` mo duoc
+- [ ] `/run-lane` deep link mo duoc
+- [ ] `/review-queue` deep link mo duoc
+- [ ] `/session-history` deep link mo duoc
+- [ ] `/sync-outbox` deep link mo duoc
+- [ ] `/reports` deep link mo duoc
+- [ ] `/subscriptions` deep link mo duoc
+- [ ] `/parking-live` deep link mo duoc
+- [ ] `/mobile-camera-pair` mo duoc
+- [ ] `/mobile-capture` mo duoc
+- [ ] Refresh nested route khong trang man hinh
+- [ ] Browser back/forward khong lam mat filter state cot loi
 
 ## 4. Auth + session gate
-- [ ] Login thành công bằng account local hợp lệ
-- [ ] Refresh `/login` khi đã authenticated sẽ redirect về landing đúng role
-- [ ] Logout dọn runtime state sạch
-- [ ] Token hết hạn quay về `/login` với notice rõ ràng
-- [ ] UI không tạo cảm giác frontend tự cấp role
+- [ ] Login thanh cong bang account local hop le
+- [ ] Refresh `/login` khi da authenticated se redirect ve landing dung role
+- [ ] Logout don runtime state sach
+- [ ] Token het han quay ve `/login` voi notice ro rang
+- [ ] UI khong tao cam giac frontend tu cap role
 
 ## 5. Subscriptions gate
 - [ ] Deep-link `/subscriptions?...&id=...&tab=...` survive reload
-- [ ] Click row nào detail mở row đó, không cần click lại lần hai
-- [ ] Filter đổi làm selected id biến mất sẽ clear selection có chủ đích
-- [ ] List empty, empty selection, detail error, dependency degraded là bốn state khác nhau
-- [ ] Overview tab hiển thị primary vehicle và primary spot
-- [ ] Role read-only vẫn đọc được detail nhưng không thấy CTA mutate
-- [ ] Mutation thành công resync authoritative detail và list summary
+- [ ] Click row nao detail mo row do, khong can click lai lan hai
+- [ ] Filter doi lam selected id bien mat se clear selection co chu dong
+- [ ] List empty, empty selection, detail error, dependency degraded la bon state khac nhau
+- [ ] Overview tab hien thi primary vehicle va primary spot
+- [ ] Role read-only van doc duoc detail nhung khong thay CTA mutate
+- [ ] Mutation thanh cong resync authoritative detail va list summary
 
 ## 6. Parking Live gate
-- [ ] Board scan được trong 5 giây: floor/zone/attention rõ ràng
-- [ ] Search chỉ spotlight slot khớp, không làm biến mất board context
-- [ ] Floor tab hoặc summary strip chỉ ra nơi có stale/violation/blocked
-- [ ] Empty filter result hiển thị empty-state cục bộ, không trông như hỏng dữ liệu
-- [ ] SSE fail không làm board trắng nếu đã có snapshot trước đó
-- [ ] Banner phân biệt rõ loading / retrying / stale / error
-- [ ] Force refresh hoặc reconcile cập nhật freshness timestamp
-- [ ] Detail panel cho biết freshness của slot và lần update gần nhất
+- [ ] Board scan duoc trong 5 giay: floor/zone/attention ro rang
+- [ ] Search chi spotlight slot khop, khong lam bien mat board context
+- [ ] Floor tab hoac summary strip chi ra noi co stale/violation/blocked
+- [ ] Empty filter result hien thi empty-state cuc bo, khong trong nhu hong du lieu
+- [ ] SSE fail khong lam board trang neu da co snapshot truoc do
+- [ ] Banner phan biet ro loading / retrying / stale / error
+- [ ] Force refresh hoac reconcile cap nhap freshness timestamp
+- [ ] Detail panel cho biet freshness cua slot va lan update gan nhat
 
 ## 7. Shared page-state gate
-- [ ] Loading / empty / degraded / forbidden / error có semantic rõ ràng
-- [ ] Empty business data không bị dùng chung wording với dependency down
-- [ ] Error state quan trọng hiển thị requestId hoặc hint đủ để triage
-- [ ] Query param sai định dạng của `/subscriptions` và `/parking-live` bị normalize về safe default, không crash
+- [ ] Loading / empty / degraded / forbidden / error co semantic ro rang
+- [ ] Empty business data khong bi dung chung wording voi dependency down
+- [ ] Error state quan trong hien thi requestId hoac hint du de triage
+- [ ] Query param sai dinh dang cua `/subscriptions` va `/parking-live` bi normalize ve safe default, khong crash
 
 ## 8. Automated regression gate
 - [ ] `pnpm test:unit` pass
 - [ ] `pnpm test:e2e` pass
-- [ ] `SMOKE_WEB_PORT=5173 pnpm smoke:web` pass
-- [ ] Smoke output cập nhật vào `docs/frontend/evidence/latest-smoke.json`
+- [ ] `pnpm smoke:web:dev` pass (port 5173)
+- [ ] `pnpm smoke:web:dist` pass (port 4173)
+- [ ] Smoke output cap nhap vao `docs/frontend/evidence/latest-smoke-dev.json`
+- [ ] Smoke output cap nhap vao `docs/frontend/evidence/latest-smoke-dist.json`
 
 ## 9. Manual QA sign-off gate
-- [ ] Login landing theo role đã được ký tay
-- [ ] Forbidden direct URL đã được ký tay
-- [ ] Subscriptions detail/deep-link recovery đã được ký tay
-- [ ] Parking Live stale fallback đã được ký tay
-- [ ] Screenshot checklist tối thiểu đã được chụp
-- [ ] `docs/frontend/manual-qa-signoff.md` đã được điền
+- [ ] Login landing theo role da duoc ky tay
+- [ ] Forbidden direct URL da duoc ky tay
+- [ ] Subscriptions detail/deep-link recovery da duoc ky tay
+- [ ] Parking Live stale fallback da duoc ky tay
+- [ ] Screenshot checklist toi thieu da duoc chup
+- [ ] `docs/frontend/manual-qa-signoff.md` da duoc dien
 
-## 10. Release gate cuối wave
-Không merge nếu còn một trong các lỗi sau:
-- [ ] Docs và runtime lệch nhau
-- [ ] Máy sạch bootstrap không lặp lại được
-- [ ] Regression suite fail dù build vẫn xanh
-- [ ] Evidence bundle chưa có build/test/smoke output
-- [ ] FE chỉ chạy ổn trên máy người viết
+## 10. Release gate cuoi wave
+Khong merge neu con mot trong cac loi sau:
+- [ ] Docs va runtime lech nhau
+- [ ] May sach bootstrap khong lap lai duoc
+- [ ] Regression suite fail d build van xanh
+- [ ] Evidence bundle chua co build/test/smoke output
+- [ ] FE chi chay on tren may nguoi viet
