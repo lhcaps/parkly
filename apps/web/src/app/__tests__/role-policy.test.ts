@@ -4,6 +4,7 @@ import {
   getCanonicalRoutesForRole,
   getForbiddenFallbackPath,
   getRoleHome,
+  isMainNavPathVisibleForRole,
   listRoutePolicies,
 } from '@/lib/auth/role-policy'
 
@@ -31,5 +32,17 @@ describe('role policy registry', () => {
     const canonicalPaths = listRoutePolicies({ canonicalOnly: true }).map((route) => route.path)
 
     expect(canonicalPaths).not.toContain('/mobile-capture')
+  })
+
+  it.each([
+    ['ADMIN', '/overview'],
+    ['OPS', '/overview'],
+    ['GUARD', '/run-lane'],
+    ['CASHIER', '/reports'],
+    ['WORKER', '/lane-monitor'],
+  ] as const)('keeps canonical home invariant for %s -> %s', (role, path) => {
+    expect(getRoleHome(role)).toBe(path)
+    expect(canAccessRoute(role, path)).toBe(true)
+    expect(isMainNavPathVisibleForRole(role, path)).toBe(true)
   })
 })

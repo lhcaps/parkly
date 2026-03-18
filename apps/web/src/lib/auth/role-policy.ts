@@ -429,3 +429,7 @@ export function getCanonicalRoutesForRole(role?: AuthRole | string, group?: AppN
     return canAccessRoute(role, route.path)
   })
 }
+
+export function isMainNavPathVisibleForRole(role: AuthRole | string | undefined, path: RoutePath) {
+  return getCanonicalRoutesForRole(role).some((route) => route.path === path)
+}
