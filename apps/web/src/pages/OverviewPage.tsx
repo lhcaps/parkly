@@ -1,21 +1,29 @@
 import { useMemo } from 'react'
 import {
   Activity,
+  AlertTriangle,
   ArrowRightLeft,
   Camera,
+  CheckCircle2,
+  ChevronRight,
   ClipboardCheck,
   Cpu,
   DatabaseZap,
+  GitBranch,
   RadioTower,
   RefreshCcw,
+  Search,
   ShieldAlert,
   TimerReset,
+  Wifi,
+  WifiOff,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Select } from '@/components/ui/select'
 import { ConnectionBadge, PageHeader, SurfaceState } from '@/components/ops/console'
 import { Badge, type BadgeProps } from '@/components/ui/badge'
 import { KpiCard } from '@/features/overview/components/KpiCard'
@@ -24,47 +32,48 @@ import { QuickActionsCard, type QuickActionItem } from '@/features/overview/comp
 import { SiteAttentionTable } from '@/features/overview/components/SiteAttentionTable'
 import { useOverviewData } from '@/features/overview/hooks/useOverviewData'
 import type { SessionSummary } from '@/lib/contracts/sessions'
+import { cn } from '@/lib/utils'
 
 const QUICK_ACTIONS: QuickActionItem[] = [
   {
     to: '/run-lane',
-    label: 'Run Lane',
-    helper: 'Process an incoming vehicle through the full lane flow — image to decision.',
+    label: 'route.runLane.label',
+    helper: 'route.runLane.description',
     badge: 'Lane',
     icon: ArrowRightLeft,
   },
   {
     to: '/review-queue',
-    label: 'Review Queue',
-    helper: 'Claim and resolve cases waiting for manual operator confirmation.',
+    label: 'route.reviewQueue.label',
+    helper: 'route.reviewQueue.description',
     badge: 'Review',
     icon: ClipboardCheck,
   },
   {
     to: '/lane-monitor',
-    label: 'Lane Monitor',
-    helper: 'Open live triage when you need to inspect lane and barrier state in real time.',
+    label: 'route.laneMonitor.label',
+    helper: 'route.laneMonitor.description',
     badge: 'Live',
     icon: Activity,
   },
   {
     to: '/device-health',
-    label: 'Device Health',
-    helper: 'Check heartbeat status and degradation level for each device.',
+    label: 'route.deviceHealth.label',
+    helper: 'route.deviceHealth.description',
     badge: 'Health',
     icon: Cpu,
   },
   {
     to: '/sync-outbox',
-    label: 'Sync Outbox',
-    helper: 'Monitor retries, failed deliveries, and the downstream sync backlog.',
+    label: 'route.syncOutbox.label',
+    helper: 'route.syncOutbox.description',
     badge: 'Queue',
     icon: RadioTower,
   },
   {
     to: '/capture-debug',
-    label: 'Capture Debug',
-    helper: 'Inspect image ingest and ALPR results when the capture pipeline has issues.',
+    label: 'route.captureDebug.label',
+    helper: 'route.captureDebug.description',
     badge: 'Capture',
     icon: Camera,
   },
@@ -74,7 +83,13 @@ function formatDateTime(value: string | null | undefined) {
   if (!value) return '—'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '—'
-  return date.toLocaleString('en-GB')
+  return date.toLocaleString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 function sessionVariant(status: string | null | undefined) {
@@ -98,44 +113,58 @@ function pageStateVariant(value: OperationalStatus): BadgeProps['variant'] {
   return 'destructive'
 }
 
-function pageStateLabel(value: OperationalStatus) {
-  if (value === 'ready') return 'Ready'
-  if (value === 'attention') return 'Attention'
-  if (value === 'degraded') return 'Degraded'
-  return 'Unavailable'
-}
-
 function dependencyStatus(error: string, loading: boolean): OperationalStatus {
   if (error) return 'unavailable'
   if (loading) return 'degraded'
   return 'ready'
 }
 
-function SessionRow({ session }: { session: SessionSummary }) {
+function SessionRow({ session, t }: { session: SessionSummary; t: ReturnType<typeof useTranslation>['t'] }) {
   return (
-    <div className="rounded-2xl border border-border/80 bg-background/40 p-4">
+    <div className="group rounded-2xl border border-border/60 bg-card/60 p-4 transition-all duration-200 hover:border-primary/25 hover:bg-card/80 hover:shadow-[0_4px_20px_rgba(0,0,0,0.08)]">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="font-mono-data text-sm font-semibold">{session.sessionId || '—'}</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {session.siteCode || '—'} / {session.gateCode || '—'} / {session.laneCode || '—'} &middot; {session.direction}
+          <p className="font-mono-data text-sm font-semibold tracking-tight">{session.sessionId || '—'}</p>
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+            <span className="font-medium">{session.siteCode || '—'}</span>
+            <ChevronRight className="h-3 w-3 shrink-0 opacity-50" />
+            <span>{session.gateCode || '—'}</span>
+            <ChevronRight className="h-3 w-3 shrink-0 opacity-50" />
+            <span>{session.laneCode || '—'}</span>
+            <span className="ml-1 text-primary/70">{session.direction}</span>
           </p>
         </div>
-        <Badge variant={sessionVariant(session.status)}>{session.status}</Badge>
+        <Badge variant={sessionVariant(session.status)} className="shrink-0 text-[10px]">
+          {session.status}
+        </Badge>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
-        <span className="font-mono-data">{formatDateTime(session.openedAt)}</span>
-        {session.plateCompact ? <Badge variant="outline">{session.plateCompact}</Badge> : null}
-        <Badge variant="outline">{session.readCount} reads</Badge>
-        <Badge variant="outline">{session.decisionCount} decisions</Badge>
-        {session.reviewRequired ? <Badge variant="amber">Review required</Badge> : null}
+      <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
+        <span className="font-mono-data text-muted-foreground">{formatDateTime(session.openedAt)}</span>
+        {session.plateCompact ? (
+          <Badge variant="outline" className="font-mono-data font-semibold">
+            {session.plateCompact}
+          </Badge>
+        ) : null}
+        <Badge variant="outline" className="font-mono-data">
+          {session.readCount} reads
+        </Badge>
+        <Badge variant="outline" className="font-mono-data">
+          {session.decisionCount} decisions
+        </Badge>
+        {session.reviewRequired ? (
+          <Badge variant="amber" className="flex items-center gap-1 font-semibold">
+            <AlertTriangle className="h-3 w-3" />
+            {t('overview.recentSessions.reviewRequired')}
+          </Badge>
+        ) : null}
       </div>
     </div>
   )
 }
 
 export function OverviewPage() {
+  const { t } = useTranslation()
   const {
     selectedSiteCode,
     setSelectedSiteCode,
@@ -159,10 +188,6 @@ export function OverviewPage() {
   } = useOverviewData()
 
   const dashboardData = dashboard.data
-  const filtersDescription = dashboardData
-    ? `${dashboardData.filters.sinceHours}h window · expiry ${dashboardData.filters.expiringInDays}d · generated ${formatDateTime(dashboardData.generatedAt)}`
-    : 'Dashboard summary not available.'
-
   const overview = dashboardData?.overview
 
   const lanePressureData = useMemo(() => {
@@ -178,21 +203,15 @@ export function OverviewPage() {
   }, [laneState.connected, liveLaneSummary, dashboardData])
 
   const lanePressureValue = useMemo(() => {
-    if (lanePressureData.total === 0 && lanePressureData.attention === 0) {
-      return 'N/A'
-    }
+    if (lanePressureData.total === 0 && lanePressureData.attention === 0) return 'N/A'
     return `${lanePressureData.attention}/${lanePressureData.total}`
   }, [lanePressureData])
 
   const lanePressureHelper = useMemo(() => {
-    if (lanePressureData.useLive) {
-      return 'Sourced from live lane stream. Shows lanes needing attention vs total lanes.'
-    }
-    if (laneState.connected) {
-      return 'Lane stream connected but no data yet. Showing dashboard snapshot as fallback.'
-    }
-    return 'Lane stream not connected — showing dashboard snapshot. Connect stream for real-time updates.'
-  }, [lanePressureData.useLive, laneState.connected])
+    if (lanePressureData.useLive) return t('overview.status.lanePressure.helperLive')
+    if (laneState.connected) return t('overview.status.lanePressure.helperFallback')
+    return t('overview.status.lanePressure.helperFallback')
+  }, [lanePressureData.useLive, laneState.connected, t])
 
   const lanePressureStatus = useMemo<OperationalStatus>(() => {
     if (lanePressureData.offline > 0) return 'unavailable'
@@ -204,154 +223,168 @@ export function OverviewPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Overview"
-        description="Shift coordination landing page. Queue pressure, lane health, and system dependency status in one view."
+        eyebrow={t('overview.eyebrow')}
+        title={t('overview.title')}
+        description={t('overview.description')}
         badges={[
-          { label: 'Operations', variant: 'secondary' },
-          { label: selectedSiteCode ? `Site ${selectedSiteCode}` : 'All accessible sites', variant: 'outline' },
-          { label: pageStateLabel(pageState), variant: pageStateVariant(pageState) },
+          { label: t('route.overview.label'), variant: 'secondary' },
+          { label: selectedSiteCode ? `${selectedSiteCode}` : t('overview.allAccessibleSites'), variant: 'outline' },
+          { label: t(`overview.pageStatus.${pageState}`), variant: pageStateVariant(pageState) },
         ]}
         actions={
-          <div className="flex max-w-[520px] flex-wrap items-center justify-end gap-2">
-            <ConnectionBadge connected={laneState.connected} label="Lane stream" />
-            <ConnectionBadge connected={deviceHealthState.connected} label="Device stream" />
-            <div className="min-w-[220px] flex-1">
-              <Select value={selectedSiteCode} onChange={setSelectedSiteCode} options={siteOptions} size="sm" />
-            </div>
-            <Button variant="outline" size="sm" onClick={() => void refreshAll()} disabled={refreshing}>
-              <RefreshCcw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-              Refresh
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <ConnectionBadge connected={laneState.connected} label={t('overview.streamLane')} />
+            <ConnectionBadge connected={deviceHealthState.connected} label={t('overview.streamDevice')} />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void refreshAll()}
+              disabled={refreshing}
+              className="gap-2"
+            >
+              <RefreshCcw className={cn('h-4 w-4', refreshing && 'animate-spin')} />
+              {refreshing ? t('overview.refreshing') : t('overview.refresh')}
             </Button>
           </div>
         }
       />
 
-      <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono-data text-muted-foreground">
-        <Badge variant="outline">{filtersDescription}</Badge>
-        <Badge variant={staleMinutes != null && staleMinutes > 5 ? 'amber' : 'outline'}>
-          {staleMinutes == null ? 'Freshness unknown' : staleMinutes > 0 ? `${staleMinutes}m stale` : 'Fresh'}
-        </Badge>
-        <Badge variant="outline">Refreshed {refreshedAt ? formatDateTime(refreshedAt) : '—'}</Badge>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+      {/* ── KPI row ──────────────────────────────────────────── */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
         <KpiCard
-          title="Open incidents"
+          title={t('overview.kpi.incidents.title')}
           value={dashboard.loading ? '…' : String(overview?.incidentsOpenCount ?? 0)}
-          helper={dashboard.error ? dashboard.error : 'Incidents open within the current overview scope.'}
+          helper={
+            dashboard.error
+              ? dashboard.error
+              : `${overview?.criticalIncidentsOpenCount ?? 0} ${t('overview.kpi.incidents.critical', { count: overview?.criticalIncidentsOpenCount ?? 0 })}. ${t('overview.kpi.incidents.helper')}`
+          }
           icon={ShieldAlert}
           tone={(overview?.criticalIncidentsOpenCount ?? 0) > 0 ? 'danger' : (overview?.incidentsOpenCount ?? 0) > 0 ? 'warning' : 'default'}
+          loading={dashboard.loading}
         />
         <KpiCard
-          title="Lane attention"
+          title={t('overview.kpi.laneAttention.title')}
           value={dashboard.loading ? '…' : String(overview?.laneAttentionCount ?? 0)}
-          helper={dashboard.error ? 'Lane summary unavailable.' : `${overview?.offlineLaneCount ?? 0} offline — highest priority.`}
+          helper={dashboard.error ? t('overview.kpi.laneAttention.helper', { offline: 0 }) : t('overview.kpi.laneAttention.helper', { offline: overview?.offlineLaneCount ?? 0 })}
           icon={Activity}
           tone={(overview?.laneAttentionCount ?? 0) > 0 ? 'warning' : 'success'}
+          loading={dashboard.loading}
         />
         <Link to="/parking-live" className="block">
           <KpiCard
-            title="Occupancy rate"
-            value={dashboard.loading ? '…' : `${(overview?.occupancyRate ?? 0).toFixed(2)}%`}
-            helper={dashboard.error ? 'Occupancy snapshot unavailable.' : `${dashboardData?.occupancy.occupiedTotal ?? 0} of ${dashboardData?.occupancy.totalSpots ?? 0} spots. Click for live view.`}
+            title={t('overview.kpi.occupancy.title')}
+            value={dashboard.loading ? '…' : `${(overview?.occupancyRate ?? 0).toFixed(1)}%`}
+            helper={dashboard.error ? '—' : t('overview.kpi.occupancy.helper', { occupied: dashboardData?.occupancy.occupiedTotal ?? 0, total: dashboardData?.occupancy.totalSpots ?? 0 })}
             icon={DatabaseZap}
             tone="default"
+            loading={dashboard.loading}
           />
         </Link>
         <Link to="/subscriptions?status=ACTIVE" className="block">
           <KpiCard
-            title="Active subscriptions"
+            title={t('overview.kpi.subscriptions.title')}
             value={dashboard.loading ? '…' : String(overview?.activeSubscriptionCount ?? 0)}
-            helper={dashboard.error ? 'Subscription summary unavailable.' : `${overview?.expiringSubscriptionCount ?? 0} expiring soon. Click to manage.`}
+            helper={dashboard.error ? '—' : t('overview.kpi.subscriptions.helper', { expiring: overview?.expiringSubscriptionCount ?? 0 })}
             icon={TimerReset}
             tone={(overview?.expiringSubscriptionCount ?? 0) > 0 ? 'warning' : 'default'}
+            loading={dashboard.loading}
           />
         </Link>
         <KpiCard
-          title="Active presence"
+          title={t('overview.kpi.activePresence.title')}
           value={dashboard.loading ? '…' : String(overview?.activePresenceCount ?? 0)}
-          helper={dashboard.error ? 'Presence summary unavailable.' : 'Presence active across lanes in current scope.'}
+          helper={dashboard.error ? '—' : t('overview.kpi.activePresence.helper')}
           icon={ArrowRightLeft}
           tone={(overview?.activePresenceCount ?? 0) > 0 ? 'default' : 'success'}
+          loading={dashboard.loading}
         />
         <KpiCard
-          title="Open sessions"
+          title={t('overview.kpi.openSessions.title')}
           value={dashboard.loading ? '…' : String(overview?.openSessionCount ?? 0)}
-          helper={dashboard.error ? 'Session summary unavailable.' : 'Sessions open with an unclosed lifecycle.'}
-          icon={ClipboardCheck}
+          helper={dashboard.error ? '—' : t('overview.kpi.openSessions.helper')}
+          icon={GitBranch}
           tone={(overview?.openSessionCount ?? 0) > 0 ? 'warning' : 'default'}
+          loading={dashboard.loading}
         />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      {/* ── Operational status row ─────────────────────────────── */}
+      <div className="grid gap-4 xl:grid-cols-2 2xl:grid-cols-4">
         <OperationalStatusCard
-          title="Lane pressure"
+          title={t('overview.status.lanePressure.title')}
           value={lanePressureValue}
           helper={lanePressureHelper}
           icon={Activity}
           status={lanePressureStatus}
           chips={[
-            { 
-              label: `${lanePressureData.offline} offline`, 
-              variant: lanePressureData.offline > 0 ? 'destructive' : 'outline'
+            {
+              label: t('overview.status.lanePressure.offline', { count: lanePressureData.offline }),
+              variant: lanePressureData.offline > 0 ? 'destructive' : 'outline',
             },
-            { 
-              label: `${lanePressureData.barrierFault} barrier fault`, 
-              variant: lanePressureData.barrierFault > 0 ? 'amber' : 'outline'
+            {
+              label: t('overview.status.lanePressure.barrierFault', { count: lanePressureData.barrierFault }),
+              variant: lanePressureData.barrierFault > 0 ? 'amber' : 'outline',
             },
-            { 
-              label: `${lanePressureData.openSessions} open sessions`, 
-              variant: 'outline' 
+            {
+              label: t('overview.status.lanePressure.openSessions', { count: lanePressureData.openSessions }),
+              variant: 'outline',
             },
           ]}
+          loading={dashboard.loading && lanePressureData.total === 0}
         />
 
         <OperationalStatusCard
-          title="Review queue"
+          title={t('overview.status.reviewQueue.title')}
           value={queueSummary.loading ? '…' : String(reviewStatusSummary.open)}
-          helper={queueSummary.error ? queueSummary.error : reviewStatusSummary.open > 0 ? 'Open cases need an operator to claim or resolve.' : 'No open cases in the current queue.'}
+          helper={queueSummary.error ? queueSummary.error : reviewStatusSummary.open > 0 ? t('overview.status.reviewQueue.helperHasItems') : t('overview.status.reviewQueue.helperEmpty')}
           icon={ClipboardCheck}
           status={queueSummary.error ? 'unavailable' : reviewStatusSummary.open > 0 ? 'attention' : queueSummary.loading ? 'degraded' : 'ready'}
           chips={[
-            { label: `${reviewStatusSummary.claimed} claimed`, variant: 'outline' },
-            { label: `${reviewStatusSummary.resolved} resolved`, variant: 'secondary' },
-            { label: `${reviewStatusSummary.cancelled} cancelled`, variant: 'outline' },
+            { label: `${reviewStatusSummary.claimed} ${t('overview.status.reviewQueue.claimed')}`, variant: 'outline' },
+            { label: `${reviewStatusSummary.resolved} ${t('overview.status.reviewQueue.resolved')}`, variant: 'secondary' },
+            { label: `${reviewStatusSummary.cancelled} ${t('overview.status.reviewQueue.cancelled')}`, variant: 'outline' },
           ]}
+          loading={queueSummary.loading}
         />
 
         <OperationalStatusCard
-          title="Outbox delivery"
+          title={t('overview.status.outboxDelivery.title')}
           value={outboxSummary.loading ? '…' : String(outboxStatusSummary.failed)}
-          helper={outboxSummary.error ? outboxSummary.error : outboxStatusSummary.failed > 0 ? 'Failed or timed-out rows need downstream investigation.' : 'No delivery failures in the current overview slice.'}
+          helper={outboxSummary.error ? outboxSummary.error : outboxStatusSummary.failed > 0 ? t('overview.status.outboxDelivery.helperHasItems') : t('overview.status.outboxDelivery.helperEmpty')}
           icon={RadioTower}
           status={outboxSummary.error ? 'unavailable' : outboxStatusSummary.failed > 0 ? 'attention' : outboxStatusSummary.pending > 0 ? 'degraded' : 'ready'}
           chips={[
-            { label: `${outboxStatusSummary.pending} pending`, variant: outboxStatusSummary.pending > 0 ? 'amber' : 'outline' },
-            { label: `${outboxStatusSummary.sent} sent`, variant: 'secondary' },
-            { label: `${outboxSummary.data.length} sample rows`, variant: 'outline' },
+            { label: `${outboxStatusSummary.pending} ${t('overview.status.outboxDelivery.pending')}`, variant: outboxStatusSummary.pending > 0 ? 'amber' : 'outline' },
+            { label: `${outboxStatusSummary.sent} ${t('overview.status.outboxDelivery.sent')}`, variant: 'secondary' },
+            { label: t('overview.status.outboxDelivery.sampleRows', { count: outboxSummary.data.length }), variant: 'outline' },
           ]}
+          loading={outboxSummary.loading}
         />
 
         <OperationalStatusCard
-          title="Device health"
+          title={t('overview.status.deviceHealth.title')}
           value={deviceHealthState.connected ? `${deviceAlertSummary.attention}/${deviceAlertSummary.total}` : String(deviceAlertSummary.attention)}
-          helper={deviceHealthState.error ? deviceHealthState.error : deviceAlertSummary.attention > 0 ? 'Offline or degraded devices in the realtime snapshot.' : 'Device snapshot stable — no degraded or offline units.'}
+          helper={deviceHealthState.error ? deviceHealthState.error : deviceAlertSummary.attention > 0 ? t('overview.status.deviceHealth.helperAttention') : t('overview.status.deviceHealth.helperStable')}
           icon={Cpu}
           status={deviceHealthState.error ? 'unavailable' : deviceAlertSummary.offline > 0 ? 'unavailable' : deviceAlertSummary.attention > 0 ? 'attention' : 'ready'}
           chips={[
-            { label: `${deviceAlertSummary.offline} offline`, variant: deviceAlertSummary.offline > 0 ? 'destructive' : 'outline' },
-            { label: `${deviceAlertSummary.degraded} degraded`, variant: deviceAlertSummary.degraded > 0 ? 'amber' : 'outline' },
-            { label: `${deviceAlertSummary.online} online`, variant: 'secondary' },
+            { label: t('overview.status.deviceHealth.offline', { count: deviceAlertSummary.offline }), variant: deviceAlertSummary.offline > 0 ? 'destructive' : 'outline' },
+            { label: t('overview.status.deviceHealth.degraded', { count: deviceAlertSummary.degraded }), variant: deviceAlertSummary.degraded > 0 ? 'amber' : 'outline' },
+            { label: t('overview.status.deviceHealth.online', { count: deviceAlertSummary.online }), variant: 'secondary' },
           ]}
+          loading={deviceHealthState.connected === false && deviceAlertSummary.total === 0}
         />
       </div>
 
+      {/* ── Quick actions ─────────────────────────────────────── */}
       <QuickActionsCard
         actions={QUICK_ACTIONS}
-        title="Go to work screen"
-        description="Overview is a coordination view only. Once you know where the problem is, go directly to the right screen."
+        title={t('overview.quickActions.title')}
+        description={t('overview.quickActions.description')}
       />
 
+      {/* ── Site overview + Live watchlist ─────────────────────── */}
       <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <SiteAttentionTable
           rows={effectiveSiteRows}
@@ -363,34 +396,79 @@ export function OverviewPage() {
 
         <Card className="border-border/80 bg-card/95 shadow-[0_18px_60px_rgba(0,0,0,0.12)]">
           <CardHeader>
-            <CardTitle>Live lane watchlist</CardTitle>
-            <CardDescription>Lanes in the worst health from the live stream — so you know which ones need immediate action in Run Lane or Lane Monitor.</CardDescription>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-xl border border-primary/25 bg-primary/10">
+                    <Activity className="h-4 w-4 text-primary" />
+                  </span>
+                  {t('overview.liveWatchlist.title')}
+                </CardTitle>
+                <CardDescription className="mt-1">{t('overview.liveWatchlist.description')}</CardDescription>
+              </div>
+              {laneState.connected ? (
+                <Badge variant="secondary" className="flex items-center gap-1 shrink-0">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+                  </span>
+                  Live
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="flex items-center gap-1 shrink-0">
+                  <WifiOff className="h-3 w-3" />
+                  Offline
+                </Badge>
+              )}
+            </div>
           </CardHeader>
 
           <CardContent>
             {laneState.error ? (
-              <SurfaceState tone="error" title="Lane stream unavailable" description={laneState.error} className="min-h-[220px]" />
+              <SurfaceState
+                tone="error"
+                title={t('overview.liveWatchlist.streamUnavailable')}
+                description={laneState.error}
+                className="min-h-[220px]"
+              />
             ) : liveLaneSummary.topProblemLanes.length === 0 ? (
               <SurfaceState
                 tone={laneState.connected ? 'empty' : 'loading'}
-                title={laneState.connected ? 'No lanes in attention state' : 'Waiting for lane snapshot'}
-                description={laneState.connected ? 'Stream is active — no lanes in attention or offline state.' : 'The list will populate once the backend pushes a lane_status_snapshot.'}
+                title={laneState.connected ? t('overview.liveWatchlist.noLanes') : t('overview.liveWatchlist.waiting')}
+                description={laneState.connected ? t('overview.liveWatchlist.noLanesDesc') : t('overview.liveWatchlist.waitingDesc')}
                 className="min-h-[220px]"
               />
             ) : (
               <div className="space-y-3">
                 {liveLaneSummary.topProblemLanes.map((lane) => (
-                  <div key={`${lane.siteCode}:${lane.laneCode}`} className="rounded-2xl border border-border/80 bg-background/40 p-4">
+                  <div
+                    key={`${lane.siteCode}:${lane.laneCode}`}
+                    className="group rounded-2xl border border-border/60 bg-card/60 p-4 transition-all duration-200 hover:border-destructive/30 hover:bg-destructive/5"
+                  >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <p className="font-mono-data text-sm font-semibold">{lane.siteCode} / {lane.gateCode} / {lane.laneCode}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {lane.direction} &middot; session {lane.lastSessionStatus || '—'} &middot; barrier {lane.lastBarrierStatus || '—'}
+                        <p className="font-mono-data text-sm font-semibold tracking-tight">
+                          {lane.siteCode} / {lane.gateCode} / {lane.laneCode}
+                        </p>
+                        <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                          <Badge variant="outline" className="text-[10px]">
+                            {lane.direction}
+                          </Badge>
+                          <span>
+                            {t('overview.liveWatchlist.session')}:{' '}
+                            <span className="font-medium text-foreground">{lane.lastSessionStatus || '—'}</span>
+                          </span>
+                          <span>
+                            {t('overview.liveWatchlist.barrier')}:{' '}
+                            <span className="font-medium text-foreground">{lane.lastBarrierStatus || '—'}</span>
+                          </span>
                         </p>
                       </div>
-                      <Badge variant={laneVariant(lane.aggregateHealth)}>{lane.aggregateHealth}</Badge>
+                      <Badge variant={laneVariant(lane.aggregateHealth)} className="shrink-0 text-[10px]">
+                        {lane.aggregateHealth}
+                      </Badge>
                     </div>
-                    <p className="mt-3 text-xs text-muted-foreground">{lane.aggregateReason}</p>
+                    <p className="mt-3 text-xs text-muted-foreground leading-relaxed">{lane.aggregateReason}</p>
                   </div>
                 ))}
               </div>
@@ -399,25 +477,41 @@ export function OverviewPage() {
         </Card>
       </div>
 
+      {/* ── Recent sessions + Dependency status ───────────────── */}
       <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
         <Card className="border-border/80 bg-card/95 shadow-[0_18px_60px_rgba(0,0,0,0.12)]">
           <CardHeader>
-            <CardTitle>Recent sessions</CardTitle>
-            <CardDescription>Latest sessions — quickly spot lanes in WAITING_DECISION, ERROR, or requiring review.</CardDescription>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-xl border border-primary/25 bg-primary/10">
+                    <GitBranch className="h-4 w-4 text-primary" />
+                  </span>
+                  {t('overview.recentSessions.title')}
+                </CardTitle>
+                <CardDescription className="mt-1">{t('overview.recentSessions.description')}</CardDescription>
+              </div>
+              <Link to="/sessions">
+                <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground hover:text-foreground">
+                  Xem tất cả
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
           </CardHeader>
 
           <CardContent>
             {recentSessions.loading ? (
-              <SurfaceState tone="loading" title="Loading sessions" description="Fetching the most recent session slice." className="min-h-[220px]" />
+              <SurfaceState tone="loading" title={t('overview.recentSessions.loading')} className="min-h-[220px]" />
             ) : recentSessions.error ? (
-              <SurfaceState tone="error" title="Sessions unavailable" description={recentSessions.error} className="min-h-[220px]" />
+              <SurfaceState tone="error" title={t('overview.recentSessions.error')} description={recentSessions.error} className="min-h-[220px]" />
             ) : recentSessions.data.length === 0 ? (
-              <SurfaceState title="No sessions" description="No sessions returned for the current scope." className="min-h-[220px]" />
+              <SurfaceState title={t('overview.recentSessions.empty')} className="min-h-[220px]" />
             ) : (
               <ScrollArea className="h-[360px]">
                 <div className="space-y-3 pr-3">
                   {recentSessions.data.map((session) => (
-                    <SessionRow key={String(session.sessionId)} session={session} />
+                    <SessionRow key={String(session.sessionId)} session={session} t={t} />
                   ))}
                 </div>
               </ScrollArea>
@@ -427,27 +521,59 @@ export function OverviewPage() {
 
         <Card className="border-border/80 bg-card/95 shadow-[0_18px_60px_rgba(0,0,0,0.12)]">
           <CardHeader>
-            <CardTitle>Dependency status</CardTitle>
-            <CardDescription>Ready / degraded / unavailable per data source — helps distinguish data failures from business-logic issues.</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-xl border border-primary/25 bg-primary/10">
+                <Wifi className="h-4 w-4 text-primary" />
+              </span>
+              {t('overview.dependencyStatus.title')}
+            </CardTitle>
+            <CardDescription>{t('overview.dependencyStatus.description')}</CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-3">
             {([
-              { label: 'Dashboard summary', status: dependencyStatus(dashboard.error, dashboard.loading), detail: dashboard.error || filtersDescription },
-              { label: 'Recent sessions', status: dependencyStatus(recentSessions.error, recentSessions.loading), detail: recentSessions.error || `${recentSessions.data.length} rows loaded` },
-              { label: 'Review queue', status: dependencyStatus(queueSummary.error, queueSummary.loading), detail: queueSummary.error || `${reviewStatusSummary.open} open · ${reviewStatusSummary.claimed} claimed` },
-              { label: 'Outbox list', status: dependencyStatus(outboxSummary.error, outboxSummary.loading), detail: outboxSummary.error || `${outboxStatusSummary.failed} failed · ${outboxStatusSummary.pending} pending` },
-              { label: 'Lane stream', status: (laneState.error ? 'unavailable' : laneState.connected ? 'ready' : 'degraded') as OperationalStatus, detail: laneState.error || (laneState.connected ? 'lane_status_snapshot active' : 'Waiting for first lane snapshot') },
-              { label: 'Device stream', status: (deviceHealthState.error ? 'unavailable' : deviceHealthState.connected ? 'ready' : 'degraded') as OperationalStatus, detail: deviceHealthState.error || (deviceHealthState.connected ? 'device_health_snapshot active' : 'Waiting for first device snapshot') },
+              {
+                label: t('overview.dependencyStatus.dashboardSummary'),
+                status: dependencyStatus(dashboard.error, dashboard.loading),
+                detail: dashboard.error || t('overview.filterBadge', { hours: dashboardData?.filters.sinceHours ?? '?', days: dashboardData?.filters.expiringInDays ?? '?' }),
+              },
+              {
+                label: t('overview.dependencyStatus.recentSessions'),
+                status: dependencyStatus(recentSessions.error, recentSessions.loading),
+                detail: recentSessions.error || t('overview.dependencyStatus.rowsLoaded', { count: recentSessions.data.length }),
+              },
+              {
+                label: t('overview.dependencyStatus.reviewQueue'),
+                status: dependencyStatus(queueSummary.error, queueSummary.loading),
+                detail: queueSummary.error || t('overview.dependencyStatus.openClaimed', { open: reviewStatusSummary.open, claimed: reviewStatusSummary.claimed }),
+              },
+              {
+                label: t('overview.dependencyStatus.outboxList'),
+                status: dependencyStatus(outboxSummary.error, outboxSummary.loading),
+                detail: outboxSummary.error || t('overview.dependencyStatus.failedPending', { failed: outboxStatusSummary.failed, pending: outboxStatusSummary.pending }),
+              },
+              {
+                label: t('overview.dependencyStatus.laneStream'),
+                status: (laneState.error ? 'unavailable' : laneState.connected ? 'ready' : 'degraded') as OperationalStatus,
+                detail: laneState.error || (laneState.connected ? t('overview.dependencyStatus.streamActive') : t('overview.liveWatchlist.waiting')),
+              },
+              {
+                label: t('overview.dependencyStatus.deviceStream'),
+                status: (deviceHealthState.error ? 'unavailable' : deviceHealthState.connected ? 'ready' : 'degraded') as OperationalStatus,
+                detail: deviceHealthState.error || (deviceHealthState.connected ? t('overview.dependencyStatus.streamActive') : t('overview.liveWatchlist.waiting')),
+              },
             ] as Array<{ label: string; status: OperationalStatus; detail: string }>).map((item) => (
-              <div key={item.label} className="rounded-2xl border border-border/80 bg-background/40 p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium">{item.label}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
-                  </div>
-                  <Badge variant={pageStateVariant(item.status)}>{pageStateLabel(item.status)}</Badge>
+              <div
+                key={item.label}
+                className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-border/60 bg-card/60 p-4 transition-all duration-200 hover:bg-card/80"
+              >
+                <div>
+                  <p className="text-sm font-medium">{item.label}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
                 </div>
+                <Badge variant={pageStateVariant(item.status)} className="shrink-0 text-[10px]">
+                  {t(`overview.pageStatus.${item.status}`)}
+                </Badge>
               </div>
             ))}
           </CardContent>

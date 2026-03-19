@@ -401,5 +401,151 @@
   "runLanePage": {
     "submitting": "Đang ghi nhận lượt xe...",
     "submit": "Hoàn tất cho xe qua"
+  },
+  "overview": {
+    "eyebrow": "Điều hành",
+    "title": "Tổng quan",
+    "description": "Bảng điều khiển trực ca — Theo dõi hàng chờ, cảnh báo và trạng thái hệ thống.",
+    "allAccessibleSites": "Tất cả bãi xe",
+    "selectSite": "Chọn bãi xe",
+    "pageStatus": {
+      "ready": "Sẵn sàng",
+      "attention": "Cần chú ý",
+      "degraded": "Suy giảm",
+      "unavailable": "Không khả dụng"
+    },
+    "refresh": "Làm mới",
+    "refreshing": "Đang làm mới…",
+    "refreshedAt": "Cập nhật lúc {{time}}",
+    "freshness": {
+      "unknown": "Chưa xác định",
+      "fresh": "Dữ liệu tươi mới",
+      "stale": "Đã cũ {{minutes}} phút"
+    },
+    "filterBadge": "Khung {{hours}}h · Hết hạn {{days}}d",
+    "streamLane": "Luồng làn",
+    "streamDevice": "Luồng thiết bị",
+    "kpi": {
+      "incidents": {
+        "title": "Sự cố đang mở",
+        "helper": "Sự cố trong phạm vi tổng quan hiện tại.",
+        "critical": "{{count}} nghiêm trọng"
+      },
+      "laneAttention": {
+        "title": "Làn cần chú ý",
+        "helper": "{{offline}} làn offline — ưu tiên cao nhất."
+      },
+      "occupancy": {
+        "title": "Tỷ lệ lấp đầy",
+        "helper": "{{occupied}} trong {{total}} chỗ. Nhấn để xem chi tiết."
+      },
+      "subscriptions": {
+        "title": "Gói dịch vụ đang hoạt động",
+        "helper": "{{expiring}} sắp hết hạn. Nhấn để quản lý."
+      },
+      "activePresence": {
+        "title": "Hiện diện đang hoạt động",
+        "helper": "Số lượt xe hiện diện tại các làn trong phạm vi hiện tại."
+      },
+      "openSessions": {
+        "title": "Phiên đang mở",
+        "helper": "Phiên có vòng đời chưa đóng."
+      }
+    },
+    "status": {
+      "lanePressure": {
+        "title": "Áp lực làn",
+        "offline": "{{count}} offline",
+        "barrierFault": "{{count}} lỗi thanh chắn",
+        "openSessions": "{{count}} phiên mở",
+        "helperLive": "Nguồn từ luồng làn trực tiếp.",
+        "helperFallback": "Luồng làn chưa kết nối — hiển thị ảnh chụp."
+      },
+      "reviewQueue": {
+        "title": "Hàng chờ duyệt",
+        "helperHasItems": "Các trường hợp cần thao tác viên xác nhận.",
+        "helperEmpty": "Không có trường hợp nào trong hàng chờ.",
+        "claimed": "Đã tiếp nhận",
+        "resolved": "Đã xử lý",
+        "cancelled": "Đã hủy"
+      },
+      "outboxDelivery": {
+        "title": "Giao dữ liệu",
+        "helperHasItems": "Các bản ghi lỗi cần kiểm tra downstream.",
+        "helperEmpty": "Không có lỗi giao trong phạm vi hiện tại.",
+        "pending": "Đang chờ",
+        "sent": "Đã gửi",
+        "sampleRows": "{{count}} bản ghi mẫu"
+      },
+      "deviceHealth": {
+        "title": "Tình trạng thiết bị",
+        "helperAttention": "Thiết bị offline hoặc suy giảm trong ảnh chụp trực tiếp.",
+        "helperStable": "Thiết bị ổn định — không có đơn vị suy giảm.",
+        "offline": "{{count}} offline",
+        "degraded": "{{count}} suy giảm",
+        "online": "{{count}} trực tuyến"
+      }
+    },
+    "quickActions": {
+      "title": "Thao tác nhanh",
+      "description": "Chuyển thẳng đến màn hình cần xử lý.",
+      "open": "Mở"
+    },
+    "siteOverview": {
+      "title": "Tổng quan theo bãi",
+      "description": "So sánh tải sự cố, trạng thái làn và phiên đang mở giữa các bãi.",
+      "loading": "Đang tải tóm tắt bãi…",
+      "error": "Không thể tải tóm tắt bãi.",
+      "empty": "Không có bãi nào trong phạm vi.",
+      "allSites": "Tất cả bãi",
+      "occupancy": "{{rate}}% lấp đầy",
+      "presence": "{{count}} hiện diện",
+      "stable": "Ổn định",
+      "incidents": "{{count}} sự cố",
+      "critical": "{{count}} nghiêm trọng",
+      "laneAttention": "{{count}} làn cần chú ý",
+      "offline": "{{count}} offline",
+      "openSessions": "{{count}} phiên mở",
+      "expiring": "{{count}} sắp hết hạn",
+      "searchPlaceholder": "Tìm kiếm bãi…"
+    },
+    "liveWatchlist": {
+      "title": "Làn cần xử lý ngay",
+      "description": "Các làn có tình trạng nghiêm trọng nhất từ luồng trực tiếp.",
+      "streamUnavailable": "Luồng làn không khả dụng",
+      "streamUnavailableDesc": "{{error}}",
+      "noLanes": "Không có làn cần chú ý",
+      "noLanesDesc": "Luồng đang hoạt động — không có làn nào ở trạng thái cần chú ý.",
+      "waiting": "Đang chờ ảnh chụp làn",
+      "waitingDesc": "Danh sách sẽ hiển thị khi backend gửi lane_status_snapshot.",
+      "session": "Phiên",
+      "barrier": "Thanh chắn",
+      "direction": "Hướng"
+    },
+    "recentSessions": {
+      "title": "Phiên gần đây",
+      "description": "Các phiên mới nhất — nhanh chóng phát hiện làn cần quyết định, lỗi hoặc cần duyệt.",
+      "loading": "Đang tải phiên…",
+      "error": "Không thể tải phiên",
+      "empty": "Không có phiên nào",
+      "reads": "{{count}} lần đọc",
+      "decisions": "{{count}} quyết định",
+      "reviewRequired": "Cần duyệt",
+      "openAt": "Mở lúc"
+    },
+    "dependencyStatus": {
+      "title": "Trạng thái phụ thuộc",
+      "description": "Sẵn sàng / suy giảm / không khả dụng theo nguồn dữ liệu — giúp phân biệt lỗi dữ liệu với lỗi nghiệp vụ.",
+      "dashboardSummary": "Tóm tắt dashboard",
+      "recentSessions": "Phiên gần đây",
+      "reviewQueue": "Hàng chờ duyệt",
+      "outboxList": "Danh sách outbox",
+      "laneStream": "Luồng làn",
+      "deviceStream": "Luồng thiết bị",
+      "rowsLoaded": "{{count}} bản ghi đã nạp",
+      "openClaimed": "{{open}} mở · {{claimed}} tiếp nhận",
+      "failedPending": "{{failed}} lỗi · {{pending}} đang chờ",
+      "streamActive": "Luồng đang hoạt động"
+    }
   }
 }

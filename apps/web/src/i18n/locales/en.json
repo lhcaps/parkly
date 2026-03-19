@@ -401,5 +401,151 @@
   "runLanePage": {
     "submitting": "Submitting...",
     "submit": "Run Lane Flow"
+  },
+  "overview": {
+    "eyebrow": "Operations",
+    "title": "Overview",
+    "description": "Shift dashboard — queue pressure, alerts, and system health at a glance.",
+    "allAccessibleSites": "All sites",
+    "selectSite": "Select site",
+    "pageStatus": {
+      "ready": "Ready",
+      "attention": "Attention",
+      "degraded": "Degraded",
+      "unavailable": "Unavailable"
+    },
+    "refresh": "Refresh",
+    "refreshing": "Refreshing…",
+    "refreshedAt": "Updated at {{time}}",
+    "freshness": {
+      "unknown": "Unknown",
+      "fresh": "Fresh",
+      "stale": "{{minutes}}m stale"
+    },
+    "filterBadge": "{{hours}}h window · {{days}}d expiry",
+    "streamLane": "Lane stream",
+    "streamDevice": "Device stream",
+    "kpi": {
+      "incidents": {
+        "title": "Open incidents",
+        "helper": "Incidents within the current overview scope.",
+        "critical": "{{count}} critical"
+      },
+      "laneAttention": {
+        "title": "Lane attention",
+        "helper": "{{offline}} lanes offline — highest priority."
+      },
+      "occupancy": {
+        "title": "Occupancy rate",
+        "helper": "{{occupied}} of {{total}} spots. Click for live view."
+      },
+      "subscriptions": {
+        "title": "Active subscriptions",
+        "helper": "{{expiring}} expiring soon. Click to manage."
+      },
+      "activePresence": {
+        "title": "Active presence",
+        "helper": "Vehicles present across lanes in current scope."
+      },
+      "openSessions": {
+        "title": "Open sessions",
+        "helper": "Sessions with an unclosed lifecycle."
+      }
+    },
+    "status": {
+      "lanePressure": {
+        "title": "Lane pressure",
+        "offline": "{{count}} offline",
+        "barrierFault": "{{count}} barrier fault",
+        "openSessions": "{{count}} open",
+        "helperLive": "Sourced from live lane stream.",
+        "helperFallback": "Lane stream not connected — showing snapshot."
+      },
+      "reviewQueue": {
+        "title": "Review queue",
+        "helperHasItems": "Cases need an operator to claim or resolve.",
+        "helperEmpty": "No open cases in the current queue.",
+        "claimed": "Claimed",
+        "resolved": "Resolved",
+        "cancelled": "Cancelled"
+      },
+      "outboxDelivery": {
+        "title": "Outbox delivery",
+        "helperHasItems": "Failed rows need downstream investigation.",
+        "helperEmpty": "No delivery failures in the current scope.",
+        "pending": "Pending",
+        "sent": "Sent",
+        "sampleRows": "{{count}} sample rows"
+      },
+      "deviceHealth": {
+        "title": "Device health",
+        "helperAttention": "Offline or degraded devices in realtime snapshot.",
+        "helperStable": "Stable — no degraded or offline units.",
+        "offline": "{{count}} offline",
+        "degraded": "{{count}} degraded",
+        "online": "{{count}} online"
+      }
+    },
+    "quickActions": {
+      "title": "Quick actions",
+      "description": "Go directly to the screen you need to work on.",
+      "open": "Open"
+    },
+    "siteOverview": {
+      "title": "Site overview",
+      "description": "Compare incident load, lane status, and open sessions across sites.",
+      "loading": "Loading site summary…",
+      "error": "Site summary unavailable.",
+      "empty": "No sites in scope.",
+      "allSites": "All sites",
+      "occupancy": "{{rate}}% occupancy",
+      "presence": "{{count}} present",
+      "stable": "Stable",
+      "incidents": "{{count}} incidents",
+      "critical": "{{count}} critical",
+      "laneAttention": "{{count}} lane attention",
+      "offline": "{{count}} offline",
+      "openSessions": "{{count}} open sessions",
+      "expiring": "{{count}} expiring",
+      "searchPlaceholder": "Search sites…"
+    },
+    "liveWatchlist": {
+      "title": "Lanes needing attention",
+      "description": "Lanes with the worst health from the live stream.",
+      "streamUnavailable": "Lane stream unavailable",
+      "streamUnavailableDesc": "{{error}}",
+      "noLanes": "No lanes need attention",
+      "noLanesDesc": "Stream is active — no lanes in attention or offline state.",
+      "waiting": "Waiting for lane snapshot",
+      "waitingDesc": "The list will populate once the backend pushes lane_status_snapshot.",
+      "session": "Session",
+      "barrier": "Barrier",
+      "direction": "Direction"
+    },
+    "recentSessions": {
+      "title": "Recent sessions",
+      "description": "Latest sessions — quickly spot lanes needing decision, error, or review.",
+      "loading": "Loading sessions…",
+      "error": "Sessions unavailable",
+      "empty": "No sessions",
+      "reads": "{{count}} reads",
+      "decisions": "{{count}} decisions",
+      "reviewRequired": "Review required",
+      "openAt": "Opened at"
+    },
+    "dependencyStatus": {
+      "title": "Dependency status",
+      "description": "Ready / degraded / unavailable per data source.",
+      "dashboardSummary": "Dashboard summary",
+      "recentSessions": "Recent sessions",
+      "reviewQueue": "Review queue",
+      "outboxList": "Outbox list",
+      "laneStream": "Lane stream",
+      "deviceStream": "Device stream",
+      "rowsLoaded": "{{count}} rows loaded",
+      "openClaimed": "{{open}} open · {{claimed}} claimed",
+      "failedPending": "{{failed}} failed · {{pending}} pending",
+      "streamActive": "stream active"
+    }
   }
 }
