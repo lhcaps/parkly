@@ -98,6 +98,8 @@ function buildMariaDbAdapter() {
     user: chosen.user,
     password: chosen.password,
     database: chosen.database,
+    /** Bắt buộc cho tiếng Việt / ký tự Unicode trong VARCHAR — tránh mojibake kiểu Ã,Â· */
+    charset: 'utf8mb4',
     connectionLimit,
     acquireTimeout,
     connectTimeout,

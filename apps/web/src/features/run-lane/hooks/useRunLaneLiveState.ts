@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import type { LaneStatusSnapshot } from '@parkly/contracts'
 import { emitRealtimeTelemetry } from '@/features/_shared/realtime/realtime-telemetry'
 import { useSseSnapshot } from '@/features/_shared/use-sse-snapshot'
@@ -7,8 +7,7 @@ import { getLaneStatusSnapshot } from '@/lib/api/ops'
 import { selectRunLaneLaneCode, selectRunLaneSiteCode } from '@/features/run-lane/store/runLaneSelectors'
 import { useRunLaneStore } from '@/features/run-lane/store/runLaneStoreContext'
 
-const STALE_AFTER_MS = 45_000
-
+const STALE_AFTER_MS = 120_000
 
 async function loadRunLaneSnapshot(siteCode: string): Promise<LaneStatusSnapshot> {
   const snapshot = await getLaneStatusSnapshot({ siteCode, limit: 200 })
@@ -27,14 +26,25 @@ export function useRunLaneLiveState() {
   const siteCode = useRunLaneStore(selectRunLaneSiteCode)
   const laneCode = useRunLaneStore(selectRunLaneLaneCode)
 
+  const loadSnapshotRef = useRef(loadRunLaneSnapshot)
+
+  const url = useMemo(() => {
+    return siteCode
+      ? makeSseUrl(`/api/stream/lane-status?siteCode=${encodeURIComponent(siteCode)}`)
+      : makeSseUrl('/api/stream/lane-status')
+  }, [siteCode])
+
+  const loadSnapshot = useCallback(() => {
+    if (!siteCode) return Promise.reject(new Error('No siteCode'))
+    return loadSnapshotRef.current(siteCode)
+  }, [siteCode])
+
   const { data, state, resync } = useSseSnapshot<LaneStatusSnapshot>({
-    url: makeSseUrl(siteCode ? `/api/stream/lane-status?siteCode=${encodeURIComponent(siteCode)}` : '/api/stream/lane-status'),
+    url,
     eventName: 'lane_status_snapshot',
     enabled: Boolean(siteCode),
     staleAfterMs: STALE_AFTER_MS,
-    loadSnapshot: siteCode
-      ? () => loadRunLaneSnapshot(siteCode)
-      : undefined,
+    loadSnapshot,
   })
 
   const rows = data?.rows ?? []
@@ -49,16 +59,21 @@ export function useRunLaneLiveState() {
   useEffect(() => {
     if (!lostContext) return
     emitRealtimeTelemetry('lost_context', {
-      stream: siteCode ? `/api/stream/lane-status?siteCode=${siteCode}` : '/api/stream/lane-status',
+      stream: url,
       eventName: 'lane_status_snapshot',
       reason: `${siteCode || '—'}:${laneCode || '—'}`,
       receivedAt: state.receivedAt,
       lastSnapshotAt: state.lastSnapshotAt,
       reconnectCount: state.reconnectCount,
     })
-  }, [laneCode, lostContext, siteCode, state.lastSnapshotAt, state.receivedAt, state.reconnectCount])
+  }, [laneCode, lostContext, siteCode, state.lastSnapshotAt, state.receivedAt, state.reconnectCount, url])
 
-  return {
+  const refreshSnapshot = useCallback(() => {
+    if (!siteCode) return Promise.resolve()
+    return resync()
+  }, [resync, siteCode])
+
+  return useMemo(() => ({
     rows,
     snapshotLoading: state.refreshing && !data,
     refreshing: state.refreshing,
@@ -76,6 +91,24 @@ export function useRunLaneLiveState() {
     laneCode,
     selectedLaneLive,
     lostContext,
-    refreshSnapshot: resync,
-  }
+    refreshSnapshot,
+  }), [
+    rows,
+    state.refreshing,
+    data,
+    state.error,
+    state.connected,
+    state.reconnectCount,
+    state.receivedAt,
+    state.lastSnapshotAt,
+    state.stale,
+    state.status,
+    state.unauthorized,
+    state.staleSince,
+    siteCode,
+    laneCode,
+    selectedLaneLive,
+    lostContext,
+    refreshSnapshot,
+  ])
 }

@@ -78,7 +78,7 @@ function parseEventBlock(block: string): SseMessage | null {
   }
 }
 
-function delay(ms: number, signal?: AbortSignal) {
+function delay(ms: number, signal?: AbortSignal): Promise<'aborted' | 'completed'> {
   return new Promise<void>((resolve) => {
     if (signal?.aborted) {
       resolve()
@@ -97,8 +97,10 @@ function delay(ms: number, signal?: AbortSignal) {
     }
 
     signal?.addEventListener('abort', onAbort)
-  })
+  }).then(() => 'completed' as const)
 }
+
+export type DelayResult = 'aborted' | 'completed'
 
 export function makeSseUrl(path: string) {
   return buildUrl(path)
@@ -251,7 +253,9 @@ export async function connectSseWithRetry(args: {
 
     const nextRetryAt = new Date(Date.now() + retryDelayMs).toISOString()
     args.onStatusChange?.(hasOpened ? 'reconnecting' : 'connecting', { reconnectCount, nextRetryAt, lastEventId })
-    await delay(retryDelayMs, args.signal)
+
+    const wokeUp = await delay(retryDelayMs, args.signal)
+    if (wokeUp === 'aborted') break
     retryDelayMs = normalizeRetryDelay(Math.round(retryDelayMs * 1.6), args.maxRetryDelayMs ?? 12_000)
   }
 }

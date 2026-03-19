@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { HardDriveDownload, RefreshCcw, ShieldAlert, Trash2, Wrench } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -32,41 +33,47 @@ export function DeveloperDebugTab({
   onClearCache,
   onResetPrefs,
 }: DeveloperDebugTabProps) {
-  return (
-    <div className="grid gap-5 xl:grid-cols-[1.3fr_0.9fr]">
-      <Card className="border-border/80 bg-card/95 shadow-[0_16px_48px_rgba(0,0,0,0.14)]">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
-            <Wrench className="h-4 w-4 text-primary" />
-            Local environment
-          </CardTitle>
-        </CardHeader>
+  const { t } = useTranslation()
 
-        <CardContent className="space-y-4 text-sm">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Metric label="API base" value={apiBase || 'None'} />
-            <Metric label="Token" value={tokenPreview || 'Not configured'} />
-            <Metric label="Mode" value={buildInfo.mode || 'unknown'} />
-            <Metric label="Base URL" value={buildInfo.baseUrl || '/'} />
+  return (
+    <div className="grid gap-6 xl:grid-cols-[1.3fr_0.9fr]">
+      {/* Left Column - Environment Info */}
+      <Card className="border-border/80 bg-card/95 overflow-hidden">
+        <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-6 py-5">
+          <CardTitle className="flex items-center gap-2 text-lg font-bold tracking-tight">
+            <Wrench className="h-5 w-5 text-primary" />
+            {t('developer.localEnv')}
+          </CardTitle>
+        </div>
+
+        <CardContent className="p-6 space-y-5">
+          {/* Environment Metrics */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Metric label={t('developer.apiBase')} value={apiBase || t('developer.none')} />
+            <Metric label={t('developer.tokenPreview')} value={tokenPreview || t('developer.tokenNone')} />
+            <Metric label={t('developer.mode')} value={buildInfo.mode || t('developer.unknown')} />
+            <Metric label={t('developer.baseUrl')} value={buildInfo.baseUrl || '/'} />
           </div>
 
+          {/* Info Box */}
           <InlineMessage tone="info">
             <div>
-              <p className="font-medium">Surface boundaries</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                User-auth shell routes use the browser access token. Mobile capture and device heartbeat use device-signed credentials only. A device 401 must be debugged on the mobile surface, not by logging the web operator out.
+              <p className="font-semibold">{t('developer.surfaceTitle')}</p>
+              <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
+                {t('developer.surfaceBody')}
               </p>
             </div>
           </InlineMessage>
 
           <Separator />
 
-          <div className="space-y-3">
-            <p className="font-medium text-foreground">Current default context</p>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <Metric label="Site" value={prefs.siteCode || '—'} />
-              <Metric label="Lane" value={prefs.laneCode || '—'} />
-              <Metric label="Direction" value={prefs.direction} />
+          {/* Default Context */}
+          <div className="space-y-4">
+            <p className="font-semibold text-foreground">{t('developer.defaultContextCurrent')}</p>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Metric label={t('laneContext.site')} value={prefs.siteCode || t('common.dash')} />
+              <Metric label={t('laneContext.lane')} value={prefs.laneCode || t('common.dash')} />
+              <Metric label={t('laneContext.direction')} value={prefs.direction} />
             </div>
           </div>
 
@@ -74,52 +81,81 @@ export function DeveloperDebugTab({
         </CardContent>
       </Card>
 
-      <Card className="border-border/80 bg-card/95 shadow-[0_16px_48px_rgba(0,0,0,0.14)]">
-        <CardHeader>
-          <CardTitle className="text-base font-semibold tracking-tight">Clear local cache</CardTitle>
-        </CardHeader>
+      {/* Right Column - Cache Management */}
+      <Card className="border-border/80 bg-card/95 overflow-hidden">
+        <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-6 py-5">
+          <CardTitle className="text-lg font-bold tracking-tight">{t('developer.clearLocalTitle')}</CardTitle>
+        </div>
 
-        <CardContent className="space-y-4 text-sm">
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" onClick={onResetPrefs}>
-              <RefreshCcw className="h-4 w-4" />
-              Reset context
+        <CardContent className="p-6 space-y-5">
+          <p className="text-sm text-muted-foreground leading-relaxed">{t('developer.clearLocalDesc')}</p>
+
+          {/* Action Buttons - Large */}
+          <div className="flex flex-col gap-3">
+            <Button
+              type="button"
+              variant="default"
+              size="lg"
+              className="w-full gap-2 text-base h-12 px-6"
+              onClick={onResetPrefs}
+            >
+              <RefreshCcw className="h-5 w-5" />
+              {t('developer.resetContextBtn')}
             </Button>
-            <Button type="button" variant="destructive" onClick={onClearCache}>
-              <Trash2 className="h-4 w-4" />
-              Clear app cache
+            <Button
+              type="button"
+              variant="destructive"
+              size="lg"
+              className="w-full gap-2 text-base h-12 px-6"
+              onClick={onClearCache}
+            >
+              <Trash2 className="h-5 w-5" />
+              {t('developer.clearCache')}
             </Button>
           </div>
 
-          <div className="rounded-2xl border border-border/70 bg-muted/35 p-4">
-            <div className="mb-2 flex items-center gap-2 text-sm font-medium text-foreground">
-              <HardDriveDownload className="h-4 w-4 text-primary" />
-              Local keys
+          {/* Cache Keys */}
+          <div className="rounded-2xl border border-border/70 bg-muted/35 p-5">
+            <div className="flex items-center gap-2.5 mb-4 text-sm font-semibold text-foreground">
+              <HardDriveDownload className="h-5 w-5 text-primary" />
+              {t('developer.localKeys')}
             </div>
             <div className="flex flex-wrap gap-2">
               {cacheKeys.length ? (
                 cacheKeys.map((key) => (
-                  <Badge key={key} variant="secondary">
+                  <Badge key={key} variant="secondary" className="text-xs px-2.5 py-1">
                     {key}
                   </Badge>
                 ))
               ) : (
-                <p className="text-muted-foreground">No app keys in localStorage.</p>
+                <p className="text-sm text-muted-foreground">{t('developer.noLocalKeys')}</p>
               )}
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border/70 bg-muted/30 p-4">
-            <div className="mb-2 flex items-center gap-2 text-sm font-medium text-foreground">
-              <ShieldAlert className="h-4 w-4 text-primary" />
-              Troubleshooting split
+          {/* Troubleshooting */}
+          <div className="rounded-2xl border border-border/70 bg-muted/30 p-5">
+            <div className="flex items-center gap-2.5 mb-4 text-sm font-semibold text-foreground">
+              <ShieldAlert className="h-5 w-5 text-primary" />
+              {t('developer.troubleTitle')}
             </div>
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              <li>Shell auth issues: /api/auth/*, route bootstrap, user role guards, realtime 401.</li>
-              <li>Device-signed issues: /api/devices/heartbeat and /api/gate-reads/* signed by device secret.</li>
-              <li>Do not treat device signature errors as proof that the browser user session is expired.</li>
+            <ul className="space-y-2.5 text-sm text-muted-foreground">
+              <li className="flex items-start gap-2">
+                <span className="text-primary mt-1 shrink-0">•</span>
+                {t('developer.trouble1')}
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-primary mt-1 shrink-0">•</span>
+                {t('developer.trouble2')}
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-primary mt-1 shrink-0">•</span>
+                {t('developer.trouble3')}
+              </li>
             </ul>
           </div>
+
+          <p className="text-xs text-muted-foreground leading-relaxed">{t('developer.refreshHint')}</p>
         </CardContent>
       </Card>
     </div>
@@ -128,9 +164,9 @@ export function DeveloperDebugTab({
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-border/70 bg-muted/30 p-4">
-      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
-      <p className="mt-2 break-all font-medium text-foreground">{value}</p>
+    <div className="rounded-2xl border border-border/70 bg-muted/30 p-5">
+      <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground mb-3">{label}</p>
+      <p className="break-all font-semibold text-base text-foreground leading-snug">{value}</p>
     </div>
   )
 }

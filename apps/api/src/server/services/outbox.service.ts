@@ -128,7 +128,10 @@ export async function claimOutboxBatch(args?: {
     const leaseUntil = new Date(Date.now() + leaseMs)
     const outboxIds = ids.map((r) => BigInt(String(r.outbox_id)))
 
-    await tx.gate_event_outbox.updateMany({
+    // If another worker claimed any of these rows between SELECT and UPDATE
+    // (e.g. due to timing edge case), the count will be less than expected.
+    // We must only proceed with rows we actually claimed.
+    const updated = await tx.gate_event_outbox.updateMany({
       where: {
         outbox_id: { in: outboxIds },
         status: gate_event_outbox_status.PENDING,
@@ -136,6 +139,18 @@ export async function claimOutboxBatch(args?: {
       },
       data: { next_retry_at: leaseUntil },
     })
+
+    if (updated.count !== ids.length) {
+      // Some rows were claimed concurrently — return only the ones we successfully leased.
+      // Re-query to get the IDs that now have next_retry_at = leaseUntil.
+      const actuallyClaimed = await tx.$queryRaw<{ outbox_id: unknown }[]>(Prisma.sql`
+        SELECT outbox_id
+        FROM gate_event_outbox
+        WHERE next_retry_at = ${leaseUntil}
+        LIMIT ${batchSize}
+      `)
+      return actuallyClaimed.map((r) => BigInt(String(r.outbox_id)))
+    }
 
     return outboxIds
   })

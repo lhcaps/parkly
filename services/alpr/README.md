@@ -85,7 +85,7 @@ curl -X POST http://localhost:8765/predict/ \
 | `PORT` | `8765` | TCP port |
 | `CUDA_DEVICE` | `cuda:0` | GPU device (use `cuda:1` for second GPU) |
 | `YOLO_MODEL` | `yolov8n.pt` | YOLOv8 model file. Use a fine-tuned plate-detection model for best accuracy |
-| `OCR_LANG` | `en` | PaddleOCR language (`en`, `ch`, ...) |
+| `OCR_LANG` | `en` | PaddleOCR language. For Vietnamese plates: use `en` (Latin chars + numbers work well). PaddleOCR also supports `ch` (Chinese), `korean`, `japan`, etc. |
 | `BEARER_TOKEN` | _(none)_ | If set, all `/predict/` requests require `Authorization: Bearer <token>` |
 | `LOG_LEVEL` | `INFO` | `DEBUG` for verbose per-request logging |
 | `FLAGS_use_mkldnn` | `0` on Windows | On Windows CPU the service sets this to `0` to avoid oneDNN "Unimplemented" errors. Override with `1` only if your build supports it. |

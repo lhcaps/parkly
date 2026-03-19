@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next'
 import type { AuthRole } from '@/lib/contracts/auth'
 
 export type RoleLabelDescriptor = {
@@ -7,53 +8,70 @@ export type RoleLabelDescriptor = {
   badgeLabel: string
 }
 
-const ROLE_LABELS: Record<AuthRole, RoleLabelDescriptor> = {
+const ROLE_KEY_MAP: Record<
+  AuthRole,
+  { label: string; focusLabel: string; forbiddenCopy: string; badgeLabel: string }
+> = {
   ADMIN: {
-    label: 'Administrator',
-    focusLabel: 'System oversight',
-    forbiddenCopy: 'This route is outside the administrator session scope that is active right now.',
-    badgeLabel: 'ADMIN',
+    label: 'role.ADMIN.label',
+    focusLabel: 'role.ADMIN.focusLabel',
+    forbiddenCopy: 'role.ADMIN.forbiddenCopy',
+    badgeLabel: 'role.ADMIN.badgeLabel',
   },
   OPS: {
-    label: 'Operations',
-    focusLabel: 'Operations control',
-    forbiddenCopy: 'This route is not part of the current operations workspace policy.',
-    badgeLabel: 'OPS',
+    label: 'role.OPS.label',
+    focusLabel: 'role.OPS.focusLabel',
+    forbiddenCopy: 'role.OPS.forbiddenCopy',
+    badgeLabel: 'role.OPS.badgeLabel',
   },
   GUARD: {
-    label: 'Guard',
-    focusLabel: 'Lane decisions',
-    forbiddenCopy: 'This route is outside the lane and checkpoint workflow assigned to the guard console.',
-    badgeLabel: 'GUARD',
+    label: 'role.GUARD.label',
+    focusLabel: 'role.GUARD.focusLabel',
+    forbiddenCopy: 'role.GUARD.forbiddenCopy',
+    badgeLabel: 'role.GUARD.badgeLabel',
   },
   CASHIER: {
-    label: 'Cashier',
-    focusLabel: 'Payment follow-up',
-    forbiddenCopy: 'This route is outside cashier reporting and payment follow-up access.',
-    badgeLabel: 'CASHIER',
+    label: 'role.CASHIER.label',
+    focusLabel: 'role.CASHIER.focusLabel',
+    forbiddenCopy: 'role.CASHIER.forbiddenCopy',
+    badgeLabel: 'role.CASHIER.badgeLabel',
   },
   WORKER: {
-    label: 'Worker',
-    focusLabel: 'Monitoring watch',
-    forbiddenCopy: 'This route is outside the monitoring and background-operations scope of the worker console.',
-    badgeLabel: 'WORKER',
+    label: 'role.WORKER.label',
+    focusLabel: 'role.WORKER.focusLabel',
+    forbiddenCopy: 'role.WORKER.forbiddenCopy',
+    badgeLabel: 'role.WORKER.badgeLabel',
   },
 }
 
-export function getRoleLabels(role?: AuthRole | string | null) {
+/** Dịch nhãn vai trò — luôn gọi trong component đã mount react-i18next. */
+export function translateRoleLabels(
+  role: AuthRole | string | null | undefined,
+  t: TFunction,
+): RoleLabelDescriptor {
   if (!role) {
     return {
-      label: 'Anonymous',
-      focusLabel: 'No active session',
-      forbiddenCopy: 'You need an authenticated session before this route can open.',
-      badgeLabel: 'SIGNED-OUT',
+      label: t('role.anonymous.label'),
+      focusLabel: t('role.anonymous.focusLabel'),
+      forbiddenCopy: t('role.anonymous.forbiddenCopy'),
+      badgeLabel: t('role.anonymous.badgeLabel'),
     }
   }
 
-  return ROLE_LABELS[role as AuthRole] ?? {
-    label: role,
-    focusLabel: 'Console access',
-    forbiddenCopy: 'This route is blocked by the current role policy.',
-    badgeLabel: role,
+  const keys = ROLE_KEY_MAP[role as AuthRole]
+  if (!keys) {
+    return {
+      label: String(role),
+      focusLabel: t('role.anonymous.focusLabel'),
+      forbiddenCopy: t('role.anonymous.forbiddenCopy'),
+      badgeLabel: String(role),
+    }
+  }
+
+  return {
+    label: t(keys.label),
+    focusLabel: t(keys.focusLabel),
+    forbiddenCopy: t(keys.forbiddenCopy),
+    badgeLabel: t(keys.badgeLabel),
   }
 }

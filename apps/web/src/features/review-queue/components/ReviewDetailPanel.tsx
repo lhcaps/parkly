@@ -1,4 +1,4 @@
-import { AlertCircle, ArrowRight, ClipboardCheck, DoorOpen, ExternalLink, Loader2, RefreshCw, ShieldCheck, ShieldX, X } from 'lucide-react'
+import { AlertCircle, AlertTriangle, ArrowRight, ClipboardCheck, DoorOpen, ExternalLink, Loader2, RefreshCw, ShieldCheck, ShieldX, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -16,6 +16,7 @@ import {
   labelReviewAction,
   prettyJson,
 } from '@/features/review-queue/review-workspace'
+import { ReviewImagePreview } from '@/features/review-queue/components/ReviewImagePreview'
 import type { ReviewQueueAction, ReviewQueueItem } from '@/lib/contracts/reviews'
 import type { SessionAllowedAction, SessionDetail } from '@/lib/contracts/sessions'
 import { cn } from '@/lib/utils'
@@ -223,6 +224,12 @@ export function ReviewDetailPanel({
           <SummaryCell label="Plate" value={selected.session.plateCompact || '—'} />
           <SummaryCell label="Queued at" value={formatDateTime(selected.createdAt)} />
           <SummaryCell label="Claimed at" value={formatDateTime(selected.claimedAt)} />
+          {selected.claimedByUserId && (
+            <SummaryCell label="Claimed by" value={selected.claimedByUserId} />
+          )}
+          {selected.resolvedByUserId && (
+            <SummaryCell label="Resolved by" value={selected.resolvedByUserId} />
+          )}
         </div>
 
         <div className="rounded-3xl border border-border/80 bg-background/35 p-4">
@@ -245,7 +252,7 @@ export function ReviewDetailPanel({
 
           {detail?.session.status && isSessionTerminal(detail.session.status) ? (
             <div className="mt-4 flex items-start gap-3 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-4 text-sm text-destructive">
-              <span className="mt-0.5 shrink-0">⚠</span>
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               <div>
                 <p className="font-semibold">Session is {detail.session.status} — no actions available</p>
                 <p className="mt-1 text-destructive/80">This session has reached a terminal state. A new session must be opened in Run Lane to process the vehicle.</p>
@@ -253,7 +260,7 @@ export function ReviewDetailPanel({
             </div>
           ) : !detail ? (
             <div className="mt-4 flex items-start gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-4 text-sm text-amber-700 dark:text-amber-300">
-              <span className="mt-0.5 shrink-0">⚠</span>
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               <div>
                 <p className="font-semibold">Live session detail not loaded</p>
                 <p className="mt-1">Actions stay locked until the authoritative session detail finishes refreshing.</p>
@@ -261,7 +268,7 @@ export function ReviewDetailPanel({
             </div>
           ) : error ? (
             <div className="mt-4 flex items-start gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-4 text-sm text-amber-700 dark:text-amber-300">
-              <span className="mt-0.5 shrink-0">⚠</span>
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               <div>
                 <p className="font-semibold">State may be stale</p>
                 <p className="mt-1">{error}</p>
@@ -310,6 +317,11 @@ export function ReviewDetailPanel({
             </div>
           ) : null}
         </div>
+
+        {/* Image Preview Section - Always visible when available */}
+        {detail && detail.reads.length > 0 && (
+          <ReviewImagePreview reads={detail.reads} />
+        )}
 
         <Tabs defaultValue="context" className="space-y-4">
           <TabsList>

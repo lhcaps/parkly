@@ -115,6 +115,9 @@ export async function storeUploadedMedia(input: {
       },
     })
 
+    // Log successful MinIO upload for debugging
+    console.log(`[MediaStorage] Uploaded to MinIO: s3://${bucketName}/${objectKey} (${input.buffer.length} bytes, etag: ${uploaded.etag})`)
+
     const presigned = await createPresignedDownloadUrl({
       bucket: bucketName,
       key: objectKey,

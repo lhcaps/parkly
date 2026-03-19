@@ -82,9 +82,9 @@ function extractTextFragments(rawText: string, lineMode: 'FULL' | 'TWO_LINE') {
     fragments.add(match[0].replace(/\s+/g, '').trim())
   }
 
-  if (lineMode === 'TWO_LINE' && lines.length === 1) {
+  if (lineMode === 'TWO_LINE' && lines.length >= 2) {
     const oneLine = lines[0]
-    if (oneLine.length >= 6) {
+    if (oneLine && oneLine.length >= 6) {
       const midpoint = Math.floor(oneLine.length / 2)
       fragments.add(`${oneLine.slice(0, midpoint)} ${oneLine.slice(midpoint)}`.trim())
     }

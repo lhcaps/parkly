@@ -104,22 +104,21 @@ function buildScope(input: AlprPreviewCacheScopeInput) {
 function resolveCompatScope(input: any) {
   if (typeof input === 'string' && input.trim()) {
     return {
-      debugKey: input,
-      dedupeKey: input,
-      responseKey: input,
+      debugKey: input.trim(),
+      dedupeKey: `compat:${input.trim()}`,
+      responseKey: `compat:${input.trim()}`,
       surface: 'compat',
-      imageHash: input,
+      imageHash: input.trim(),
     }
   }
 
-  const scope = buildScope({
-    surface: String(input?.surface ?? 'POST /api/alpr/preview'),
-    siteCode: input?.siteCode ?? null,
-    laneCode: input?.laneCode ?? null,
-    imageUrl: input?.imageUrl ?? input?.imagePath ?? input?.url ?? null,
-    plateHint: input?.plateHint ?? null,
-  })
+  const surface = String(input?.surface ?? 'POST /api/alpr/preview')
+  const imageUrl = input?.imageUrl ?? input?.imagePath ?? input?.url ?? null
+  const plateHint = input?.plateHint ?? null
+  const siteCode = input?.siteCode ?? null
+  const laneCode = input?.laneCode ?? null
 
+  const scope = buildScope({ surface, siteCode, laneCode, imageUrl, plateHint })
   return scope
 }
 
@@ -171,7 +170,8 @@ async function tryAcquireDedupeLock(dedupeKey: string | null, ttlMs: number, tok
 
   if (config.previewCache.backend !== 'REDIS') {
     if (compatInflight.has(dedupeKey)) return false
-    compatInflight.set(dedupeKey, Promise.resolve(token))
+    const promise = Promise.resolve(token)
+    compatInflight.set(dedupeKey, promise)
     return true
   }
 

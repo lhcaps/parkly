@@ -1,0 +1,405 @@
+{
+  "navGroup": {
+    "Operations": "Operations",
+    "Monitoring": "Monitoring",
+    "Capture": "Capture",
+    "System": "System"
+  },
+  "route": {
+    "overview": {
+      "label": "Overview",
+      "shortLabel": "Overview",
+      "description": "Shift landing: queue status, lane alerts, and dependency health."
+    },
+    "runLane": {
+      "label": "Run lane",
+      "shortLabel": "Run lane",
+      "description": "Process a vehicle through a lane — from capture to decision and barrier control."
+    },
+    "reviewQueue": {
+      "label": "Review queue",
+      "shortLabel": "Review",
+      "description": "Pick up and resolve cases that need manual confirmation."
+    },
+    "sessionHistory": {
+      "label": "Session history",
+      "shortLabel": "Sessions",
+      "description": "Search sessions, decisions, barrier events, and evidence over time."
+    },
+    "laneMonitor": {
+      "label": "Lane monitor",
+      "shortLabel": "Lane monitor",
+      "description": "Live lane health, barrier status, and latest session state by site."
+    },
+    "deviceHealth": {
+      "label": "Device health",
+      "shortLabel": "Devices",
+      "description": "Device heartbeats and degradation by site and lane."
+    },
+    "syncOutbox": {
+      "label": "Sync outbox",
+      "shortLabel": "Outbox",
+      "description": "Sync queue — retries, failures, and downstream delivery status."
+    },
+    "reports": {
+      "label": "Reports",
+      "shortLabel": "Reports",
+      "description": "Operational summaries by site and time window."
+    },
+    "mobileCameraPair": {
+      "label": "Mobile camera pair",
+      "shortLabel": "Pair mobile",
+      "description": "Pair a mobile device to a lane for capture and heartbeat."
+    },
+    "captureDebug": {
+      "label": "Capture debug",
+      "shortLabel": "Capture",
+      "description": "Monitor the capture feed and ALPR results for diagnostics."
+    },
+    "subscriptions": {
+      "label": "Subscriptions",
+      "shortLabel": "Subscriptions",
+      "description": "Manage parking subscriptions — vehicles, spots, and status.",
+      "newSubscription": "New subscription",
+      "createTitle": "Create subscription",
+      "createDescription": "Create a new subscription record for a site, customer, plan, and validity window.",
+      "createButton": "Create subscription",
+      "createFooter": "Customer selection is manual in this wave because the current frontend shell does not yet expose a customer lookup endpoint.",
+      "site": "Site",
+      "selectSite": "Select site",
+      "allSites": "All sites",
+      "customerId": "Customer ID",
+      "customerPlaceholder": "Enter customer ID",
+      "planType": "Plan type",
+      "selectPlan": "Select plan type",
+      "startDate": "Start date",
+      "endDate": "End date",
+      "validation": {
+        "siteRequired": "Please select a site.",
+        "customerRequired": "Please enter customer ID.",
+        "datesRequired": "Please select start date and end date.",
+        "startBeforeEnd": "Start date must be on or before end date."
+      }
+    },
+    "parkingLive": {
+      "label": "Parking live",
+      "shortLabel": "Parking",
+      "description": "Realtime occupancy — floor view, slot status, and drill-down."
+    },
+    "settings": {
+      "label": "Settings",
+      "shortLabel": "Settings",
+      "description": "Default context, auth and runtime diagnostics."
+    },
+    "mobileCapture": {
+      "label": "Mobile capture",
+      "shortLabel": "Mobile",
+      "description": "Mobile UI for capturing and submitting images."
+    }
+  },
+  "role": {
+    "anonymous": {
+      "label": "Not signed in",
+      "focusLabel": "No active session",
+      "forbiddenCopy": "You need an authenticated session before this screen can open.",
+      "badgeLabel": "SIGNED-OUT"
+    },
+    "ADMIN": {
+      "label": "Administrator",
+      "focusLabel": "System oversight",
+      "forbiddenCopy": "This route is outside the active administrator session scope.",
+      "badgeLabel": "ADMIN"
+    },
+    "OPS": {
+      "label": "Operations",
+      "focusLabel": "Operations control",
+      "forbiddenCopy": "This route is not part of your operations workspace policy.",
+      "badgeLabel": "OPS"
+    },
+    "GUARD": {
+      "label": "Guard",
+      "focusLabel": "Lane decisions",
+      "forbiddenCopy": "This route is outside the guard lane and checkpoint workflow.",
+      "badgeLabel": "GUARD"
+    },
+    "CASHIER": {
+      "label": "Cashier",
+      "focusLabel": "Payment follow-up",
+      "forbiddenCopy": "This route is outside cashier reporting and payment follow-up.",
+      "badgeLabel": "CASHIER"
+    },
+    "WORKER": {
+      "label": "Worker",
+      "focusLabel": "Monitoring watch",
+      "forbiddenCopy": "This route is outside the worker monitoring and background scope.",
+      "badgeLabel": "WORKER"
+    }
+  },
+  "sidebar": {
+    "brandTitle": "Parkly Console",
+    "brandSubtitleOps": "Operations · Review · Sync · Audit",
+    "brandSubtitleRole": "{{role}} · canonical workspace",
+    "closeNav": "Close menu",
+    "mainNavAria": "Main navigation"
+  },
+  "topbar": {
+    "openMenu": "Open menu",
+    "settings": "Settings",
+    "signOut": "Sign out",
+    "brandCrumb": "Parkly",
+    "consoleFallback": "Console",
+    "initialising": "Initialising…",
+    "signedOut": "Signed out",
+    "signingOut": "Signing out…"
+  },
+  "auth": {
+    "bootingTitle": "Loading secure workspace",
+    "bootingDesc": "Validating the current session, principal, and landing route.",
+    "bootstrapFailedTitle": "Session bootstrap failed",
+    "bootstrapFallbackDesc": "The shell could not verify the user context required to open this workspace.",
+    "bootstrapRetry": "Retry bootstrap",
+    "backSignIn": "Back to sign in",
+    "forbiddenTitle": "Access denied",
+    "forbiddenHint": "Retry bootstrap first. If it keeps happening, sign in again and check API connectivity.",
+    "routeBlockedTitle": "Route blocked",
+    "requestedRoute": "Requested route",
+    "suggestedFallback": "Suggested fallback",
+    "requiredRoles": "Allowed roles",
+    "workspaceHome": "Workspace home",
+    "openFallback": "Open fallback",
+    "openHome": "Go to home",
+    "principal": "Account",
+    "siteScope": "Site scope",
+    "allSites": "All accessible sites",
+    "session": "Session",
+    "accessContext": "Access context",
+    "sessionState": "Session state",
+    "actor": "Actor",
+    "anonymousActor": "anonymous",
+    "allowedRolesLabel": "Allowed roles",
+    "unrestrictedRoles": "Unrestricted",
+    "goAllowedRoute": "Go to allowed route",
+    "goRoleHome": "Go to role home",
+    "openSettings": "Open Settings"
+  },
+  "common": {
+    "loadingRoute": "Loading {{route}}…",
+    "loadingScreen": "Loading screen…",
+    "dash": "—",
+    "reloadApp": "Reload app",
+    "backOverview": "Back to overview",
+    "routeErrorTitle": "Unable to load this screen",
+    "routeErrorDesc": "A route-level error occurred. Go back home or open Settings to check your session and API.",
+    "unknownError": "Unknown route error"
+  },
+  "login": {
+    "title": "Sign in to Parkly Console",
+    "subtitle": "Your role after sign-in decides the workspace.",
+    "username": "Username",
+    "password": "Password",
+    "signIn": "Sign in",
+    "signingIn": "Signing in…",
+    "sessionDest": "Session destination",
+    "compatRole": "Compatibility role (optional)",
+    "apiBase": "API",
+    "roleAuto": "Backend-assigned",
+    "roleAutoDesc": "Default flow. Your authenticated session decides the workspace.",
+    "compatDemoDesc": "Compatibility override for demo {{role}} accounts only.",
+    "roleCompat": "Demo compatibility",
+    "policyShell": "Shell bootstrap calls `/api/auth/me`.",
+    "policyAccess": "After sign-in or sign-out, redirects follow role and route policy.",
+    "envHint": "Leave `VITE_API_BASE_URL` empty for local dev to use the Vite API proxy.",
+    "subtitleLong": "Access comes from the authenticated backend principal. The login form does not grant permissions on its own.",
+    "authBadge": "Auth",
+    "advancedOptions": "Advanced compatibility options",
+    "demoRoleOverride": "Demo role override",
+    "demoRoleHint": "Only use when the backend login API still runs in demo compatibility mode. Production should stay on backend-assigned role.",
+    "requestedRouteLabel": "Requested route",
+    "destRoleHome": "Role home from the authenticated session.",
+    "destIfAllowed": "{{href}} if your authenticated role allows it; otherwise the role's default workspace.",
+    "destCompatPath": "Navigate to {{path}} per compatibility override.",
+    "mobileCapture": "Mobile capture",
+    "bootstrapApiUsing": "API in use:",
+    "bootstrapTimeoutBody": "If you see timeouts: start the API (port 3000), bind 0.0.0.0, or leave VITE_API_BASE_URL empty to use the Vite proxy."
+  },
+  "loginPage": {
+    "brand": "Parkly Console",
+    "subtitle": "Your role after sign-in decides the workspace.",
+    "signInMark": "Sign in",
+    "footer": "Secure operations console · Role policy is enforced after authentication"
+  },
+  "laneContext": {
+    "title": "Lane context panel",
+    "description": "Subscribes to topology only. The provider supplies a scoped store with no cross-table React state injection.",
+    "reload": "Reload",
+    "loading": "Loading",
+    "site": "Site",
+    "gate": "Gate",
+    "lane": "Lane",
+    "direction": "Direction",
+    "primaryCamera": "Primary camera",
+    "loopSensor": "Loop sensor",
+    "scopedStore": "scoped store",
+    "topologyError": "Topology load error",
+    "placeholderLoadingSite": "Loading sites…",
+    "placeholderSelectSite": "Select site",
+    "placeholderSelectGateFirst": "Select site first",
+    "placeholderNoGate": "No gate",
+    "placeholderSelectGate": "Select gate",
+    "placeholderSelectLaneFirst": "Select gate first",
+    "placeholderNoLane": "No lane",
+    "placeholderSelectLane": "Select lane",
+    "unresolved": "Unresolved",
+    "scopeFooter": "This scope is released when leaving /run-lane — state is not shared with other screens.",
+    "scopeCreated": "created",
+    "statusIdle": "idle",
+    "statusLoading": "loading",
+    "statusReady": "ready",
+    "statusError": "error"
+  },
+  "direction": {
+    "ENTRY": "Entry",
+    "EXIT": "Exit"
+  },
+  "settingsPage": {
+    "eyebrow": "System",
+    "title": "Settings",
+    "description": "Auth shell diagnostics, runtime token, and default browser context.",
+    "tabOperator": "Operator setup",
+    "tabDeveloper": "Developer / debug",
+    "tabAppearance": "Appearance & language",
+    "savedContext": "Default context saved.",
+    "resetContext": "Default context reset.",
+    "cacheCleared": "Local app cache cleared for this browser."
+  },
+  "appearance": {
+    "title": "Appearance & language",
+    "description": "Light/dark mode and UI language. Preferences are saved in this browser.",
+    "themeLabel": "Color mode",
+    "themeDark": "Dark",
+    "themeLight": "Light",
+    "themeSystem": "System",
+    "themeSystemDesc": "Auto dark mode when OS prefers dark",
+    "themeLightDesc": "Light mode, easy to see in bright light",
+    "themeDarkDesc": "Dark mode, reduces eye strain at night",
+    "themeHint": "System follows your OS light/dark preference.",
+    "languageLabel": "Language",
+    "languageVi": "Tiếng Việt",
+    "languageEn": "English",
+    "languageHint": "Vietnamese is the default; English for international partners."
+  },
+  "apiHealth": {
+    "badge": "API health",
+    "verified": "verified",
+    "failed": "failed",
+    "title": "API connection check",
+    "description": "Verify the session shell via /api/health and /api/auth/me.",
+    "apiBase": "API base",
+    "verify": "Check connection",
+    "verifying": "Checking…",
+    "role": "Role",
+    "healthTime": "Health timestamp",
+    "successMsg": "API connection and current session are both valid.",
+    "detectedRole": "Detected role",
+    "notVerifiedYet": "Not verified yet",
+    "lastHealthTs": "Last health check",
+    "verifySessionApi": "Verify session + API"
+  },
+  "operator": {
+    "badgeAccess": "access",
+    "badgeSession": "session shell",
+    "currentSessionTitle": "Current session",
+    "currentSessionDesc": "User context is loaded from backend auth. Route guards, topbar, and navigation follow this principal.",
+    "role": "Role",
+    "principal": "Principal",
+    "siteScope": "Site scope",
+    "session": "Session",
+    "allScopedSites": "All scoped sites",
+    "signOut": "Sign out",
+    "signingOut": "Signing out…",
+    "defaultContextTitle": "Default context",
+    "defaultContextDesc": "Save default site, lane, and direction to reduce repeated setup during shifts.",
+    "placeholderSite": "Default site code",
+    "placeholderLane": "Default lane code",
+    "saveDefaults": "Save defaults",
+    "reset": "Reset",
+    "dirEntry": "Entry",
+    "dirExit": "Exit",
+    "dirEntryDesc": "Default inbound direction",
+    "dirExitDesc": "Default outbound direction",
+    "badgeDefaultContext": "default context",
+    "badgeSiteLane": "site & lane",
+    "sessionService": "service"
+  },
+  "developer": {
+    "title": "Developer / debug",
+    "description": "Build info, token preview, and local cache keys.",
+    "apiBase": "API base",
+    "tokenPreview": "Token (preview)",
+    "buildInfo": "Build",
+    "cacheKeys": "Cache keys",
+    "clearCache": "Clear app cache",
+    "resetDefaults": "Reset default context",
+    "localEnv": "Local environment",
+    "tokenNone": "Not configured",
+    "mode": "Mode",
+    "baseUrl": "Base URL",
+    "unknown": "unknown",
+    "surfaceTitle": "Separation of concerns",
+    "surfaceBody": "User-auth shell routes use the browser access token. Mobile capture and device heartbeat use device-signed credentials only. A device 401 must be debugged on the mobile surface, not by logging the web operator out.",
+    "defaultContextCurrent": "Current default context",
+    "clearLocalTitle": "Clear local cache",
+    "clearLocalDesc": "Clears Parkly app keys in browser storage. Does not affect the backend.",
+    "refreshHint": "Reload the page after clearing cache if the UI still shows stale state.",
+    "none": "None",
+    "resetContextBtn": "Reset context",
+    "localKeys": "Local keys",
+    "noLocalKeys": "No app keys in localStorage.",
+    "troubleTitle": "Troubleshooting guide",
+    "trouble1": "Shell auth issues: /api/auth/*, route bootstrap, user role guards, realtime 401.",
+    "trouble2": "Device-signed issues: /api/devices/heartbeat and /api/gate-reads/* signed by device secret.",
+    "trouble3": "Do not treat device signature errors as proof that the browser user session is expired."
+  },
+  "runLaneCapture": {
+    "stageIdle": "No image selected",
+    "stageUploading": "Uploading...",
+    "stageUploadingMsg": "Uploading to server...",
+    "stageRecognizing": "Recognizing...",
+    "stageRecognizingMsg": "Recognizing license plate (CPU)...",
+    "stageReady": "Recognition complete",
+    "stageError": "Recognition error",
+    "noPreviewYet": "No preview yet. Select an image to upload.",
+    "selectImage": "Select image",
+    "selectImageDesc": "Click to select a file or paste an image from clipboard (Ctrl+V)",
+    "uploadImage": "Uploading image to server...",
+    "runAlpr": "Running ALPR recognition (may take 30-60 seconds on CPU)...",
+    "pleaseWait": "Please wait for processing to complete",
+    "previewSurface": "Preview surface",
+    "noPreviewYetAlt": "No image preview yet",
+    "backendPlate": "Backend plate",
+    "effectivePlate": "Effective plate",
+    "needsConfirm": "Needs confirmation",
+    "ready": "Ready",
+    "manualOverrideActive": "Manual override is active",
+    "backendSuggested": "Backend suggested",
+    "enterOrOverridePlate": "Enter / Override plate number",
+    "enterPlateManually": "Enter plate number manually",
+    "candidates": "Candidates",
+    "score": "score",
+    "votes": "votes",
+    "apply": "Apply",
+    "noCandidates": "No candidates yet — upload an image to recognize",
+    "uploaded": "Uploaded {{filename}}. Running recognition (CPU mode — may take 30-90 seconds)…",
+    "processing": "Processing…",
+    "file": "File:",
+    "fileSize": "{{size}} KB",
+    "imageSelected": "Image selected",
+    "imageNotSelected": "Not selected",
+    "processingFileError": "Error processing file: {{error}}",
+    "processingClipboardError": "Error processing clipboard: {{error}}"
+  },
+  "runLanePage": {
+    "submitting": "Submitting...",
+    "submit": "Run Lane Flow"
+  }
+}

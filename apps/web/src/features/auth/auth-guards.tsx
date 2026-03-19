@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link, Navigate, useLocation } from 'react-router-dom'
 import { ShieldAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -7,30 +8,38 @@ import { ConsoleCard, RetryActionBar } from '@/components/ops/console'
 import { PageStateBlock } from '@/components/state/page-state'
 import { useAuth } from '@/features/auth/auth-context'
 import { getForbiddenFallbackPath, getRoutePolicy, getRoleHome } from '@/lib/auth/role-policy'
-import { getRoleLabels } from '@/lib/auth/role-labels'
+import { translateRoleLabels } from '@/lib/auth/role-labels'
 
 export function RequireAuthenticated({ children }: { children: ReactNode }) {
+  const { t } = useTranslation()
   const auth = useAuth()
   const location = useLocation()
 
   if (auth.status === 'booting') {
-    return <FullscreenState variant="loading" title="Loading secure workspace" description="Validating the current session, active principal, and the correct landing route for this console." />
+    return (
+      <FullscreenState
+        variant="loading"
+        title={t('auth.bootingTitle')}
+        description={t('auth.bootingDesc')}
+      />
+    )
   }
 
   if (auth.bootstrapError) {
     return (
       <FullscreenState
         variant="error"
-        title="Session bootstrap failed"
-        description={auth.bootstrapError || 'The shell could not verify the user context required to open this workspace.'}
+        title={t('auth.bootstrapFailedTitle')}
+        description={auth.bootstrapError || t('auth.bootstrapFallbackDesc')}
+        hint={t('auth.forbiddenHint')}
         actions={(
           <RetryActionBar
             onRetry={() => void auth.reloadSession()}
-            retryLabel="Retry bootstrap"
+            retryLabel={t('auth.bootstrapRetry')}
             secondaryAction={(
               <Button asChild variant="outline">
                 <Link to="/login" state={{ from: location }}>
-                  Back to sign in
+                  {t('auth.backSignIn')}
                 </Link>
               </Button>
             )}
@@ -81,11 +90,13 @@ function FullscreenState({
   variant,
   title,
   description,
+  hint,
   actions,
 }: {
   variant: 'loading' | 'error' | 'forbidden'
   title: string
   description: string
+  hint?: string
   actions?: ReactNode
 }) {
   return (
@@ -97,7 +108,7 @@ function FullscreenState({
             title={title}
             description={description}
             minHeightClassName="min-h-[320px]"
-            hint={variant === 'error' ? 'Retry bootstrap first. If the problem repeats, sign in again and inspect auth/runtime connectivity.' : undefined}
+            hint={hint}
           />
         </ConsoleCard>
         {actions}
@@ -107,6 +118,7 @@ function FullscreenState({
 }
 
 export function ForbiddenState() {
+  const { t } = useTranslation()
   const auth = useAuth()
   const location = useLocation()
   const state = location.state as {
@@ -124,9 +136,12 @@ export function ForbiddenState() {
   const principalLabel = auth.principal?.principalType === 'USER' ? auth.principal.username : auth.principal?.actorLabel
   const siteScopeLabel = auth.principal?.principalType === 'USER' && auth.principal.siteScopes.length > 0
     ? auth.principal.siteScopes.map((scope) => scope.siteCode).join(', ')
-    : 'All accessible sites'
-  const roleLabels = getRoleLabels(auth.principal?.role)
+    : t('auth.allSites')
+  const roleLabels = translateRoleLabels(auth.principal?.role, t)
   const requiredRoles = state?.requiredRoles ?? requestedRoute?.allowedRoles ?? []
+
+  const requestedRouteLabel = requestedRoute ? t(requestedRoute.label) : requestedPath
+  const fallbackRouteLabel = fallbackRoute ? t(fallbackRoute.label) : fallbackPath
 
   return (
     <div className="min-h-screen bg-background px-4 py-8">
@@ -134,41 +149,69 @@ export function ForbiddenState() {
         <ConsoleCard>
           <PageStateBlock
             variant="forbidden"
-            title="Route blocked"
+            title={t('auth.routeBlockedTitle')}
             description={roleLabels.forbiddenCopy}
             minHeightClassName="min-h-[220px]"
           />
         </ConsoleCard>
 
-        <Card className="border-border/80 bg-card/95 shadow-[0_18px_60px_rgba(0,0,0,0.18)]">
+        <Card className="border-border/80 bg-card/95 shadow-[0_18px_60px_rgba(0,0,0,0.18)] dark:shadow-[0_18px_60px_rgba(0,0,0,0.35)]">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight">
               <ShieldAlert className="h-5 w-5 text-primary" />
-              Access context
+              {t('auth.accessContext')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="rounded-2xl border border-border/80 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-              <div><span className="font-medium text-foreground">Session state:</span> {auth.status}</div>
-              <div><span className="font-medium text-foreground">Actor:</span> {principalLabel || 'anonymous'}</div>
-              <div><span className="font-medium text-foreground">Role:</span> {roleLabels.badgeLabel}</div>
-              <div><span className="font-medium text-foreground">Site scope:</span> {siteScopeLabel}</div>
-              <div><span className="font-medium text-foreground">Requested route:</span> {requestedRoute?.label ?? requestedPath}</div>
-              <div><span className="font-medium text-foreground">Allowed roles:</span> {requiredRoles.length > 0 ? requiredRoles.join(', ') : 'Unrestricted'}</div>
-              <div><span className="font-medium text-foreground">Suggested fallback:</span> {fallbackRoute?.label ?? fallbackPath}</div>
+              <div>
+                <span className="font-medium text-foreground">{t('auth.sessionState')}</span>
+                {' '}
+                {auth.status}
+              </div>
+              <div>
+                <span className="font-medium text-foreground">{t('auth.actor')}</span>
+                {' '}
+                {principalLabel || t('auth.anonymousActor')}
+              </div>
+              <div>
+                <span className="font-medium text-foreground">{t('operator.role')}</span>
+                {' '}
+                {roleLabels.badgeLabel}
+              </div>
+              <div>
+                <span className="font-medium text-foreground">{t('auth.siteScope')}</span>
+                {' '}
+                {siteScopeLabel}
+              </div>
+              <div>
+                <span className="font-medium text-foreground">{t('auth.requestedRoute')}</span>
+                {' '}
+                {requestedRouteLabel}
+              </div>
+              <div>
+                <span className="font-medium text-foreground">{t('auth.allowedRolesLabel')}</span>
+                {' '}
+                {requiredRoles.length > 0 ? requiredRoles.join(', ') : t('auth.unrestrictedRoles')}
+              </div>
+              <div>
+                <span className="font-medium text-foreground">{t('auth.suggestedFallback')}</span>
+                {' '}
+                {fallbackRouteLabel}
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
               <Button asChild>
-                <Link to={fallbackPath}>Go to allowed route</Link>
+                <Link to={fallbackPath}>{t('auth.goAllowedRoute')}</Link>
               </Button>
               {fallbackPath !== homePath ? (
                 <Button asChild variant="outline">
-                  <Link to={homePath}>Go to role home</Link>
+                  <Link to={homePath}>{t('auth.goRoleHome')}</Link>
                 </Button>
               ) : null}
               <Button asChild variant="outline">
-                <Link to="/settings">Settings</Link>
+                <Link to="/settings">{t('auth.openSettings')}</Link>
               </Button>
             </div>
           </CardContent>

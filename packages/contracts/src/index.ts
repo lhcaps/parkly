@@ -68,6 +68,12 @@ export const SensorStateSchema = z.enum(['PRESENT', 'CLEARED', 'TRIGGERED'])
 export const SessionStatusSchema = z.enum(['OPEN', 'WAITING_READ', 'WAITING_DECISION', 'APPROVED', 'WAITING_PAYMENT', 'DENIED', 'PASSED', 'TIMEOUT', 'CANCELLED', 'ERROR'])
 export const SessionAllowedActionSchema = z.enum(['APPROVE', 'REQUIRE_PAYMENT', 'DENY', 'CONFIRM_PASS', 'CANCEL'])
 export const ReviewQueueActionSchema = z.enum(['CLAIM', 'MANUAL_APPROVE', 'MANUAL_REJECT', 'MANUAL_OPEN_BARRIER'])
+export const BarrierCommandStatusSchema = z.enum(['PENDING', 'SENT', 'ACKED', 'NACKED', 'TIMEOUT', 'CANCELLED'])
+
+export const BarrierLifecycleSchema = z.object({
+  promotedToSent: z.number().int().nonnegative(),
+  timedOut: z.number().int().nonnegative(),
+})
 
 const IsoDateTime = z.string().datetime().optional()
 const SignedIsoDateTime = z.string().datetime()
@@ -214,6 +220,10 @@ export const LaneStatusStreamItemSchema = z.object({
     derivedHealth: z.enum(['ONLINE', 'DEGRADED', 'OFFLINE']),
     heartbeatStatus: DeviceStatusSchema.nullable(),
     heartbeatAgeSeconds: z.number().int().nonnegative().nullable(),
+    heartbeatReceivedAt: z.string().datetime().nullable().optional(),
+    latencyMs: z.number().int().nonnegative().nullable().optional(),
+    firmwareVersion: z.string().trim().max(64).nullable().optional(),
+    ipAddress: z.string().trim().max(64).nullable().optional(),
     isRequired: z.boolean(),
   })),
 })
@@ -221,11 +231,14 @@ export const LaneStatusStreamItemSchema = z.object({
 export const LaneStatusSnapshotSchema = z.object({
   ts: z.number().int().nonnegative(),
   siteCode: z.string().trim().min(1).nullable(),
-  barrierLifecycle: z.object({
-    promotedToSent: z.number().int().nonnegative(),
-    timedOut: z.number().int().nonnegative(),
-  }),
+  barrierLifecycle: BarrierLifecycleSchema,
   rows: z.array(LaneStatusStreamItemSchema),
+})
+
+export const BarrierLifecycleStreamItemSchema = z.object({
+  eventType: z.literal('lane.barrier.lifecycle'),
+  siteCode: z.string().trim().nullable(),
+  payload: BarrierLifecycleSchema,
 })
 
 export const OutboxStreamItemSchema = z.object({
@@ -679,3 +692,6 @@ export type AlprPreviewResponse = z.infer<typeof AlprPreviewResponseSchema>
 export type AlprRecognizeBody = z.infer<typeof AlprRecognizeBodySchema>
 export type GateEventWriteResponse = z.infer<typeof GateEventWriteResponseSchema>
 export type AlprRecognizeResponse = z.infer<typeof AlprRecognizeResponseSchema>
+export type BarrierLifecycle = z.infer<typeof BarrierLifecycleSchema>
+export type BarrierCommandStatus = z.infer<typeof BarrierCommandStatusSchema>
+export type BarrierLifecycleStreamItem = z.infer<typeof BarrierLifecycleStreamItemSchema>

@@ -1,38 +1,35 @@
-﻿import { useEffect, useMemo, useRef, type ChangeEvent } from 'react'
+import { memo, useCallback, useEffect, useRef } from 'react'
+import type { ChangeEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
-  Cpu,
-  FileImage,
+  AlertTriangle,
+  CheckCircle2,
   ImageOff,
   Loader2,
-  MonitorSmartphone,
   RefreshCw,
   ScanSearch,
   ShieldCheck,
-  TriangleAlert,
-  Upload,
   X,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
+import { Progress } from '@/components/ui/progress'
+import { Input } from '@/components/ui/input'
 import { CandidateListCard } from '@/features/run-lane/components/CandidateListCard'
 import { EffectivePlateSourceBadge } from '@/features/run-lane/components/EffectivePlateSourceBadge'
-import { PlateOverrideCard } from '@/features/run-lane/components/PlateOverrideCard'
 import { useRunLanePreview } from '@/features/run-lane/hooks/useRunLanePreview'
 import { useRunLaneActions, useRunLaneStore } from '@/features/run-lane/store/runLaneStoreContext'
 import {
+  selectRunLaneBackendSuggestedPlate,
   selectRunLaneCapture,
   selectRunLaneEffectivePlateForSubmit,
   selectRunLaneEffectivePlateSource,
+  selectRunLaneOverride,
   selectRunLanePreview,
   selectRunLanePreviewCandidates,
 } from '@/features/run-lane/store/runLaneSelectors'
-
-function formatFileSize(sizeBytes: number | null) {
-  if (!sizeBytes || sizeBytes <= 0) return '—'
-  if (sizeBytes >= 1024 * 1024) return `${(sizeBytes / (1024 * 1024)).toFixed(2)} MB`
-  return `${Math.max(1, Math.round(sizeBytes / 1024))} KB`
-}
+import { cn } from '@/lib/utils'
 
 function previewStageBadgeVariant(stage: 'idle' | 'uploading' | 'loading' | 'ready' | 'error') {
   if (stage === 'ready') return 'entry' as const
@@ -41,17 +38,184 @@ function previewStageBadgeVariant(stage: 'idle' | 'uploading' | 'loading' | 'rea
   return 'outline' as const
 }
 
-export function CapturePreviewPanel() {
+function StageLabel({ stage, message }: { stage: 'idle' | 'uploading' | 'loading' | 'ready' | 'error'; message?: string | null }) {
+  const { t } = useTranslation()
+  if (stage === 'idle') return <span className="text-muted-foreground">{t('runLaneCapture.stageIdle')}</span>
+  if (stage === 'uploading') {
+    return (
+      <span className="text-amber-500">
+        {message || t('runLaneCapture.stageUploading') || t('runLaneCapture.stageUploadingMsg')}
+      </span>
+    )
+  }
+  if (stage === 'loading') {
+    return (
+      <span className="text-amber-500">
+        {message || t('runLaneCapture.stageRecognizingMsg')}
+      </span>
+    )
+  }
+  if (stage === 'error') return <span className="text-destructive">{t('runLaneCapture.stageError')}</span>
+  return <span className="text-green-500">{t('runLaneCapture.stageReady')}</span>
+}
+
+function progressToBadgeVariant(stage: string) {
+  if (stage === 'ready') return 'entry' as const
+  if (stage === 'error') return 'destructive' as const
+  if (stage === 'uploading' || stage === 'recognizing') return 'amber' as const
+  return 'outline' as const
+}
+
+function progressLabel(stage: string, t: (key: string) => string) {
+  switch (stage) {
+    case 'validating': return t('runLaneCapture.validating') || 'Đang kiểm tra file…'
+    case 'uploading': return t('runLaneCapture.uploading') || 'Đang tải lên server…'
+    case 'recognizing': return t('runLaneCapture.recognizing') || 'Đang nhận diện biển số (CPU)…'
+    case 'ready': return t('runLaneCapture.ready')
+    case 'error': return t('runLaneCapture.error')
+    default: return t('runLaneCapture.processing')
+  }
+}
+
+const PlatePreviewResult = memo(function PlatePreviewResult({
+  preview,
+  effectivePlate,
+  effectiveSource,
+}: {
+  preview: ReturnType<typeof selectRunLanePreview>
+  effectivePlate: string
+  effectiveSource: ReturnType<typeof selectRunLaneEffectivePlateSource>
+}) {
+  const { t } = useTranslation()
+  const backendPlate = preview.result?.plateDisplay || preview.result?.recognizedPlate || '—'
+  const confidence = preview.result?.confidence ?? null
+
+  return (
+    <div className="space-y-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <div className="rounded-lg border border-border/40 bg-muted/20 p-2.5 transition-all hover:border-border/60 hover:bg-muted/30">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Backend Plate</p>
+          <p className="font-mono-data text-sm font-semibold text-foreground break-all">{backendPlate}</p>
+        </div>
+        <div className="rounded-lg border border-border/40 bg-muted/20 p-2.5 transition-all hover:border-border/60 hover:bg-muted/30">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Effective Plate</p>
+          <div className="flex items-center gap-1.5">
+            <p className="font-mono-data text-sm font-semibold text-foreground break-all">
+              {effectivePlate || '—'}
+            </p>
+            <EffectivePlateSourceBadge source={effectiveSource} hasValue={Boolean(effectivePlate)} />
+          </div>
+        </div>
+      </div>
+
+      {confidence !== null && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="secondary" className="text-[10px] transition-colors">
+            <ShieldCheck className="h-3 w-3 mr-1" />
+            {confidence.toFixed(2)}
+          </Badge>
+          {preview.result?.needsConfirm ? (
+            <Badge variant="amber" className="text-[10px] transition-colors">{t('runLaneCapture.needsConfirm')}</Badge>
+          ) : preview.result ? (
+            <Badge variant="entry" className="text-[10px] transition-colors">{t('runLaneCapture.ready')}</Badge>
+          ) : null}
+        </div>
+      )}
+    </div>
+  )
+})
+
+const PlateOverrideInline = memo(function PlateOverrideInline() {
+  const { t } = useTranslation()
+  const actions = useRunLaneActions()
+  const override = useRunLaneStore(selectRunLaneOverride)
+  const backendSuggestedPlate = useRunLaneStore(selectRunLaneBackendSuggestedPlate)
+
+  const handleInputChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    actions.setOverrideValue(event.target.value)
+  }, [actions])
+
+  const handleApply = useCallback(() => {
+    actions.applyBackendPreviewToOverride()
+  }, [actions])
+
+  const handleClear = useCallback(() => {
+    actions.clearOverride()
+  }, [actions])
+
+  return (
+    <div className="space-y-2.5">
+      <div className="space-y-1.5">
+        <label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+          {t('runLaneCapture.enterOrOverridePlate')}
+        </label>
+        <Input
+          value={override.value}
+          onChange={handleInputChange}
+          placeholder="50-AF 668.79"
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
+          className="font-mono-data text-sm h-9 transition-all focus:ring-2 focus:ring-primary/20"
+        />
+        {override.sourceMode === 'manual_override' && (
+          <p className="text-[10px] text-amber-500 animate-in fade-in duration-200">{t('runLaneCapture.manualOverrideActive')}</p>
+        )}
+      </div>
+
+      {backendSuggestedPlate && override.sourceMode !== 'manual_override' && (
+        <div className="rounded-lg border border-border/40 bg-muted/20 p-2.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between transition-all hover:border-border/60 hover:bg-muted/30">
+          <div>
+            <p className="text-[10px] text-muted-foreground">{t('runLaneCapture.backendSuggested')}</p>
+            <p className="font-mono-data text-sm font-semibold">{backendSuggestedPlate}</p>
+          </div>
+          <div className="flex gap-1.5">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleApply}
+              className="h-7 text-[11px] gap-1 transition-all hover:scale-105 active:scale-95"
+            >
+              <CheckCircle2 className="h-3 w-3" />
+              {t('runLaneCapture.apply')}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleClear}
+              className="h-7 text-[11px] transition-all hover:scale-105 active:scale-95"
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {!backendSuggestedPlate && !override.value && (
+        <p className="text-[11px] text-muted-foreground">
+          {t('runLaneCapture.enterPlateManually')}
+        </p>
+      )}
+    </div>
+  )
+})
+
+export const CapturePreviewPanel = memo(function CapturePreviewPanel() {
+  const { t } = useTranslation()
   const actions = useRunLaneActions()
   const capture = useRunLaneStore(selectRunLaneCapture)
   const preview = useRunLaneStore(selectRunLanePreview)
   const candidates = useRunLaneStore(selectRunLanePreviewCandidates)
   const effectivePlate = useRunLaneStore(selectRunLaneEffectivePlateForSubmit)
   const effectiveSource = useRunLaneStore(selectRunLaneEffectivePlateSource)
-  const { runPreview } = useRunLanePreview()
+  const { runPreview, cancelPreview, progress } = useRunLanePreview()
 
   const selectedFileRef = useRef<File | null>(null)
   const lastPreviewUrlRef = useRef<string>('')
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const isProcessingRef = useRef(false)
 
   useEffect(() => {
     const previous = lastPreviewUrlRef.current
@@ -67,229 +231,298 @@ export function CapturePreviewPanel() {
       if (previous && previous.startsWith('blob:')) {
         URL.revokeObjectURL(previous)
       }
+      cancelPreview()
     }
-  }, [])
+  }, [cancelPreview])
 
-  const previewBadge = useMemo(() => {
-    return capture.status === 'selected' ? 'local preview ready' : 'placeholder'
-  }, [capture.status])
+  const hasCapture = Boolean(capture.localPreviewUrl)
+  const busy = preview.stage === 'uploading' || preview.stage === 'loading'
 
-  const backendPreviewDisplay = preview.result?.plateDisplay || preview.result?.recognizedPlate || '—'
-
-  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+  const handleFileChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     const nextFile = event.target.files?.[0]
-    if (!nextFile) return
+    if (!nextFile) {
+      event.currentTarget.value = ''
+      return
+    }
 
+    event.currentTarget.value = ''
+
+    if (isProcessingRef.current) {
+      actions.setPreviewError(t('runLaneCapture.processing'))
+      return
+    }
+
+    if (busy) {
+      cancelPreview()
+    }
+
+    isProcessingRef.current = true
     selectedFileRef.current = nextFile
 
-    const localPreviewUrl = URL.createObjectURL(nextFile)
-    actions.setCaptureDraft({
-      fileName: nextFile.name,
-      fileSizeBytes: nextFile.size,
-      localPreviewUrl,
-    })
+    requestAnimationFrame(() => {
+      if (!selectedFileRef.current || selectedFileRef.current !== nextFile) {
+        isProcessingRef.current = false
+        return
+      }
 
-    void runPreview(nextFile)
-    event.currentTarget.value = ''
-  }
+      try {
+        const localPreviewUrl = URL.createObjectURL(nextFile)
+        actions.setCaptureDraft({
+          fileName: nextFile.name,
+          fileSizeBytes: nextFile.size,
+          localPreviewUrl,
+        })
+
+        void runPreview(nextFile).finally(() => {
+          isProcessingRef.current = false
+        })
+      } catch (error) {
+        isProcessingRef.current = false
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        actions.setPreviewError(t('runLaneCapture.processingFileError', { error: errorMessage }))
+      }
+    })
+  }, [actions, busy, cancelPreview, runPreview])
+
+  const handleClear = useCallback(() => {
+    cancelPreview()
+    selectedFileRef.current = null
+    isProcessingRef.current = false
+    actions.clearCaptureDraft()
+    actions.clearPreview()
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }, [actions, cancelPreview])
+
+  const handlePaste = useCallback(async (event: ClipboardEvent) => {
+    if (busy || isProcessingRef.current) return
+
+    const items = event.clipboardData?.items
+    if (!items) return
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]
+      if (item.type.startsWith('image/')) {
+        event.preventDefault()
+        const file = item.getAsFile()
+        if (file) {
+          isProcessingRef.current = true
+          selectedFileRef.current = file
+
+          requestAnimationFrame(() => {
+            try {
+              const localPreviewUrl = URL.createObjectURL(file)
+              actions.setCaptureDraft({
+                fileName: file.name || 'clipboard-image.png',
+                fileSizeBytes: file.size,
+                localPreviewUrl,
+              })
+
+              void runPreview(file).finally(() => {
+                isProcessingRef.current = false
+              })
+            } catch (error) {
+              isProcessingRef.current = false
+              const errorMessage = error instanceof Error ? error.message : String(error)
+              actions.setPreviewError(t('runLaneCapture.processingClipboardError', { error: errorMessage }))
+            }
+          })
+        }
+        break
+      }
+    }
+  }, [actions, busy, runPreview])
+
+  useEffect(() => {
+    const handler = (event: ClipboardEvent) => {
+      if (busy || isProcessingRef.current) return
+      handlePaste(event)
+    }
+    window.addEventListener('paste', handler)
+    return () => {
+      window.removeEventListener('paste', handler)
+    }
+  }, [busy, handlePaste])
+
+  const showProgress = progress.stage !== 'idle'
+  const progressPct = progress.stage === 'uploading' ? progress.uploadProgress : 100
 
   return (
-    <div className="space-y-5">
-      <Card className="border-border/80 bg-card/95 shadow-[0_18px_60px_rgba(0,0,0,0.18)]">
-        <CardHeader className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="space-y-3">
+      {/* Upload progress overlay */}
+      {showProgress && progress.stage !== 'ready' && progress.stage !== 'error' && (
+        <Card className="border-amber-400/30 bg-amber-50/80 dark:bg-amber-950/30 animate-in slide-in-from-top-2 duration-300">
+          <CardContent className="space-y-2.5 p-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-500" />
+                <span className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                  {progressLabel(progress.stage, t)}
+                </span>
+              </div>
+              <Badge variant={progressToBadgeVariant(progress.stage)} className="text-[10px]">
+                {progress.stage === 'uploading' ? `${progressPct}%` : progress.stage === 'recognizing' ? 'CPU' : ''}
+              </Badge>
+            </div>
+            {progress.message && (
+              <p className="text-[11px] text-amber-600/80 dark:text-amber-500/80 truncate pl-5">
+                {progress.message}
+              </p>
+            )}
+            {progress.stage === 'uploading' && (
+              <Progress
+                value={progressPct}
+                className="h-1.5"
+                barClassName="bg-amber-500 transition-all"
+              />
+            )}
+            {progress.stage === 'recognizing' && (
+              <div className="flex items-center gap-1.5 pl-5">
+                <div className="h-1 w-24 overflow-hidden rounded-full bg-amber-200 dark:bg-amber-900">
+                  <div className="h-full animate-pulse rounded-full bg-amber-500" style={{ width: '60%' }} />
+                </div>
+                <span className="text-[10px] text-amber-500">{t('runLaneCapture.processing')}</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      <Card className="border-border/50 bg-card/95 backdrop-blur-sm transition-all hover:border-border/70 hover:shadow-sm">
+        <CardContent className="space-y-3 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary">capture + preview</Badge>
-              <Badge variant={capture.status === 'selected' ? 'entry' : 'outline'}>{previewBadge}</Badge>
-              <Badge variant={previewStageBadgeVariant(preview.stage)}>{preview.stage}</Badge>
+              <Badge variant={hasCapture ? 'entry' : 'outline'} className="text-[10px] transition-colors">
+                {hasCapture ? t('runLaneCapture.imageSelected') : t('runLaneCapture.imageNotSelected')}
+              </Badge>
+              <Badge variant={previewStageBadgeVariant(preview.stage)} className="text-[10px] transition-colors">
+                <StageLabel stage={preview.stage} message={preview.message} />
+              </Badge>
               <EffectivePlateSourceBadge source={effectiveSource} hasValue={Boolean(effectivePlate)} />
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => void runPreview(selectedFileRef.current)}
-                disabled={!selectedFileRef.current || preview.stage === 'uploading' || preview.stage === 'loading'}
-              >
-                {preview.stage === 'uploading' || preview.stage === 'loading'
-                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  : <RefreshCw className="h-3.5 w-3.5" />}
-                Re-run preview
-              </Button>
+            <div className="flex gap-1.5">
+              {selectedFileRef.current && !busy && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void runPreview(selectedFileRef.current)}
+                  className="h-7 gap-1.5 text-[11px] transition-all hover:scale-105 active:scale-95"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  Re-run
+                </Button>
+              )}
 
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  selectedFileRef.current = null
-                  actions.clearCaptureDraft()
-                }}
-                disabled={!capture.localPreviewUrl && !preview.result}
-              >
-                <X className="h-3.5 w-3.5" />
-                Clear
-              </Button>
+              {hasCapture && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClear}
+                  className="h-7 text-[11px] transition-all hover:scale-105 active:scale-95"
+                >
+                  <X className="h-3 w-3" />
+                  Clear
+                </Button>
+              )}
             </div>
           </div>
 
-          <div>
-            <CardTitle className="text-base sm:text-lg">Capture Preview Panel</CardTitle>
-            <CardDescription>
-              Three distinct layers: local image, backend preview, and manual override. Submit always reads from the effective plate.ctive plate đã resolve source.
-            </CardDescription>
-          </div>
-        </CardHeader>
-
-        <CardContent className="space-y-4">
-          <label className="group flex cursor-pointer flex-col items-center justify-center rounded-3xl border border-dashed border-border/80 bg-background/40 px-5 py-8 text-center transition hover:border-primary/40 hover:bg-primary/5">
-            <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary">
-              <Upload className="h-5 w-5" />
+          <label
+            className={cn(
+              'group flex min-h-[120px] cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-border/50 bg-muted/10 px-6 py-6 text-center transition-all hover:border-primary/30 hover:bg-muted/20',
+              busy ? 'cursor-not-allowed opacity-50' : '',
+            )}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+              className="hidden"
+              onChange={handleFileChange}
+              disabled={busy}
+            />
+            <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary transition-all group-hover:scale-110">
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ScanSearch className="h-4 w-4" />}
             </div>
-            <p className="text-base font-medium">Select a plate image or a test lane image</p>
-            <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-              When an image is selected, a local preview mounts immediately while upload and backend preview run in the background.
-              The override input remains editable throughout.
+            <p className="text-sm font-medium text-foreground">
+              {busy ? (preview.message || t('runLaneCapture.processing')) : t('runLaneCapture.selectImage')}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {busy
+                ? (preview.stage === 'uploading'
+                    ? t('runLaneCapture.uploadImage')
+                    : preview.stage === 'loading'
+                      ? t('runLaneCapture.runAlpr')
+                      : t('runLaneCapture.pleaseWait'))
+                : t('runLaneCapture.selectImageDesc')}
             </p>
           </label>
 
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-border/80 bg-muted/25 p-4">
-              <p className="text-[11px] font-mono-data uppercase tracking-[0.18em] text-muted-foreground">File name</p>
-              <p className="mt-2 text-sm font-medium break-all">{capture.fileName || 'Not selected file'}</p>
-            </div>
-            <div className="rounded-2xl border border-border/80 bg-muted/25 p-4">
-              <p className="text-[11px] font-mono-data uppercase tracking-[0.18em] text-muted-foreground">File size</p>
-              <p className="mt-2 text-sm font-medium">{formatFileSize(capture.fileSizeBytes)}</p>
-            </div>
-            <div className="rounded-2xl border border-border/80 bg-muted/25 p-4">
-              <p className="text-[11px] font-mono-data uppercase tracking-[0.18em] text-muted-foreground">Updated</p>
-              <p className="mt-2 text-sm font-medium">{capture.updatedAt ? new Date(capture.updatedAt).toLocaleTimeString('vi-VN') : '—'}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border-border/80 bg-card/95">
-        <CardHeader className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant={capture.localPreviewUrl ? 'entry' : 'outline'}>
-                {capture.localPreviewUrl ? 'local image mounted' : 'empty state'}
-              </Badge>
-              <Badge variant={previewStageBadgeVariant(preview.stage)}>{preview.stage}</Badge>
-              {preview.result?.previewStatus ? (
-                <Badge
-                  variant={
-                    preview.result.previewStatus === 'STRICT_VALID'
-                      ? 'entry'
-                      : preview.result.previewStatus === 'REVIEW'
-                        ? 'amber'
-                        : 'destructive'
-                  }
-                >
-                  {preview.result.previewStatus}
-                </Badge>
-              ) : null}
-            </div>
-
-            {preview.result?.needsConfirm
-              ? <Badge variant="amber">needs confirm</Badge>
-              : preview.result
-                ? <Badge variant="entry">auto-ready</Badge>
-                : null}
-          </div>
-
-          <div>
-            <CardTitle className="text-sm sm:text-base">Preview Surface</CardTitle>
-            <CardDescription>{preview.message}</CardDescription>
-          </div>
-        </CardHeader>
-
-        <CardContent className="space-y-4">
-          {capture.localPreviewUrl ? (
-            <div className="overflow-hidden rounded-3xl border border-border/80 bg-black/50">
-              <img
-                src={capture.localPreviewUrl}
-                alt={capture.fileName || 'Run lane local preview'}
-                className="h-[360px] w-full object-contain"
-              />
-            </div>
-          ) : (
-            <div className="flex min-h-[220px] flex-col items-center justify-center rounded-3xl border border-dashed border-border/80 bg-background/40 px-6 py-10 text-center">
-              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-border/80 bg-muted/30 text-muted-foreground">
-                <ImageOff className="h-5 w-5" />
-              </div>
-              <p className="text-base font-medium">— capture local</p>
-              <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-                When an image is selected, this panel shows a local preview immediately before backend preview returns.
-              </p>
+          {capture.fileName && (
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border/40 bg-muted/10 px-3 py-2">
+              <span className="text-xs text-muted-foreground">{t('runLaneCapture.file')}</span>
+              <span className="text-xs font-medium font-mono-data">{capture.fileName}</span>
+              <span className="text-xs text-muted-foreground">·</span>
+              <span className="text-xs text-muted-foreground">
+                {capture.fileSizeBytes ? `${Math.round(capture.fileSizeBytes / 1024)} KB` : '—'}
+              </span>
             </div>
           )}
 
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-2xl border border-border/80 bg-muted/25 p-4">
-              <div className="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                <Cpu className="h-3.5 w-3.5" />
-                backend preview
-              </div>
-              <p className="font-mono-data text-sm font-medium text-foreground break-all">{backendPreviewDisplay}</p>
+          {preview.error && (
+            <div className="flex items-start gap-2 rounded-lg border border-destructive/25 bg-destructive/10 px-3 py-2.5 text-xs text-destructive">
+              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <p className="flex-1">{preview.error}</p>
             </div>
-
-            <div className="rounded-2xl border border-border/80 bg-muted/25 p-4">
-              <div className="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                <ShieldCheck className="h-3.5 w-3.5" />
-                confidence
-              </div>
-              <p className="font-mono-data text-sm font-medium text-foreground">
-                {preview.result ? preview.result.confidence.toFixed(2) : '—'}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-border/80 bg-muted/25 p-4">
-              <div className="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                <TriangleAlert className="h-3.5 w-3.5" />
-                winner
-              </div>
-              <p className="font-mono-data text-sm font-medium text-foreground">
-                {preview.result?.winner ? `${preview.result.winner.cropVariant} / ${preview.result.winner.psm}` : '—'}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-border/80 bg-muted/25 p-4">
-              <div className="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                <FileImage className="h-3.5 w-3.5" />
-                effective plate
-              </div>
-              <p className="font-mono-data text-sm font-medium text-foreground break-all">{effectivePlate || '—'}</p>
-            </div>
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm text-muted-foreground">
-              <div className="mb-2 flex items-center gap-2 text-foreground">
-                <MonitorSmartphone className="h-4 w-4 text-primary" />
-                <span className="font-medium">Preview concurrency</span>
-              </div>
-              Preview loading only updates the preview slice. The override card stays editable and is not disabled by network state.k state.
-            </div>
-
-            <div className="rounded-2xl border border-border/80 bg-muted/25 p-4 text-sm text-muted-foreground">
-              <div className="mb-2 flex items-center gap-2 text-foreground">
-                <ScanSearch className="h-4 w-4 text-primary" />
-                <span className="font-medium">Auto-fill rule</span>
-              </div>
-              Auto-fill only populates the input when untouched. Once typed manually, new preview results cannot overwrite it.
-            </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 
-      <PlateOverrideCard />
+      <Card className="border-border/50 bg-card/95 backdrop-blur-sm transition-all hover:border-border/70 hover:shadow-sm">
+        <CardContent className="space-y-3 p-4">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Preview Surface</p>
+
+          {capture.localPreviewUrl ? (
+            <div className="overflow-hidden rounded-xl border border-border/50 bg-black/60 transition-all hover:border-border/70">
+              <img
+                src={capture.localPreviewUrl}
+                alt={capture.fileName || 'Preview'}
+                className="h-[240px] w-full object-contain transition-opacity duration-300 md:h-[280px]"
+                loading="lazy"
+              />
+            </div>
+          ) : (
+            <div className="flex min-h-[160px] flex-col items-center justify-center rounded-xl border border-dashed border-border/50 bg-muted/10 px-6 py-8 text-center transition-all md:min-h-[180px]">
+              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl border border-border/50 bg-muted/20 text-muted-foreground">
+                <ImageOff className="h-4 w-4" />
+              </div>
+              <p className="text-sm font-medium text-muted-foreground">{t('runLaneCapture.noPreviewYetAlt')}</p>
+            </div>
+          )}
+
+          {preview.stage === 'ready' && (
+            <div className="animate-in slide-in-from-bottom-2 duration-300">
+              <PlatePreviewResult
+                preview={preview}
+                effectivePlate={effectivePlate}
+                effectiveSource={effectiveSource}
+              />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/50 bg-card/95 backdrop-blur-sm transition-all hover:border-border/70 hover:shadow-sm">
+        <CardContent className="space-y-3 p-4">
+          <PlateOverrideInline />
+        </CardContent>
+      </Card>
+
       <CandidateListCard candidates={candidates} onApplyCandidate={actions.applyCandidateToOverride} />
     </div>
   )
-}
+})

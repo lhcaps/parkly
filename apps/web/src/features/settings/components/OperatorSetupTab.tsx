@@ -1,3 +1,5 @@
+import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { LogOut, Save, ShieldCheck, Trash2, UserRound } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -7,11 +9,6 @@ import { Select, type SelectOption } from '@/components/ui/select'
 import { ApiHealthCard } from '@/features/settings/components/ApiHealthCard'
 import type { DefaultContextPrefs } from '@/lib/api'
 import type { AuthPrincipal } from '@/lib/contracts/auth'
-
-const DIRECTION_OPTIONS: SelectOption[] = [
-  { value: 'ENTRY', label: 'ENTRY', description: 'Default inbound direction', badge: 'in', badgeVariant: 'success' },
-  { value: 'EXIT', label: 'EXIT', description: 'Default outbound direction', badge: 'out', badgeVariant: 'warning' },
-]
 
 export function OperatorSetupTab({
   principal,
@@ -32,91 +29,155 @@ export function OperatorSetupTab({
   onSavePrefs: () => void
   onResetPrefs: () => void
 }) {
+  const { t } = useTranslation()
+
+  const directionOptions = useMemo<SelectOption[]>(
+    () => [
+      {
+        value: 'ENTRY',
+        label: t('operator.dirEntry'),
+        description: t('operator.dirEntryDesc'),
+        badge: 'in',
+        badgeVariant: 'success',
+      },
+      {
+        value: 'EXIT',
+        label: t('operator.dirExit'),
+        description: t('operator.dirExitDesc'),
+        badge: 'out',
+        badgeVariant: 'warning',
+      },
+    ],
+    [t],
+  )
+
   const siteScopeLabel = principal?.principalType === 'USER' && principal.siteScopes.length > 0
     ? principal.siteScopes.map((scope) => scope.siteCode).join(', ')
-    : 'All scoped sites'
+    : t('operator.allScopedSites')
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
-      <div className="space-y-5">
-        <Card className="border-border/80 bg-card/95">
-          <CardHeader>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary">access</Badge>
-              <Badge variant="outline">session shell</Badge>
+    <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+      {/* Left Column */}
+      <div className="space-y-6">
+        {/* Session Card */}
+        <Card className="border-border/80 bg-card/95 overflow-hidden">
+          <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-6 py-5">
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <Badge variant="secondary" className="text-xs px-2.5 py-1">{t('operator.badgeAccess')}</Badge>
+              <Badge variant="outline" className="text-xs px-2.5 py-1">{t('operator.badgeSession')}</Badge>
             </div>
-            <CardTitle>Current session</CardTitle>
-            <CardDescription>Current user context is loaded from backend auth. Route guard, topbar, and navigation are all driven by this principal.tion đều bám principal này.</CardDescription>
-          </CardHeader>
+            <CardTitle className="text-lg font-bold tracking-tight">{t('operator.currentSessionTitle')}</CardTitle>
+            <CardDescription className="text-sm mt-1">{t('operator.currentSessionDesc')}</CardDescription>
+          </div>
 
-          <CardContent className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-2">
-              <Metric label="Role" value={principal?.role || '—'} />
-              <Metric label="Principal" value={principal?.principalType === 'USER' ? principal.username : principal?.actorLabel || '—'} />
-              <Metric label="Site scope" value={siteScopeLabel} />
-              <Metric label="Session" value={principal?.principalType === 'USER' ? principal.sessionId || '—' : 'service'} />
+          <CardContent className="p-6">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Metric icon={ShieldCheck} label={t('operator.role')} value={principal?.role || '—'} />
+              <Metric
+                icon={UserRound}
+                label={t('operator.principal')}
+                value={principal?.principalType === 'USER' ? principal.username : principal?.actorLabel || '—'}
+              />
+              <Metric icon={ShieldCheck} label={t('operator.siteScope')} value={siteScopeLabel} />
+              <Metric
+                icon={UserRound}
+                label={t('operator.session')}
+                value={principal?.principalType === 'USER' ? principal.sessionId || '—' : t('operator.sessionService')}
+              />
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" onClick={onLogout} disabled={authBusy}>
-                <LogOut className="h-4 w-4" />
-                {authBusy ? 'Signing out…' : 'Sign out'}
+            <div className="mt-6 pt-5 border-t border-border/60">
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                className="w-full sm:w-auto gap-2 text-base h-12 px-6"
+                onClick={onLogout}
+                disabled={authBusy}
+              >
+                <LogOut className="h-5 w-5" />
+                {authBusy ? t('operator.signingOut') : t('operator.signOut')}
               </Button>
             </div>
 
-            {message ? <div className="rounded-2xl border border-border/80 bg-background/40 px-4 py-3 text-sm text-foreground">{message}</div> : null}
+            {message ? (
+              <div className="mt-5 rounded-2xl border border-border/80 bg-background/60 px-5 py-4 text-sm text-foreground shadow-sm">
+                {message}
+              </div>
+            ) : null}
           </CardContent>
         </Card>
 
-        <Card className="border-border/80 bg-card/95">
-          <CardHeader>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary">default context</Badge>
-              <Badge variant="outline">site & lane</Badge>
+        {/* Default Context Card */}
+        <Card className="border-border/80 bg-card/95 overflow-hidden">
+          <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-6 py-5">
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <Badge variant="secondary" className="text-xs px-2.5 py-1">{t('operator.badgeDefaultContext')}</Badge>
+              <Badge variant="outline" className="text-xs px-2.5 py-1">{t('operator.badgeSiteLane')}</Badge>
             </div>
-            <CardTitle>Default context</CardTitle>
-            <CardDescription>Save default site, lane, and direction to reduce repeated setup during shifts.xuyên.</CardDescription>
-          </CardHeader>
+            <CardTitle className="text-lg font-bold tracking-tight">{t('operator.defaultContextTitle')}</CardTitle>
+            <CardDescription className="text-sm mt-1">{t('operator.defaultContextDesc')}</CardDescription>
+          </div>
 
-          <CardContent className="grid gap-3 md:grid-cols-2">
-            <Input value={prefs.siteCode} onChange={(e) => onPrefsChange({ siteCode: e.target.value })} placeholder="Site mặc định" />
-            <Input value={prefs.laneCode} onChange={(e) => onPrefsChange({ laneCode: e.target.value })} placeholder="Lane mặc định" />
+          <CardContent className="p-6 space-y-5">
+            <div className="grid gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground/80">{t('operator.placeholderSite')}</label>
+                <Input
+                  value={prefs.siteCode}
+                  onChange={(e) => onPrefsChange({ siteCode: e.target.value })}
+                  placeholder={t('operator.placeholderSite')}
+                  className="h-12 text-base"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground/80">{t('operator.placeholderLane')}</label>
+                <Input
+                  value={prefs.laneCode}
+                  onChange={(e) => onPrefsChange({ laneCode: e.target.value })}
+                  placeholder={t('operator.placeholderLane')}
+                  className="h-12 text-base"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground/80">{t('laneContext.direction')}</label>
+                <Select
+                  value={prefs.direction}
+                  onChange={(value) => onPrefsChange({ direction: value === 'EXIT' ? 'EXIT' : 'ENTRY' })}
+                  options={directionOptions}
+                  size="md"
+                />
+              </div>
+            </div>
 
-            <Select
-              value={prefs.direction}
-              onChange={(value) => onPrefsChange({ direction: value === 'EXIT' ? 'EXIT' : 'ENTRY' })}
-              options={DIRECTION_OPTIONS}
-              className="md:col-span-2"
-            />
-
-            <div className="flex flex-wrap gap-2 md:col-span-2">
-              <Button type="button" variant="outline" onClick={onSavePrefs}>
-                <Save className="h-4 w-4" />
-                Save defaults
+            <div className="flex flex-wrap gap-3 pt-2">
+              <Button type="button" variant="default" size="lg" className="gap-2 text-base h-12 px-6 min-w-[160px]" onClick={onSavePrefs}>
+                <Save className="h-5 w-5" />
+                {t('operator.saveDefaults')}
               </Button>
-              <Button type="button" variant="ghost" onClick={onResetPrefs}>
-                <Trash2 className="h-4 w-4" />
-                Reset
+              <Button type="button" variant="secondary" size="lg" className="gap-2 text-base h-12 px-5" onClick={onResetPrefs}>
+                <Trash2 className="h-5 w-5" />
+                {t('operator.reset')}
               </Button>
             </div>
           </CardContent>
         </Card>
       </div>
 
+      {/* Right Column - API Health */}
       <ApiHealthCard />
     </div>
   )
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
-  const Icon = label === 'Role' ? ShieldCheck : UserRound
+function Metric({ icon: Icon, label, value }: { icon: typeof ShieldCheck; label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-border/70 bg-muted/30 p-4">
-      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-        <Icon className="h-3.5 w-3.5" />
+    <div className="rounded-2xl border border-border/70 bg-muted/30 p-5">
+      <div className="flex items-center gap-2.5 text-xs uppercase tracking-[0.15em] text-muted-foreground mb-3">
+        <Icon className="h-4 w-4" />
         <span>{label}</span>
       </div>
-      <p className="mt-2 break-all font-medium text-foreground">{value}</p>
+      <p className="break-all font-semibold text-base text-foreground leading-snug">{value}</p>
     </div>
   )
 }

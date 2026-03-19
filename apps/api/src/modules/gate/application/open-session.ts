@@ -206,10 +206,10 @@ export async function expireStaleSessions(args: {
   direction: SessionDirection;
   now: Date;
   reuseWindowMs: number;
-}) {
+}, tx?: Prisma.TransactionClient) {
   const cutoff = computeWindowCutoff(args.now, args.reuseWindowMs);
 
-  const staleRows = await prisma.gate_passage_sessions.findMany({
+  const staleRows = await (tx ?? prisma).gate_passage_sessions.findMany({
     where: {
       site_id: args.siteId,
       lane_id: args.laneId,
@@ -226,7 +226,7 @@ export async function expireStaleSessions(args: {
   if (!staleRows.length) return 0;
 
   const ids = staleRows.map((row: any) => row.session_id);
-  const updated = await prisma.gate_passage_sessions.updateMany({
+  const updated = await (tx ?? prisma).gate_passage_sessions.updateMany({
     where: { session_id: { in: ids } },
     data: {
       status: 'TIMEOUT',
@@ -245,8 +245,8 @@ export async function findReusableSession(args: {
   direction: SessionDirection;
   now: Date;
   reuseWindowMs: number;
-}) {
-  const candidate = await prisma.gate_passage_sessions.findFirst({
+}, tx?: Prisma.TransactionClient) {
+  const candidate = await (tx ?? prisma).gate_passage_sessions.findFirst({
     where: {
       site_id: args.siteId,
       lane_id: args.laneId,
@@ -434,22 +434,7 @@ export async function openGateSession(input: OpenGateSessionInput) {
     direction: input.direction,
   });
 
-  await expireStaleSessions({
-    siteId: lane.siteId,
-    laneId: lane.laneId,
-    direction: lane.direction,
-    now: occurredAt,
-    reuseWindowMs,
-  });
-
-  const reusable = await findReusableSession({
-    siteId: lane.siteId,
-    laneId: lane.laneId,
-    direction: lane.direction,
-    now: occurredAt,
-    reuseWindowMs,
-  });
-
+  // Resolve device and plate data before the transaction so we fail fast on bad input
   const deviceId = await resolveDeviceForLane({
     siteId: lane.siteId,
     laneId: lane.laneId,
@@ -468,69 +453,89 @@ export async function openGateSession(input: OpenGateSessionInput) {
   const presenceActive = input.presenceActive ?? (input.sensorState === 'PRESENT' || input.sensorState === 'TRIGGERED');
   const hasEvidence = Boolean(input.readType === 'ALPR' || input.readType === 'RFID' || plateCanonical?.plateCompact || input.rfidUid);
 
-  let sessionId: bigint;
-  let reused = false;
+  // Single atomic transaction: expire stale sessions, find a reusable one, then
+  // either update it or create a new session. This eliminates the race window
+  // where a concurrent request could grab the same stale session.
+  const { sessionId, reused } = await prisma.$transaction(async (tx) => {
+    await expireStaleSessions({
+      siteId: lane.siteId,
+      laneId: lane.laneId,
+      direction: lane.direction,
+      now: occurredAt,
+      reuseWindowMs,
+    }, tx);
 
-  if (reusable) {
-    reused = true;
-    const nextStatus = input.readType === 'SENSOR'
-      ? deriveStatusFromRead({
-          currentStatus: String(reusable.status ?? 'OPEN') as SessionStatus,
-          readType: input.readType,
-          sensorState: input.sensorState,
-          presenceActive,
-          hasEvidence,
-        })
-      : (String(reusable.status ?? 'OPEN') as SessionStatus);
+    const reusable = await findReusableSession({
+      siteId: lane.siteId,
+      laneId: lane.laneId,
+      direction: lane.direction,
+      now: occurredAt,
+      reuseWindowMs,
+    }, tx);
 
-    ensureSessionTransition(String(reusable.status ?? 'OPEN') as SessionStatus, nextStatus);
+    let reused = false;
 
-    const updated = await prisma.gate_passage_sessions.update({
-      where: { session_id: reusable.session_id },
-      data: {
-        status: nextStatus,
-        last_read_at: occurredAt,
-        resolved_at: nextStatus === 'OPEN' || nextStatus === 'WAITING_READ' ? reusable.resolved_at ?? null : occurredAt,
-        plate_compact: plateCanonical?.plateCompact ?? reusable.plate_compact ?? undefined,
-        rfid_uid: input.rfidUid ?? reusable.rfid_uid ?? undefined,
-        presence_active: presenceActive,
-        correlation_id: input.correlationId ?? reusable.correlation_id ?? undefined,
-        review_required: nextStatus === 'WAITING_DECISION',
-        updated_at: occurredAt,
-      },
-      select: { session_id: true },
-    });
-    sessionId = updated.session_id;
-  } else {
-    const nextStatus = input.readType === 'SENSOR'
-      ? deriveStatusFromRead({
-          currentStatus: 'OPEN',
-          readType: input.readType,
-          sensorState: input.sensorState,
-          presenceActive,
-          hasEvidence,
-        })
-      : 'OPEN';
+    if (reusable) {
+      reused = true;
+      const nextStatus = input.readType === 'SENSOR'
+        ? deriveStatusFromRead({
+            currentStatus: String(reusable.status ?? 'OPEN') as SessionStatus,
+            readType: input.readType,
+            sensorState: input.sensorState,
+            presenceActive,
+            hasEvidence,
+          })
+        : (String(reusable.status ?? 'OPEN') as SessionStatus);
 
-    const created = await prisma.gate_passage_sessions.create({
-      data: {
-        site_id: lane.siteId,
-        lane_id: lane.laneId,
-        direction: asGateDirection(lane.direction),
-        status: nextStatus,
-        correlation_id: input.correlationId ?? null,
-        opened_at: occurredAt,
-        last_read_at: occurredAt,
-        resolved_at: nextStatus === 'OPEN' || nextStatus === 'WAITING_READ' ? null : occurredAt,
-        plate_compact: plateCanonical?.plateCompact ?? null,
-        rfid_uid: input.rfidUid ?? null,
-        presence_active: presenceActive,
-        review_required: nextStatus === 'WAITING_DECISION',
-      },
-      select: { session_id: true },
-    });
-    sessionId = created.session_id;
-  }
+      ensureSessionTransition(String(reusable.status ?? 'OPEN') as SessionStatus, nextStatus);
+
+      const updated = await tx.gate_passage_sessions.update({
+        where: { session_id: reusable.session_id },
+        data: {
+          status: nextStatus,
+          last_read_at: occurredAt,
+          resolved_at: nextStatus === 'OPEN' || nextStatus === 'WAITING_READ' ? reusable.resolved_at ?? null : occurredAt,
+          plate_compact: plateCanonical?.plateCompact ?? reusable.plate_compact ?? undefined,
+          rfid_uid: input.rfidUid ?? reusable.rfid_uid ?? undefined,
+          presence_active: presenceActive,
+          correlation_id: input.correlationId ?? reusable.correlation_id ?? undefined,
+          review_required: nextStatus === 'WAITING_DECISION',
+          updated_at: occurredAt,
+        },
+        select: { session_id: true },
+      });
+      return { sessionId: updated.session_id, reused };
+    } else {
+      const nextStatus = input.readType === 'SENSOR'
+        ? deriveStatusFromRead({
+            currentStatus: 'OPEN',
+            readType: input.readType,
+            sensorState: input.sensorState,
+            presenceActive,
+            hasEvidence,
+          })
+        : 'OPEN';
+
+      const created = await tx.gate_passage_sessions.create({
+        data: {
+          site_id: lane.siteId,
+          lane_id: lane.laneId,
+          direction: asGateDirection(lane.direction),
+          status: nextStatus,
+          correlation_id: input.correlationId ?? null,
+          opened_at: occurredAt,
+          last_read_at: occurredAt,
+          resolved_at: nextStatus === 'OPEN' || nextStatus === 'WAITING_READ' ? null : occurredAt,
+          plate_compact: plateCanonical?.plateCompact ?? null,
+          rfid_uid: input.rfidUid ?? null,
+          presence_active: presenceActive,
+          review_required: nextStatus === 'WAITING_DECISION',
+        },
+        select: { session_id: true },
+      });
+      return { sessionId: created.session_id, reused };
+    }
+  });
 
   const readRecord = await recordSessionReadEvent({
     sessionId,

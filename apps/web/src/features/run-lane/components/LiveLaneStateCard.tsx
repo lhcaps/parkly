@@ -1,11 +1,13 @@
 import { useMemo } from 'react'
-import { Activity, AlertTriangle, Loader2, RefreshCw, ShieldAlert, Wifi, WifiOff } from 'lucide-react'
+import { Activity, AlertTriangle, Camera, KeyRound, Radio, RefreshCw, ShieldAlert, Thermometer, Wifi, WifiOff } from 'lucide-react'
 import { SurfaceState } from '@/components/ops/console'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
+import { Progress } from '@/components/ui/progress'
 import { RealtimeStatusBanner } from '@/features/_shared/realtime/RealtimeStatusBanner'
 import { useRunLaneLiveState } from '@/features/run-lane/hooks/useRunLaneLiveState'
+import { cn } from '@/lib/utils'
 
 function laneHealthVariant(value: string | null | undefined) {
   if (!value) return 'outline' as const
@@ -21,6 +23,31 @@ function operationalVariant(value: string | null | undefined) {
   return 'muted' as const
 }
 
+function deviceHealthVariant(value: string | null | undefined) {
+  if (!value || value === 'ONLINE') return 'secondary' as const
+  if (value === 'OFFLINE') return 'destructive' as const
+  return 'amber' as const
+}
+
+function roleIcon(role: string | null | undefined) {
+  if (!role) return <Activity className="h-3 w-3" />
+  switch (String(role).toUpperCase()) {
+    case 'CAMERA': return <Camera className="h-3 w-3" />
+    case 'RFID': return <Radio className="h-3 w-3" />
+    case 'BARRIER': return <KeyRound className="h-3 w-3" />
+    case 'LOOP_SENSOR': return <Thermometer className="h-3 w-3" />
+    default: return <Activity className="h-3 w-3" />
+  }
+}
+
+function formatAge(seconds: number | null | undefined) {
+  if (seconds == null) return '—'
+  if (seconds < 0) return '—'
+  if (seconds < 60) return `${seconds}s`
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`
+  return `${Math.floor(seconds / 3600)}h`
+}
+
 function formatTime(value: string | null) {
   if (!value) return '—'
   const ts = new Date(value)
@@ -28,7 +55,7 @@ function formatTime(value: string | null) {
   return ts.toLocaleTimeString('en-GB')
 }
 
-export function LiveLaneStateCard() {
+export function LiveLaneStateCard({ onClose }: { onClose?: () => void }) {
   const {
     siteCode,
     laneCode,
@@ -50,188 +77,196 @@ export function LiveLaneStateCard() {
   } = useRunLaneLiveState()
 
   const attentionText = useMemo(() => {
-    if (!selectedLaneLive) return 'No lane snapshot to compare against.'
+    if (!selectedLaneLive) return 'No lane snapshot.'
     if (selectedLaneLive.aggregateHealth === 'HEALTHY') {
-      return 'Lane is healthy. You can proceed with preview, resolve, and confirm-pass on this workflow.'
+      return 'Lane healthy — có thể tiếp tục workflow.'
     }
     return selectedLaneLive.aggregateReason
   }, [selectedLaneLive])
 
+  const pressurePct = useMemo(() => {
+    if (!selectedLaneLive || selectedLaneLive.requiredDeviceCount === 0) return null
+    return Math.round((selectedLaneLive.onlineDeviceCount / selectedLaneLive.requiredDeviceCount) * 100)
+  }, [selectedLaneLive])
+
+  const roleHealthSummary = useMemo(() => {
+    if (!selectedLaneLive?.devices) return []
+    const map = new Map<string, { total: number; online: number; degraded: number; offline: number }>()
+    for (const dev of selectedLaneLive.devices) {
+      const role = dev.deviceRole ?? 'UNKNOWN'
+      const entry = map.get(role) ?? { total: 0, online: 0, degraded: 0, offline: 0 }
+      entry.total += 1
+      if (dev.derivedHealth === 'ONLINE') entry.online += 1
+      else if (dev.derivedHealth === 'DEGRADED') entry.degraded += 1
+      else entry.offline += 1
+      map.set(role, entry)
+    }
+    return Array.from(map.entries()).map(([role, counts]) => ({ role, ...counts }))
+  }, [selectedLaneLive])
+
   return (
-    <Card className="border-border/80 bg-card/95 shadow-[0_18px_60px_rgba(0,0,0,0.18)]">
-      <CardHeader className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+    <Card className="border-border/60 bg-card/95">
+      <CardContent className="space-y-3 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary">Lane realtime</Badge>
-            <Badge variant={streamConnected ? 'entry' : 'outline'}>
-              {streamConnected ? <Wifi className="mr-1 h-3.5 w-3.5" /> : <WifiOff className="mr-1 h-3.5 w-3.5" />}
-              {streamConnected ? 'Connected' : status}
+            <Badge variant={streamConnected ? 'entry' : 'outline'} className="text-[10px] gap-1">
+              {streamConnected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+              {streamConnected ? 'Stream connected' : 'Stream offline'}
             </Badge>
-            <Badge variant={stale ? 'amber' : 'outline'}>{stale ? 'Stale snapshot' : 'Fresh snapshot'}</Badge>
-            {unauthorized ? <Badge variant="destructive">Unauthorized</Badge> : null}
-            {lostContext ? <Badge variant="destructive">Lane missing from snapshot</Badge> : null}
+            {stale && <Badge variant="amber" className="text-[10px]">Stale</Badge>}
+            {unauthorized && <Badge variant="destructive" className="text-[10px]">Unauthorized</Badge>}
+            {lostContext && <Badge variant="destructive" className="text-[10px]">Lane missing</Badge>}
           </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => void refreshSnapshot()}
-            disabled={!siteCode || snapshotLoading || refreshing}
-          >
-            {snapshotLoading || refreshing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-            Refresh snapshot
-          </Button>
+          <div className="flex gap-1.5">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void refreshSnapshot()}
+              disabled={!siteCode || snapshotLoading || refreshing}
+              className="h-7 gap-1.5 text-[11px]"
+            >
+              {snapshotLoading || refreshing ? <RefreshCw className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+              Refresh
+            </Button>
+            {onClose && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={onClose}
+                className="h-7 text-[11px]"
+              >
+                Đóng
+              </Button>
+            )}
+          </div>
         </div>
-
-        <div>
-          <CardTitle className="text-base sm:text-lg">Lane Realtime Console</CardTitle>
-          <CardDescription>
-            Live health snapshot for the active lane — health state, barrier status, device pressure, and stream telemetry.
-          </CardDescription>
-        </div>
-      </CardHeader>
-
-      <CardContent className="space-y-4">
-        <RealtimeStatusBanner
-          title="Run Lane realtime"
-          state={{
-            status,
-            stale,
-            unauthorized,
-            error: streamError || snapshotError,
-            reconnectCount,
-            receivedAt: lastEventAt,
-            lastSnapshotAt,
-            staleSince,
-          }}
-          onResync={() => void refreshSnapshot()}
-          disabled={snapshotLoading || refreshing}
-        />
 
         {!siteCode || !laneCode ? (
           <SurfaceState
-            title="No lane context selected"
-            description="Select a site and lane above to lock the realtime console onto the active lane."
+            title="Chưa chọn lane"
+            description="Chọn site và lane để xem trạng thái realtime."
             tone="empty"
-            className="min-h-[180px]"
+            className="min-h-[120px]"
           />
         ) : snapshotLoading && !selectedLaneLive && !snapshotError ? (
-          <SurfaceState
-            title="Loading lane snapshot"
-            description="Fetching the HTTP snapshot as the source of truth before trusting SSE data."
-            tone="loading"
-            className="min-h-[180px]"
-          />
+          <SurfaceState title="Đang tải..." description="Fetching HTTP snapshot..." tone="loading" className="min-h-[120px]" />
         ) : snapshotError && !selectedLaneLive ? (
           <SurfaceState
-            title="Could not load lane snapshot"
+            title="Lỗi tải snapshot"
             description={snapshotError}
             icon={ShieldAlert}
             tone="error"
-            className="min-h-[180px]"
-            action={{
-              label: 'Retry',
-              onClick: () => void refreshSnapshot(),
-            }}
+            className="min-h-[120px]"
+            action={{ label: 'Retry', onClick: () => void refreshSnapshot() }}
           />
         ) : lostContext ? (
           <SurfaceState
-            title="Selected lane not in snapshot"
-            description="The topology includes this lane but the runtime snapshot has not seen it. Check site scope, stream filter, or backend lane-status projection."
+            title="Lane không có trong snapshot"
+            description="Kiểm tra site scope hoặc backend lane-status projection."
             icon={AlertTriangle}
             tone="warning"
-            className="min-h-[180px]"
-            action={{
-              label: 'Manual resync',
-              onClick: () => void refreshSnapshot(),
-            }}
+            className="min-h-[120px]"
+            action={{ label: 'Resync', onClick: () => void refreshSnapshot() }}
           />
         ) : selectedLaneLive ? (
           <>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-2xl border border-border/80 bg-muted/25 p-4">
-                <p className="text-[11px] font-mono-data uppercase tracking-[0.18em] text-muted-foreground">Lane health</p>
-                <div className="mt-2 flex items-center gap-2">
-                  <Badge variant={laneHealthVariant(selectedLaneLive.aggregateHealth)}>{selectedLaneLive.aggregateHealth}</Badge>
-                  <Badge variant={operationalVariant(selectedLaneLive.laneOperationalStatus)}>{selectedLaneLive.laneOperationalStatus}</Badge>
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-xl border border-border/50 bg-muted/30 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Lane Health</p>
+                <div className="flex flex-wrap gap-1.5">
+                  <Badge variant={laneHealthVariant(selectedLaneLive.aggregateHealth)} className="text-[10px]">
+                    {selectedLaneLive.aggregateHealth}
+                  </Badge>
+                  <Badge variant={operationalVariant(selectedLaneLive.laneOperationalStatus)} className="text-[10px]">
+                    {selectedLaneLive.laneOperationalStatus}
+                  </Badge>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-border/80 bg-muted/25 p-4">
-                <p className="text-[11px] font-mono-data uppercase tracking-[0.18em] text-muted-foreground">Barrier / session</p>
-                <p className="mt-2 text-sm font-medium text-foreground">
-                  {selectedLaneLive.lastBarrierStatus || '—'} / {selectedLaneLive.lastSessionStatus || '—'}
-                </p>
+              <div className="rounded-xl border border-border/50 bg-muted/30 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Barrier / Session</p>
+                <p className="text-xs font-medium">{selectedLaneLive.lastBarrierStatus || '—'} · {selectedLaneLive.lastSessionStatus || '—'}</p>
               </div>
 
-              <div className="rounded-2xl border border-border/80 bg-muted/25 p-4">
-                <p className="text-[11px] font-mono-data uppercase tracking-[0.18em] text-muted-foreground">Device pressure</p>
-                <p className="mt-2 text-sm font-medium text-foreground">
-                  {selectedLaneLive.onlineDeviceCount} online &middot; {selectedLaneLive.degradedDeviceCount} degraded &middot; {selectedLaneLive.offlineDeviceCount} offline
-                </p>
+              <div className="rounded-xl border border-border/50 bg-muted/30 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Device Pressure</p>
+                {pressurePct !== null ? (
+                  <>
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <span className="text-xs font-medium">{selectedLaneLive.onlineDeviceCount}/{selectedLaneLive.requiredDeviceCount}</span>
+                      <span className="text-[10px] text-muted-foreground">{pressurePct}%</span>
+                    </div>
+                    <Progress
+                      value={pressurePct}
+                      className="h-1.5"
+                      barClassName={
+                        pressurePct === 100 ? 'bg-green-500' : pressurePct >= 60 ? 'bg-amber-500' : 'bg-red-500'
+                      }
+                    />
+                  </>
+                ) : (
+                  <p className="text-xs text-muted-foreground">No required devices</p>
+                )}
               </div>
 
-              <div className="rounded-2xl border border-border/80 bg-muted/25 p-4">
-                <p className="text-[11px] font-mono-data uppercase tracking-[0.18em] text-muted-foreground">Presence / required</p>
-                <p className="mt-2 text-sm font-medium text-foreground">
-                  {selectedLaneLive.activePresenceCount} / {selectedLaneLive.requiredDeviceCount}
-                </p>
+              <div className="rounded-xl border border-border/50 bg-muted/30 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Presence</p>
+                <p className="text-xs font-medium">{selectedLaneLive.activePresenceCount} active · {selectedLaneLive.direction}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{selectedLaneLive.gateCode}/{selectedLaneLive.laneCode}</p>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-border/80 bg-background/40 p-4">
-              <div className="mb-2 flex items-center gap-2 text-foreground">
-                <Activity className="h-4 w-4 text-primary" />
-                <span className="font-medium">Runtime attention</span>
+            {roleHealthSummary.length > 0 && (
+              <div className="rounded-xl border border-border/50 bg-muted/20 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Per-role health</p>
+                <div className="flex flex-wrap gap-2">
+                  {roleHealthSummary.map(({ role, total, online, degraded, offline }) => (
+                    <div key={role} className="flex items-center gap-1.5 rounded-lg border border-border/40 bg-muted/20 px-2.5 py-1.5">
+                      {roleIcon(role)}
+                      <span className="text-[11px] font-medium">{role}</span>
+                      <div className="flex items-center gap-1">
+                        {online > 0 && <Badge variant="secondary" className="text-[10px]">{online}</Badge>}
+                        {degraded > 0 && <Badge variant="amber" className="text-[10px]">{degraded}</Badge>}
+                        {offline > 0 && <Badge variant="destructive" className="text-[10px]">{offline}</Badge>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <p className="text-sm text-muted-foreground">{attentionText}</p>
-            </div>
+            )}
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-border/80 bg-muted/25 p-4 text-sm text-muted-foreground">
-                <p className="text-[11px] font-mono-data uppercase tracking-[0.18em] text-muted-foreground">Stream telemetry</p>
-                <p className="mt-2 text-foreground">
-                  Last event {formatTime(lastEventAt)} &middot; {reconnectCount} reconnect{reconnectCount !== 1 ? 's' : ''}
-                </p>
-                {streamError ? <p className="mt-2 text-destructive">{streamError}</p> : null}
-              </div>
-
-              <div className="rounded-2xl border border-border/80 bg-muted/25 p-4 text-sm text-muted-foreground">
-                <p className="text-[11px] font-mono-data uppercase tracking-[0.18em] text-muted-foreground">Snapshot reconcile</p>
-                <p className="mt-2 text-foreground">Last snapshot {formatTime(lastSnapshotAt)}</p>
-                {staleSince ? <p className="mt-2 text-primary">Stale since {formatTime(staleSince)}</p> : null}
-                {snapshotError ? <p className="mt-2 text-destructive">{snapshotError}</p> : null}
-              </div>
+            <div className="rounded-xl border border-border/50 bg-muted/20 p-3">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Attention</p>
+              <p className="text-xs text-muted-foreground">{attentionText}</p>
             </div>
 
             <div className="flex flex-wrap gap-2">
               {selectedLaneLive.devices.map((device) => (
-                <Badge
+                <div
                   key={device.deviceCode}
-                  variant={
-                    device.derivedHealth === 'ONLINE'
-                      ? 'secondary'
-                      : device.derivedHealth === 'OFFLINE'
-                        ? 'destructive'
-                        : 'amber'
-                  }
+                  className="flex items-center gap-1.5 rounded-full border border-border/40 bg-muted/20 px-2.5 py-1"
                 >
-                  {device.deviceRole || device.deviceType}:{device.deviceCode} &middot; {device.derivedHealth}
-                </Badge>
+                  {roleIcon(device.deviceRole)}
+                  <span className="text-[10px] font-medium font-mono-data">
+                    {device.deviceRole}:{device.deviceCode}
+                  </span>
+                  <Badge variant={deviceHealthVariant(device.derivedHealth)} className="text-[9px]">
+                    {device.derivedHealth}
+                  </Badge>
+                  <span className="text-[9px] text-muted-foreground">{formatAge(device.heartbeatAgeSeconds)}</span>
+                </div>
               ))}
             </div>
           </>
         ) : (
           <SurfaceState
-            title="No live row for this lane"
-            description="Snapshot loaded but no match for the selected lane. Try refreshing or check topology scope."
+            title="Không có live row"
+            description="Snapshot loaded nhưng không tìm thấy lane. Thử refresh."
             tone="warning"
-            className="min-h-[180px]"
-            action={{
-              label: 'Manual resync',
-              onClick: () => void refreshSnapshot(),
-            }}
+            className="min-h-[120px]"
+            action={{ label: 'Resync', onClick: () => void refreshSnapshot() }}
           />
         )}
       </CardContent>

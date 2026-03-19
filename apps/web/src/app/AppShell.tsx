@@ -27,8 +27,7 @@ export function AppShell() {
         <main id="app-main-content" className="min-w-0 flex-1 overflow-y-auto" tabIndex={-1}>
           <div className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
             {auth.sessionNotice ? (
-              <div className="mb-5">
-                <div role="status" aria-live="polite">
+              <div className="mb-5" role="status" aria-live="polite">
                 <StateBanner className="mb-0">
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -40,7 +39,6 @@ export function AppShell() {
                     </Button>
                   </div>
                 </StateBanner>
-              </div>
               </div>
             ) : null}
             <Outlet />

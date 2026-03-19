@@ -1,4 +1,4 @@
-﻿import type { AlprPreviewCandidate } from '@/lib/contracts/alpr'
+import type { AlprPreviewCandidate } from '@/lib/contracts/alpr'
 import type { RunLaneEffectivePlateSource, RunLaneStoreState } from '@/features/run-lane/store/runLaneTypes'
 import type { SessionAllowedAction } from '@/lib/contracts/sessions'
 
@@ -51,4 +51,28 @@ export const selectRunLaneCanSubmit = (state: RunLaneStoreState) => {
     state.capture.localPreviewUrl &&
     state.preview.imageUrl
   )
+}
+
+export const selectRunLaneCanResubmit = (state: RunLaneStoreState) => {
+  // Resubmit is allowed only after a successful submission with an active session.
+  // Guard against cases where result is set but no session was created.
+  const result = state.submit.result
+  const currentSessionId = state.submit.currentSessionId
+  if (!result || !currentSessionId) return false
+  const stage = state.submit.stage
+  const actionStage = state.submit.actionStage
+  const isIdle = stage === 'idle' || stage === 'success'
+  const notInFlight = actionStage === 'idle' || actionStage === 'success'
+  return isIdle && notInFlight
+}
+
+export const selectRunLaneDevicePressureLabel = (state: RunLaneStoreState) => {
+  const sessionDetail = state.submit.result?.sessionDetail?.session as {
+    onlineDeviceCount?: number
+    degradedDeviceCount?: number
+    offlineDeviceCount?: number
+  } | null
+  if (!sessionDetail) return null
+  const { onlineDeviceCount = 0, degradedDeviceCount = 0, offlineDeviceCount = 0 } = sessionDetail
+  return `${onlineDeviceCount} online · ${degradedDeviceCount} degraded · ${offlineDeviceCount} offline`
 }

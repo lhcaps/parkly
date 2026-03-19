@@ -1,19 +1,23 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ArrowRightLeft, ScanSearch, Workflow } from 'lucide-react'
-import { PageHeader } from '@/components/ops/console'
+import { useTranslation } from 'react-i18next'
+import { Wifi, WifiOff } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { CapturePreviewPanel } from '@/features/run-lane/components/CapturePreviewPanel'
 import { LaneContextPanel } from '@/features/run-lane/components/LaneContextPanel'
+import { LiveLaneStateCard } from '@/features/run-lane/components/LiveLaneStateCard'
 import { SubmitResultPanel } from '@/features/run-lane/components/SubmitResultPanel'
 import {
-  selectRunLaneGateCode,
+  selectRunLaneCanSubmit,
   selectRunLaneLaneCode,
   selectRunLaneSiteCode,
-  selectRunLaneTopology,
+  selectRunLaneSubmit,
 } from '@/features/run-lane/store/runLaneSelectors'
 import { RunLaneStoreProvider, useRunLaneActions, useRunLaneStore } from '@/features/run-lane/store/runLaneStoreContext'
+import { useRunLaneLiveState } from '@/features/run-lane/hooks/useRunLaneLiveState'
+import { useRunLaneSubmit } from '@/features/run-lane/hooks/useRunLaneSubmit'
 import { getDevices } from '@/lib/api/devices'
 import { getGates, getLanes, getSites } from '@/lib/api/topology'
 import { buildSearchParams, readTrimmedSearchParam, syncSearchParams } from '@/lib/router/url-state'
@@ -26,15 +30,39 @@ function parseRunLaneSearchParams(searchParams: URLSearchParams) {
   }
 }
 
+const StatusPill = memo(function StatusPill({ connected }: { connected: boolean }) {
+  return connected ? (
+    <Badge variant="entry" className="gap-1">
+      <Wifi className="h-3 w-3" />
+      Live
+    </Badge>
+  ) : (
+    <Badge variant="outline" className="gap-1">
+      <WifiOff className="h-3 w-3" />
+      Offline
+    </Badge>
+  )
+})
+
 function RunLaneScreen() {
+  const { t } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
   const routeState = useMemo(() => parseRunLaneSearchParams(searchParams), [searchParams])
   const actions = useRunLaneActions()
-  const topology = useRunLaneStore(selectRunLaneTopology)
+  const topology = useRunLaneStore((s) => s.topology)
   const siteCode = useRunLaneStore(selectRunLaneSiteCode)
-  const gateCode = useRunLaneStore(selectRunLaneGateCode)
+  const gateCode = useRunLaneStore((s) => s.topology.gateCode)
   const laneCode = useRunLaneStore(selectRunLaneLaneCode)
   const topologyRequestIdRef = useRef(0)
+  const [showLivePanel, setShowLivePanel] = useState(false)
+
+  const { submitCurrentLaneFlow } = useRunLaneSubmit()
+  const submit = useRunLaneStore(selectRunLaneSubmit)
+  const canSubmit = useRunLaneStore(selectRunLaneCanSubmit)
+  const liveState = useRunLaneLiveState()
+  const streamConnected = liveState.streamConnected
+
+  const busy = submit.stage === 'submitting'
 
   const loadSiteTopology = useCallback(async (nextSiteCode: string) => {
     if (!nextSiteCode) return
@@ -119,66 +147,93 @@ function RunLaneScreen() {
     syncSearchParams(searchParams, next, setSearchParams)
   }, [siteCode, gateCode, laneCode, searchParams, setSearchParams])
 
+  const handleReloadTopology = useCallback(() => {
+    if (siteCode) {
+      void loadSiteTopology(siteCode)
+    }
+  }, [siteCode, loadSiteTopology])
+
+  const handleSubmit = useCallback(() => {
+    void submitCurrentLaneFlow()
+  }, [submitCurrentLaneFlow])
+
   return (
-    <div className="space-y-6">
-      <PageHeader
-        eyebrow="Operations"
-        title="Run Lane"
-        description="Single-lane operations screen. Context is synced to the URL for deep-link handoff.L để refresh route sâu, bookmark workspace và handoff ca trực mà không mất context."
-        badges={[
-          { label: 'workflow', variant: 'secondary' },
-          { label: '3-column', variant: 'outline' },
-          { label: siteCode ? `${siteCode}${laneCode ? `/${laneCode}` : ''}` : 'context —', variant: 'muted' },
-        ]}
-      />
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="border-border/80 bg-card/95">
-          <CardContent className="flex items-start gap-3 pt-5">
-            <Workflow className="mt-0.5 h-5 w-5 text-primary" />
-            <div>
-              <p className="font-medium">Lane context</p>
-              <p className="mt-1 text-sm text-muted-foreground">Lock in site, gate, lane, and topology before submitting data for processing.</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/80 bg-card/95">
-          <CardContent className="flex items-start gap-3 pt-5">
-            <ScanSearch className="mt-0.5 h-5 w-5 text-primary" />
-            <div>
-              <p className="font-medium">Capture preview</p>
-              <p className="mt-1 text-sm text-muted-foreground">View local image, backend preview, and plate override in one panel.ide in one panel.ate override trong cùng một nhịp thao tác.</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/80 bg-card/95">
-          <CardContent className="flex items-start gap-3 pt-5">
-            <ArrowRightLeft className="mt-0.5 h-5 w-5 text-primary" />
-            <div>
-              <p className="font-medium">Submit result</p>
-              <p className="mt-1 text-sm text-muted-foreground">See session, decision, and next action immediately after submitting.</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-5 xl:grid-cols-[minmax(290px,0.95fr)_minmax(420px,1.35fr)_minmax(320px,0.95fr)]">
-        <LaneContextPanel onReloadTopology={() => void loadSiteTopology(siteCode)} />
-        <CapturePreviewPanel />
-        <SubmitResultPanel />
-      </div>
-
-      <div className="rounded-3xl border border-border/80 bg-card/90 p-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline">operator flow</Badge>
-          <p className="text-sm font-medium">Use Run Lane to process a vehicle from start to finish on a single screen.</p>
+    <div className="space-y-3 p-1">
+      {/* Compact submit bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/50 bg-card/95 backdrop-blur-sm px-4 py-2.5 shadow-sm transition-all hover:shadow-md">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={siteCode ? 'secondary' : 'outline'} className="font-mono-data text-xs">
+              {siteCode || '—'}
+            </Badge>
+            {siteCode && (
+              <>
+                <span className="text-muted-foreground/60">/</span>
+                <Badge variant="secondary" className="font-mono-data text-xs">
+                  {laneCode || '—'}
+                </Badge>
+              </>
+            )}
+          </div>
+          <StatusPill connected={streamConnected} />
         </div>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Use Review Queue for cases awaiting confirmation. Use Session History to look up completed sessions. cứu và truy vết sau xử lý.
-        </p>
+
+        <Button
+          variant="default"
+          size="sm"
+          onClick={handleSubmit}
+          disabled={busy || !canSubmit}
+          className="gap-2 transition-all hover:scale-105 active:scale-95"
+        >
+          {busy ? (
+            <span className="animate-spin">⟳</span>
+          ) : null}
+          {busy ? t('runLanePage.submitting') : t('runLanePage.submit')}
+        </Button>
       </div>
+
+      <div className="grid gap-3 lg:grid-cols-[280px_1fr] xl:grid-cols-[300px_1fr_340px]">
+        <div className="lg:col-span-1 xl:col-span-1">
+          <LaneContextPanel onReloadTopology={handleReloadTopology} />
+        </div>
+        <div className="lg:col-span-1 xl:col-span-1">
+          <CapturePreviewPanel />
+        </div>
+        <div className="lg:col-span-2 xl:col-span-1">
+          <SubmitResultPanel />
+        </div>
+      </div>
+
+      {/* Collapsible realtime status */}
+      <Card className="border-border/60 bg-card/95">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <StatusPill connected={streamConnected} />
+              {liveState.stale && (
+                <Badge variant="amber" className="text-[10px]">Stale</Badge>
+              )}
+              {liveState.reconnectCount > 0 && (
+                <Badge variant="outline" className="text-[10px]">
+                  Reconnects: {liveState.reconnectCount}
+                </Badge>
+              )}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowLivePanel((v) => !v)}
+              className="h-7 text-[11px]"
+            >
+              {showLivePanel ? 'Ẩn chi tiết' : 'Xem chi tiết'}
+            </Button>
+          </div>
+
+          {showLivePanel && (
+            <LiveLaneStateCard onClose={() => setShowLivePanel(false)} />
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

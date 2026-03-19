@@ -20,8 +20,11 @@ export type RoutePath =
 
 export type RoutePolicyMeta = {
   path: RoutePath
+  /** i18n key — dùng với `t(label)` (react-i18next) */
   label: string
+  /** i18n key */
   shortLabel: string
+  /** i18n key */
   description: string
   group: AppNavGroupKey
   allowedRoles?: AuthRole[]
@@ -62,9 +65,9 @@ const ALL_ROLES: AuthRole[] = ['ADMIN', 'OPS', 'GUARD', 'CASHIER', 'WORKER']
 const routePolicies: RoleRoutePolicy[] = [
   {
     path: '/overview',
-    label: 'Overview',
-    shortLabel: 'Overview',
-    description: 'Shift landing page. Queue status, lane alerts, and dependency health at a glance.',
+    label: 'route.overview.label',
+    shortLabel: 'route.overview.shortLabel',
+    description: 'route.overview.description',
     group: 'Operations',
     allowedRoles: [...ALL_ROLES],
     hidden: false,
@@ -74,9 +77,9 @@ const routePolicies: RoleRoutePolicy[] = [
   },
   {
     path: '/run-lane',
-    label: 'Run Lane',
-    shortLabel: 'Run Lane',
-    description: 'Process a vehicle through a lane — from image capture to decision and gate action.',
+    label: 'route.runLane.label',
+    shortLabel: 'route.runLane.shortLabel',
+    description: 'route.runLane.description',
     group: 'Operations',
     allowedRoles: ['ADMIN', 'OPS', 'GUARD'],
     hidden: false,
@@ -86,9 +89,9 @@ const routePolicies: RoleRoutePolicy[] = [
   },
   {
     path: '/review-queue',
-    label: 'Review Queue',
-    shortLabel: 'Review',
-    description: 'Claim and resolve cases that require manual operator confirmation.',
+    label: 'route.reviewQueue.label',
+    shortLabel: 'route.reviewQueue.shortLabel',
+    description: 'route.reviewQueue.description',
     group: 'Operations',
     allowedRoles: ['ADMIN', 'OPS', 'GUARD'],
     hidden: false,
@@ -98,9 +101,9 @@ const routePolicies: RoleRoutePolicy[] = [
   },
   {
     path: '/session-history',
-    label: 'Session History',
-    shortLabel: 'Sessions',
-    description: 'Look up sessions, decisions, barrier events, and evidence by timeline.',
+    label: 'route.sessionHistory.label',
+    shortLabel: 'route.sessionHistory.shortLabel',
+    description: 'route.sessionHistory.description',
     group: 'Operations',
     allowedRoles: ['ADMIN', 'OPS', 'GUARD', 'WORKER'],
     hidden: false,
@@ -110,9 +113,9 @@ const routePolicies: RoleRoutePolicy[] = [
   },
   {
     path: '/lane-monitor',
-    label: 'Lane Monitor',
-    shortLabel: 'Lane Monitor',
-    description: 'Live lane health, barrier status, and latest session state across sites.',
+    label: 'route.laneMonitor.label',
+    shortLabel: 'route.laneMonitor.shortLabel',
+    description: 'route.laneMonitor.description',
     group: 'Monitoring',
     allowedRoles: ['ADMIN', 'OPS', 'GUARD', 'WORKER'],
     hidden: false,
@@ -122,9 +125,9 @@ const routePolicies: RoleRoutePolicy[] = [
   },
   {
     path: '/device-health',
-    label: 'Device Health',
-    shortLabel: 'Devices',
-    description: 'Monitor device heartbeats and degradation by site and lane.',
+    label: 'route.deviceHealth.label',
+    shortLabel: 'route.deviceHealth.shortLabel',
+    description: 'route.deviceHealth.description',
     group: 'Monitoring',
     allowedRoles: ['ADMIN', 'OPS', 'GUARD', 'WORKER'],
     hidden: false,
@@ -134,9 +137,9 @@ const routePolicies: RoleRoutePolicy[] = [
   },
   {
     path: '/sync-outbox',
-    label: 'Sync Outbox',
-    shortLabel: 'Outbox',
-    description: 'Inspect the sync queue — retries, failures, and downstream delivery status.',
+    label: 'route.syncOutbox.label',
+    shortLabel: 'route.syncOutbox.shortLabel',
+    description: 'route.syncOutbox.description',
     group: 'Monitoring',
     allowedRoles: ['ADMIN', 'OPS', 'WORKER'],
     hidden: false,
@@ -146,9 +149,9 @@ const routePolicies: RoleRoutePolicy[] = [
   },
   {
     path: '/reports',
-    label: 'Reports',
-    shortLabel: 'Reports',
-    description: 'Operational summaries by site and time window.',
+    label: 'route.reports.label',
+    shortLabel: 'route.reports.shortLabel',
+    description: 'route.reports.description',
     group: 'Monitoring',
     allowedRoles: ['ADMIN', 'OPS', 'CASHIER', 'WORKER'],
     hidden: false,
@@ -158,9 +161,9 @@ const routePolicies: RoleRoutePolicy[] = [
   },
   {
     path: '/mobile-camera-pair',
-    label: 'Mobile Camera Pair',
-    shortLabel: 'Pair Mobile',
-    description: 'Pair a mobile device to a lane for image capture and heartbeat.',
+    label: 'route.mobileCameraPair.label',
+    shortLabel: 'route.mobileCameraPair.shortLabel',
+    description: 'route.mobileCameraPair.description',
     group: 'Capture',
     allowedRoles: ['ADMIN', 'OPS', 'GUARD'],
     hidden: false,
@@ -170,9 +173,9 @@ const routePolicies: RoleRoutePolicy[] = [
   },
   {
     path: '/capture-debug',
-    label: 'Capture Debug',
-    shortLabel: 'Capture',
-    description: 'Monitor the capture feed and ALPR results to diagnose ingest issues.',
+    label: 'route.captureDebug.label',
+    shortLabel: 'route.captureDebug.shortLabel',
+    description: 'route.captureDebug.description',
     group: 'Capture',
     allowedRoles: ['ADMIN', 'OPS', 'GUARD', 'WORKER'],
     hidden: false,
@@ -182,9 +185,9 @@ const routePolicies: RoleRoutePolicy[] = [
   },
   {
     path: '/subscriptions',
-    label: 'Subscriptions',
-    shortLabel: 'Subscriptions',
-    description: 'Manage parking subscriptions — vehicles, spot assignments, and status.',
+    label: 'route.subscriptions.label',
+    shortLabel: 'route.subscriptions.shortLabel',
+    description: 'route.subscriptions.description',
     group: 'Operations',
     allowedRoles: ['ADMIN', 'OPS'],
     hidden: false,
@@ -199,9 +202,9 @@ const routePolicies: RoleRoutePolicy[] = [
   },
   {
     path: '/parking-live',
-    label: 'Parking Live',
-    shortLabel: 'Parking',
-    description: 'Realtime parking occupancy — floor view, slot status, and drill-down detail.',
+    label: 'route.parkingLive.label',
+    shortLabel: 'route.parkingLive.shortLabel',
+    description: 'route.parkingLive.description',
     group: 'Monitoring',
     allowedRoles: ['ADMIN', 'OPS', 'GUARD'],
     hidden: false,
@@ -215,9 +218,9 @@ const routePolicies: RoleRoutePolicy[] = [
   },
   {
     path: '/settings',
-    label: 'Settings',
-    shortLabel: 'Settings',
-    description: 'Configure default context and review auth and runtime diagnostics.',
+    label: 'route.settings.label',
+    shortLabel: 'route.settings.shortLabel',
+    description: 'route.settings.description',
     group: 'System',
     allowedRoles: [...ALL_ROLES],
     hidden: false,
@@ -227,9 +230,9 @@ const routePolicies: RoleRoutePolicy[] = [
   },
   {
     path: '/mobile-capture',
-    label: 'Mobile Capture',
-    shortLabel: 'Mobile Capture',
-    description: 'Mobile screen for capturing and submitting images.',
+    label: 'route.mobileCapture.label',
+    shortLabel: 'route.mobileCapture.shortLabel',
+    description: 'route.mobileCapture.description',
     group: 'Capture',
     allowedRoles: undefined,
     hidden: true,

@@ -1,13 +1,16 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { CheckCircle2, Link2, PlugZap, ShieldAlert } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
 import { getApiBasePreview } from '@/lib/http/client'
 import { getHealth } from '@/lib/api/system'
 import { getAuthMe } from '@/lib/api/auth'
 
 export function ApiHealthCard() {
+  const { t } = useTranslation()
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [message, setMessage] = useState('')
@@ -25,7 +28,7 @@ export function ApiHealthCard() {
       setRole(meRes.role)
       setHealthTs(new Date(healthRes.ts).toLocaleString('vi-VN'))
       setStatus('success')
-      setMessage('API connection and current session are valid.')
+      setMessage(t('apiHealth.successMsg'))
     } catch (error) {
       setRole('')
       setHealthTs('')
@@ -37,57 +40,74 @@ export function ApiHealthCard() {
   }
 
   return (
-    <Card className="border-border/80 bg-card/95">
-      <CardHeader>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="secondary">health</Badge>
-          {status === 'success' ? <Badge variant="entry">verified</Badge> : null}
-          {status === 'error' ? <Badge variant="destructive">failed</Badge> : null}
+    <Card className="border-border/80 bg-card/95 overflow-hidden h-full">
+      <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-6 py-5">
+        <div className="flex flex-wrap items-center gap-2 mb-2">
+          <Badge variant="secondary" className="text-xs px-2.5 py-1">{t('apiHealth.badge')}</Badge>
+          {status === 'success' ? <Badge variant="entry" className="text-xs px-2.5 py-1">{t('apiHealth.verified')}</Badge> : null}
+          {status === 'error' ? <Badge variant="destructive" className="text-xs px-2.5 py-1">{t('apiHealth.failed')}</Badge> : null}
         </div>
-        <CardTitle>API Health Card</CardTitle>
-        <CardDescription>
-          Verify the current session shell by calling <span className="font-mono-data">/api/health</span> and <span className="font-mono-data">/api/auth/me</span>.
-        </CardDescription>
-      </CardHeader>
+        <CardTitle className="text-lg font-bold tracking-tight">{t('apiHealth.title')}</CardTitle>
+        <CardDescription className="text-sm mt-1">{t('apiHealth.description')}</CardDescription>
+      </div>
 
-      <CardContent className="space-y-4">
-        <div className="rounded-2xl border border-border/80 bg-background/40 p-4">
-          <div className="mb-2 flex items-center gap-2">
-            <Link2 className="h-4 w-4 text-primary" />
-            <p className="text-sm font-medium">API base</p>
+      <CardContent className="p-6 space-y-5">
+        {/* API Base Display */}
+        <div className="rounded-2xl border border-border/80 bg-muted/40 p-5">
+          <div className="flex items-center gap-2.5 mb-3">
+            <Link2 className="h-5 w-5 text-primary" />
+            <p className="text-sm font-semibold">{t('apiHealth.apiBase')}</p>
           </div>
-          <p className="break-all font-mono-data text-xs text-muted-foreground">{apiBase}</p>
+          <p className="break-all font-mono-data text-sm text-muted-foreground leading-relaxed bg-background/60 rounded-xl px-3 py-2">{apiBase || t('developer.none')}</p>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="rounded-2xl border border-border/80 bg-background/40 p-4">
-            <p className="text-[11px] font-mono-data uppercase tracking-[0.18em] text-muted-foreground">Detected role</p>
-            <div className="mt-2">
-              {role ? <Badge variant="outline">{role}</Badge> : <span className="text-sm text-muted-foreground">Chưa verify</span>}
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 gap-4">
+          <div className="rounded-2xl border border-border/80 bg-muted/40 p-5">
+            <p className="text-xs font-mono-data uppercase tracking-[0.15em] text-muted-foreground mb-3">{t('apiHealth.detectedRole')}</p>
+            <div className="flex items-center gap-3">
+              {role ? (
+                <Badge variant="outline" className="text-sm px-3 py-1.5 font-semibold">{role}</Badge>
+              ) : (
+                <span className="text-sm text-muted-foreground">{t('apiHealth.notVerifiedYet')}</span>
+              )}
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border/80 bg-background/40 p-4">
-            <p className="text-[11px] font-mono-data uppercase tracking-[0.18em] text-muted-foreground">Last health ts</p>
-            <p className="mt-2 text-sm text-foreground">{healthTs || '—'}</p>
+          <div className="rounded-2xl border border-border/80 bg-muted/40 p-5">
+            <p className="text-xs font-mono-data uppercase tracking-[0.15em] text-muted-foreground mb-3">{t('apiHealth.lastHealthTs')}</p>
+            <p className="text-base font-semibold text-foreground">{healthTs || t('common.dash')}</p>
           </div>
         </div>
 
-        <Button type="button" variant="outline" onClick={() => void verify()} disabled={busy}>
-          <PlugZap className="h-4 w-4" />
-          {busy ? 'Verifying…' : 'Verify session + API'}
+        {/* Verify Button - Large */}
+        <Button
+          type="button"
+          variant={status === 'success' ? 'secondary' : 'default'}
+          size="lg"
+          className="w-full gap-2 text-base h-12 px-6"
+          onClick={() => void verify()}
+          disabled={busy}
+        >
+          <PlugZap className="h-5 w-5" />
+          {busy ? t('apiHealth.verifying') : t('apiHealth.verifySessionApi')}
         </Button>
 
+        {/* Result Message */}
         {message ? (
           <div
-            className={
+            className={cn(
+              'flex items-start gap-3 rounded-2xl border px-5 py-4 text-sm',
               status === 'error'
-                ? 'flex items-start gap-2 rounded-2xl border border-destructive/25 bg-destructive/10 px-4 py-4 text-sm text-destructive'
-                : 'flex items-start gap-2 rounded-2xl border border-success/25 bg-success/10 px-4 py-4 text-sm text-success'
-            }
+                ? 'border-destructive/25 bg-destructive/10 text-destructive'
+                : 'border-success/25 bg-success/10 text-success'
+            )}
           >
-            {status === 'error' ? <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" /> : <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />}
-            <span className="break-all">{message}</span>
+            {status === 'error'
+              ? <ShieldAlert className="h-5 w-5 shrink-0 mt-0.5" />
+              : <CheckCircle2 className="h-5 w-5 shrink-0 mt-0.5" />
+            }
+            <span className="break-all leading-relaxed">{message}</span>
           </div>
         ) : null}
       </CardContent>

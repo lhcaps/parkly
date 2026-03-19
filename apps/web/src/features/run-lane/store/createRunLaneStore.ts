@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   RunLaneCaptureSlice,
   RunLaneMetaSlice,
   RunLaneOverrideSlice,
@@ -247,7 +247,7 @@ export function createRunLaneStore(initialState?: Partial<RunLaneStoreState>): R
           ...current.topology,
           laneCode,
         },
-        submit: createInitialSubmitSlice('Lane changed. Previous result cleared to avoid reading the wrong session.ssion/event của lane trước.'),
+        submit: createInitialSubmitSlice('Lane changed. Previous result cleared to avoid reading the wrong session/event from the previous lane.'),
       }))
     },
 

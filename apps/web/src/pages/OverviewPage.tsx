@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import {
   Activity,
   ArrowRightLeft,
@@ -164,6 +165,42 @@ export function OverviewPage() {
 
   const overview = dashboardData?.overview
 
+  const lanePressureData = useMemo(() => {
+    const useLive = laneState.connected && liveLaneSummary.total > 0
+    return {
+      useLive,
+      attention: useLive ? liveLaneSummary.attention : (dashboardData?.lanes.attentionCount ?? 0),
+      total: useLive ? liveLaneSummary.total : (dashboardData?.lanes.totalLanes ?? 0),
+      offline: useLive ? liveLaneSummary.offline : (dashboardData?.lanes.offlineCount ?? 0),
+      barrierFault: useLive ? liveLaneSummary.barrierFault : (dashboardData?.lanes.barrierFaultCount ?? 0),
+      openSessions: dashboardData?.lanes.openSessionCount ?? 0,
+    }
+  }, [laneState.connected, liveLaneSummary, dashboardData])
+
+  const lanePressureValue = useMemo(() => {
+    if (lanePressureData.total === 0 && lanePressureData.attention === 0) {
+      return 'N/A'
+    }
+    return `${lanePressureData.attention}/${lanePressureData.total}`
+  }, [lanePressureData])
+
+  const lanePressureHelper = useMemo(() => {
+    if (lanePressureData.useLive) {
+      return 'Sourced from live lane stream. Shows lanes needing attention vs total lanes.'
+    }
+    if (laneState.connected) {
+      return 'Lane stream connected but no data yet. Showing dashboard snapshot as fallback.'
+    }
+    return 'Lane stream not connected — showing dashboard snapshot. Connect stream for real-time updates.'
+  }, [lanePressureData.useLive, laneState.connected])
+
+  const lanePressureStatus = useMemo<OperationalStatus>(() => {
+    if (lanePressureData.offline > 0) return 'unavailable'
+    if (lanePressureData.attention > 0) return 'attention'
+    if (laneState.error || (!laneState.connected && !dashboardData)) return 'degraded'
+    return 'ready'
+  }, [lanePressureData, laneState, dashboardData])
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -249,14 +286,23 @@ export function OverviewPage() {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <OperationalStatusCard
           title="Lane pressure"
-          value={laneState.connected ? `${liveLaneSummary.attention}/${liveLaneSummary.total}` : `${dashboardData?.lanes.attentionCount ?? 0}/${dashboardData?.lanes.totalLanes ?? 0}`}
-          helper={laneState.connected ? 'Sourced from live lane stream. Falls back to dashboard snapshot when stream is down.' : 'Lane stream not connected — showing dashboard snapshot.'}
+          value={lanePressureValue}
+          helper={lanePressureHelper}
           icon={Activity}
-          status={liveLaneSummary.offline > 0 ? 'unavailable' : liveLaneSummary.attention > 0 || (dashboardData?.lanes.attentionCount ?? 0) > 0 ? 'attention' : laneState.error ? 'degraded' : 'ready'}
+          status={lanePressureStatus}
           chips={[
-            { label: `${liveLaneSummary.offline || dashboardData?.lanes.offlineCount || 0} offline`, variant: (liveLaneSummary.offline || dashboardData?.lanes.offlineCount || 0) > 0 ? 'destructive' : 'outline' },
-            { label: `${liveLaneSummary.barrierFault || dashboardData?.lanes.barrierFaultCount || 0} barrier fault`, variant: (liveLaneSummary.barrierFault || dashboardData?.lanes.barrierFaultCount || 0) > 0 ? 'amber' : 'outline' },
-            { label: `${dashboardData?.lanes.openSessionCount ?? 0} open sessions`, variant: 'outline' },
+            { 
+              label: `${lanePressureData.offline} offline`, 
+              variant: lanePressureData.offline > 0 ? 'destructive' : 'outline'
+            },
+            { 
+              label: `${lanePressureData.barrierFault} barrier fault`, 
+              variant: lanePressureData.barrierFault > 0 ? 'amber' : 'outline'
+            },
+            { 
+              label: `${lanePressureData.openSessions} open sessions`, 
+              variant: 'outline' 
+            },
           ]}
         />
 

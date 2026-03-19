@@ -1,8 +1,9 @@
-﻿import { useMemo } from 'react'
-import { Activity, Camera, CircleDot, Loader2, MapPinned, Radar, RefreshCw, ScanLine, ShieldAlert } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { ChevronDown, ChevronRight, Loader2, MapPinned, RefreshCw, ShieldAlert } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Select, type SelectOption } from '@/components/ui/select'
 import { useRunLaneActions, useRunLaneStore } from '@/features/run-lane/store/runLaneStoreContext'
@@ -16,31 +17,51 @@ function statusVariant(status: 'idle' | 'loading' | 'ready' | 'error') {
   return 'outline' as const
 }
 
-function ContextMetric({
-  icon: Icon,
-  label,
-  value,
-  tone = 'default',
+function CollapsibleSection({
+  title,
+  defaultOpen = true,
+  children,
+  className,
 }: {
-  icon: typeof Activity
-  label: string
-  value: string
-  tone?: 'default' | 'muted'
+  title: string
+  defaultOpen?: boolean
+  children: React.ReactNode
+  className?: string
 }) {
+  const [open, setOpen] = useState(defaultOpen)
+
   return (
-    <div className="rounded-2xl border border-border/80 bg-muted/25 p-4">
-      <div className="mb-2 flex items-center gap-2 text-[11px] font-mono-data uppercase tracking-[0.18em] text-muted-foreground">
-        <Icon className="h-3.5 w-3.5" />
-        <span>{label}</span>
-      </div>
-      <p className={cn('text-sm font-medium text-foreground break-all', tone === 'muted' && 'text-muted-foreground')}>
+    <div className={cn('rounded-xl border border-border/50 bg-muted/20', className)}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between px-3 py-2.5 text-left hover:bg-muted/30 transition-colors"
+      >
+        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</span>
+        {open ? (
+          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+        )}
+      </button>
+      {open && <div className="border-t border-border/40 px-3 pb-3 pt-1">{children}</div>}
+    </div>
+  )
+}
+
+function MiniMetric({ label, value, muted = false }: { label: string; value: string; muted?: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-2 py-1.5">
+      <span className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</span>
+      <span className={cn('text-xs font-medium font-mono-data', muted ? 'text-muted-foreground' : 'text-foreground')}>
         {value}
-      </p>
+      </span>
     </div>
   )
 }
 
 export function LaneContextPanel({ onReloadTopology }: { onReloadTopology: () => void }) {
+  const { t } = useTranslation()
   const actions = useRunLaneActions()
   const meta = useRunLaneStore(selectRunLaneMeta)
   const topology = useRunLaneStore(selectRunLaneTopology)
@@ -66,11 +87,17 @@ export function LaneContextPanel({ onReloadTopology }: { onReloadTopology: () =>
     [topology.devices, selectedLane?.laneCode],
   )
   const primaryCamera = useMemo(
-    () => laneDevices.find((device) => device.deviceRole === 'CAMERA') ?? laneDevices.find((device) => device.deviceType.toUpperCase().includes('CAMERA')) ?? null,
+    () =>
+      laneDevices.find((device) => device.deviceRole === 'CAMERA') ??
+      laneDevices.find((device) => device.deviceType.toUpperCase().includes('CAMERA')) ??
+      null,
     [laneDevices],
   )
   const loopSensor = useMemo(
-    () => laneDevices.find((device) => device.deviceRole === 'LOOP_SENSOR') ?? laneDevices.find((device) => device.deviceType.toUpperCase().includes('SENSOR')) ?? null,
+    () =>
+      laneDevices.find((device) => device.deviceRole === 'LOOP_SENSOR') ??
+      laneDevices.find((device) => device.deviceType.toUpperCase().includes('SENSOR')) ??
+      null,
     [laneDevices],
   )
 
@@ -83,95 +110,156 @@ export function LaneContextPanel({ onReloadTopology }: { onReloadTopology: () =>
     [topology.gates],
   )
   const laneOptions = useMemo<SelectOption[]>(
-    () => gateLanes.map((lane) => ({ value: lane.laneCode, label: lane.laneCode, description: `${lane.label} · ${lane.direction}` })),
-    [gateLanes],
+    () =>
+      gateLanes.map((lane) => ({
+        value: lane.laneCode,
+        label: lane.laneCode,
+        description: `${lane.label} · ${t(`direction.${lane.direction}` as 'direction.ENTRY' | 'direction.EXIT')}`,
+      })),
+    [gateLanes, t],
   )
 
+  const loadStatusLabel = (s: typeof topology.loadStatus) => {
+    if (s === 'idle') return 'idle'
+    if (s === 'loading') return 'loading...'
+    if (s === 'ready') return 'ready'
+    return 'error'
+  }
+
   return (
-    <Card className="border-border/80 bg-card/95 shadow-[0_18px_60px_rgba(0,0,0,0.18)]">
-      <CardHeader className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+    <Card className="border-border/60 bg-card/95">
+      <CardContent className="space-y-3 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary">scoped store</Badge>
-            <Badge variant={statusVariant(topology.loadStatus)}>{topology.loadStatus}</Badge>
-            {selectedLane && <Badge variant={selectedLane.direction === 'ENTRY' ? 'entry' : 'exit'}>{selectedLane.direction}</Badge>}
+            <Badge variant={statusVariant(topology.loadStatus)} className="text-[10px]">
+              {loadStatusLabel(topology.loadStatus)}
+            </Badge>
+            {selectedLane ? (
+              <Badge
+                variant={selectedLane.direction === 'ENTRY' ? 'entry' : 'exit'}
+                className="text-[10px]"
+              >
+                {t(`direction.${selectedLane.direction}` as 'direction.ENTRY' | 'direction.EXIT')}
+              </Badge>
+            ) : null}
           </div>
-          <Button variant="outline" size="sm" onClick={onReloadTopology} disabled={!topology.siteCode || topology.loadStatus === 'loading'}>
-            {topology.loadStatus === 'loading' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onReloadTopology}
+            disabled={!topology.siteCode || topology.loadStatus === 'loading'}
+            className="h-7 gap-1.5 text-[11px]"
+          >
+            {topology.loadStatus === 'loading' ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3 w-3" />
+            )}
             Reload
           </Button>
         </div>
-        <div>
-          <CardTitle className="text-base sm:text-lg">Lane Context Panel</CardTitle>
-          <CardDescription>
-            Context subscribes to the topology slice only. The provider supplies a scoped store instance with no mutable state injection.table state qua React Context.
-          </CardDescription>
-        </div>
-      </CardHeader>
 
-      <CardContent className="space-y-5">
-        <div className="grid gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="run-lane-site">Site</Label>
-            <Select
-              value={topology.siteCode}
-              onChange={actions.setSiteCode}
-              options={siteOptions}
-              placeholder={topology.loadStatus === 'loading' && siteOptions.length === 0 ? 'Loading site...' : 'Select site'}
-            />
-          </div>
+        <CollapsibleSection title="Chọn Context" defaultOpen={true}>
+          <div className="space-y-2.5">
+            <div className="space-y-1.5">
+              <Label className="text-[11px] text-muted-foreground">Site</Label>
+              <Select
+                value={topology.siteCode}
+                onChange={actions.setSiteCode}
+                options={siteOptions}
+                placeholder={
+                  topology.loadStatus === 'loading' && siteOptions.length === 0
+                    ? 'Loading...'
+                    : 'Chọn site'
+                }
+              />
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="run-lane-gate">Gate</Label>
-            <Select
-              value={topology.gateCode}
-              onChange={actions.setGateCode}
-              options={gateOptions}
-              placeholder={!topology.siteCode ? 'Select site first' : gateOptions.length === 0 ? 'No gate' : 'Select gate'}
-            />
-          </div>
+            <div className="space-y-1.5">
+              <Label className="text-[11px] text-muted-foreground">Gate</Label>
+              <Select
+                value={topology.gateCode}
+                onChange={actions.setGateCode}
+                options={gateOptions}
+                placeholder={
+                  !topology.siteCode ? 'Chọn site trước' : gateOptions.length === 0 ? 'Không có gate' : 'Chọn gate'
+                }
+              />
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="run-lane-lane">Lane</Label>
-            <Select
-              value={topology.laneCode}
-              onChange={actions.setLaneCode}
-              options={laneOptions}
-              placeholder={!topology.gateCode ? 'Select gate first' : laneOptions.length === 0 ? 'No lane' : 'Select lane'}
-            />
+            <div className="space-y-1.5">
+              <Label className="text-[11px] text-muted-foreground">Lane</Label>
+              <Select
+                value={topology.laneCode}
+                onChange={actions.setLaneCode}
+                options={laneOptions}
+                placeholder={
+                  !topology.gateCode ? 'Chọn gate trước' : laneOptions.length === 0 ? 'Không có lane' : 'Chọn lane'
+                }
+              />
+            </div>
           </div>
-        </div>
+        </CollapsibleSection>
 
         {topology.error && (
-          <div className="rounded-2xl border border-destructive/25 bg-destructive/10 p-4 text-sm text-destructive">
+          <div className="rounded-xl border border-destructive/25 bg-destructive/10 p-3 text-xs text-destructive">
             <div className="flex items-start gap-2">
-              <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
-              <div>
-                <p className="font-medium">Topology load error</p>
-                <p className="mt-1 text-destructive/90">{topology.error}</p>
-              </div>
+              <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <p className="font-medium">{topology.error}</p>
             </div>
           </div>
         )}
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <ContextMetric icon={MapPinned} label="Site" value={selectedSite ? `${selectedSite.siteCode} · ${selectedSite.name}` : '—'} />
-          <ContextMetric icon={Radar} label="Gate" value={selectedGate ? `${selectedGate.gateCode} · ${selectedGate.label}` : '—'} />
-          <ContextMetric icon={CircleDot} label="Lane" value={selectedLane ? `${selectedLane.laneCode} · ${selectedLane.label}` : '—'} />
-          <ContextMetric icon={Activity} label="Direction" value={selectedLane?.direction ?? '—'} />
-          <ContextMetric icon={Camera} label="Primary camera" value={primaryCamera?.deviceCode ?? 'Unresolved'} tone={primaryCamera ? 'default' : 'muted'} />
-          <ContextMetric icon={ScanLine} label="Loop sensor" value={loopSensor?.deviceCode ?? 'Unresolved'} tone={loopSensor ? 'default' : 'muted'} />
-        </div>
-
-        <div className="rounded-2xl border border-border/80 bg-background/40 p-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">scope {meta.scopeId}</Badge>
-            <Badge variant="muted">created {new Date(meta.createdAt).toLocaleTimeString('vi-VN')}</Badge>
+        <CollapsibleSection title="Thông tin Lane" defaultOpen={true}>
+          <div className="rounded-xl border border-border/40 bg-muted/30 p-3 space-y-0.5">
+            <MiniMetric
+              label="Site"
+              value={selectedSite ? `${selectedSite.siteCode} — ${selectedSite.name}` : '—'}
+            />
+            <MiniMetric
+              label="Gate"
+              value={selectedGate ? `${selectedGate.gateCode} — ${selectedGate.label}` : '—'}
+            />
+            <MiniMetric
+              label="Lane"
+              value={selectedLane ? `${selectedLane.laneCode} — ${selectedLane.label}` : '—'}
+            />
+            <MiniMetric
+              label="Hướng"
+              value={selectedLane ? t(`direction.${selectedLane.direction}` as 'direction.ENTRY' | 'direction.EXIT') : '—'}
+            />
           </div>
-          <p className="mt-3 text-sm text-muted-foreground">
-            This scope is released when leaving /run-lane — state here is not shared with other screens.te lane context/capture placeholder không leak sang route khác.
-          </p>
-        </div>
+        </CollapsibleSection>
+
+        <CollapsibleSection title="Thiết bị" defaultOpen={false}>
+          <div className="rounded-xl border border-border/40 bg-muted/30 p-3 space-y-0.5">
+            <MiniMetric
+              label="Camera"
+              value={primaryCamera?.deviceCode ?? 'Chưa gắn'}
+              muted={!primaryCamera}
+            />
+            <MiniMetric
+              label="Cảm biến"
+              value={loopSensor?.deviceCode ?? 'Chưa gắn'}
+              muted={!loopSensor}
+            />
+            <MiniMetric
+              label="Thiết bị"
+              value={`${laneDevices.length} thiết bị`}
+              muted={laneDevices.length === 0}
+            />
+          </div>
+        </CollapsibleSection>
+
+        <CollapsibleSection title="Scope" defaultOpen={false}>
+          <div className="rounded-xl border border-border/40 bg-muted/30 p-3 space-y-0.5">
+            <MiniMetric label="Scope ID" value={meta.scopeId} />
+            <MiniMetric
+              label="Tạo lúc"
+              value={new Date(meta.createdAt).toLocaleTimeString('vi-VN')}
+            />
+          </div>
+        </CollapsibleSection>
       </CardContent>
     </Card>
   )

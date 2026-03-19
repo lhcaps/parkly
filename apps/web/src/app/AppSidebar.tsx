@@ -1,10 +1,12 @@
+import { useTranslation } from 'react-i18next'
 import { NavLink } from 'react-router-dom'
 import { ParkingSquare, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { APP_SHELL_NAV_GROUPS, getNavItemsByGroup } from '@/app/routes'
-import { getRoleLabels } from '@/lib/auth/role-labels'
+import { translateRoleLabels } from '@/lib/auth/role-labels'
 import { useAuth } from '@/features/auth/auth-context'
+import type { AppNavGroupKey } from '@/lib/auth/role-policy'
 
 type AppSidebarProps = {
   open: boolean
@@ -12,9 +14,10 @@ type AppSidebarProps = {
 }
 
 export function AppSidebar({ open, onClose }: AppSidebarProps) {
+  const { t } = useTranslation()
   const auth = useAuth()
   const role = auth.principal?.role
-  const roleLabels = getRoleLabels(role)
+  const roleLabels = translateRoleLabels(role, t)
 
   return (
     <>
@@ -31,7 +34,7 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
           'fixed inset-y-0 left-0 z-50 flex w-[292px] max-w-[86vw] flex-col border-r border-border/80 bg-card/95 shadow-2xl transition-transform duration-200 ease-out lg:sticky lg:top-0 lg:z-20 lg:h-[100dvh] lg:w-[280px] lg:max-w-none lg:translate-x-0 lg:shadow-none',
           open ? 'translate-x-0' : '-translate-x-full',
         )}
-        aria-label="Main navigation"
+        aria-label={t('sidebar.mainNavAria')}
       >
         <div className="flex items-center justify-between border-b border-border/80 px-5 py-4">
           <div className="flex min-w-0 items-center gap-3">
@@ -39,12 +42,16 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
               <ParkingSquare className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold tracking-tight">Parkly Console</p>
-              <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{role ? `${roleLabels.focusLabel} · canonical workspace` : 'Operations · Review · Sync · Audit'}</p>
+              <p className="truncate text-sm font-semibold tracking-tight">{t('sidebar.brandTitle')}</p>
+              <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                {role
+                  ? t('sidebar.brandSubtitleRole', { role: roleLabels.focusLabel })
+                  : t('sidebar.brandSubtitleOps')}
+              </p>
             </div>
           </div>
 
-          <Button variant="ghost" size="icon" className="lg:hidden" onClick={onClose} aria-label="Close navigation">
+          <Button variant="ghost" size="icon" className="lg:hidden" onClick={onClose} aria-label={t('sidebar.closeNav')}>
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -57,7 +64,9 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
             return (
               <section key={group} className="mb-5 last:mb-0">
                 <div className="mb-2 px-3">
-                  <p className="text-[10px] font-mono-data uppercase tracking-[0.2em] text-muted-foreground/70">{group}</p>
+                  <p className="text-[10px] font-mono-data uppercase tracking-[0.2em] text-muted-foreground/70">
+                    {t(`navGroup.${group as AppNavGroupKey}`)}
+                  </p>
                 </div>
                 <div className="space-y-1">
                   {items.map(({ path, label, description, icon: Icon }) => (
@@ -85,8 +94,8 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
                             <Icon className="h-4 w-4" />
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium">{label}</p>
-                            <p className="mt-1 text-[11px] leading-4 text-muted-foreground/80">{description}</p>
+                            <p className="truncate text-sm font-medium">{t(label)}</p>
+                            <p className="mt-1 text-[11px] leading-4 text-muted-foreground/80">{t(description)}</p>
                           </div>
                         </div>
                       )}

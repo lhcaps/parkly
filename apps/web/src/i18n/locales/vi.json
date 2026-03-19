@@ -1,0 +1,405 @@
+{
+  "navGroup": {
+    "Operations": "Vận hành",
+    "Monitoring": "Giám sát",
+    "Capture": "Ghi nhận",
+    "System": "Hệ thống"
+  },
+  "route": {
+    "overview": {
+      "label": "Tổng quan",
+      "shortLabel": "Tổng quan",
+      "description": "Bảng điều khiển trực ca: Theo dõi hàng chờ, cảnh báo và tình trạng hoạt động chung."
+    },
+    "runLane": {
+      "label": "Vận hành làn",
+      "shortLabel": "Làn xe",
+      "description": "Kiểm soát xe ra/vào: Từ ghi nhận hình ảnh, ra quyết định đến điều khiển thanh chắn."
+    },
+    "reviewQueue": {
+      "label": "Chờ xử lý",
+      "shortLabel": "Duyệt",
+      "description": "Tiếp nhận và giải quyết các trường hợp cần xác thực thủ công."
+    },
+    "sessionHistory": {
+      "label": "Lịch sử xe",
+      "shortLabel": "Lịch sử",
+      "description": "Tra cứu thông tin lượt xe, quyết định xử lý, sự kiện thanh chắn và hình ảnh đối soát."
+    },
+    "laneMonitor": {
+      "label": "Giám sát làn",
+      "shortLabel": "Giám sát làn",
+      "description": "Theo dõi trạng thái hoạt động của làn, thanh chắn và các lượt xe mới nhất tại từng bãi."
+    },
+    "deviceHealth": {
+      "label": "Thiết bị",
+      "shortLabel": "Thiết bị",
+      "description": "Theo dõi tín hiệu kết nối (heartbeat) và mức độ ổn định của thiết bị."
+    },
+    "syncOutbox": {
+      "label": "Đồng bộ dữ liệu",
+      "shortLabel": "Đồng bộ",
+      "description": "Quản lý tiến trình đồng bộ hệ thống: trạng thái gửi, thử lại và lỗi."
+    },
+    "reports": {
+      "label": "Báo cáo",
+      "shortLabel": "Báo cáo",
+      "description": "Số liệu tổng hợp tình hình vận hành theo bãi và khung thời gian."
+    },
+    "mobileCameraPair": {
+      "label": "Ghép nối thiết bị di động",
+      "shortLabel": "Ghép nối mobile",
+      "description": "Kết nối thiết bị di động với làn để hỗ trợ chụp ảnh và đồng bộ tín hiệu."
+    },
+    "captureDebug": {
+      "label": "Chẩn đoán hình ảnh",
+      "shortLabel": "Chẩn đoán",
+      "description": "Theo dõi luồng xử lý ảnh và kết quả nhận diện biển số để khắc phục sự cố."
+    },
+    "subscriptions": {
+      "label": "Gói dịch vụ",
+      "shortLabel": "Gói cước",
+      "description": "Quản lý vé tháng/gói cước: thông tin xe, chỗ đỗ và trạng thái hiệu lực.",
+      "newSubscription": "Đăng ký gói mới",
+      "createTitle": "Đăng ký gói gửi xe",
+      "createDescription": "Thiết lập gói dịch vụ mới cho khách hàng, bao gồm loại gói và thời hạn áp dụng.",
+      "createButton": "Tạo đăng ký",
+      "createFooter": "Lưu ý: Hiện tại cần nhập mã khách hàng thủ công do giao diện chưa hỗ trợ tìm kiếm trực tiếp.",
+      "site": "Bãi xe",
+      "selectSite": "Chọn bãi xe",
+      "allSites": "Tất cả bãi xe",
+      "customerId": "Mã khách hàng",
+      "customerPlaceholder": "Nhập mã khách hàng",
+      "planType": "Loại gói",
+      "selectPlan": "Chọn loại gói",
+      "startDate": "Ngày bắt đầu",
+      "endDate": "Ngày hết hạn",
+      "validation": {
+        "siteRequired": "Vui lòng chọn bãi xe.",
+        "customerRequired": "Vui lòng cung cấp mã khách hàng.",
+        "datesRequired": "Vui lòng chọn thời hạn áp dụng (ngày bắt đầu và hết hạn).",
+        "startBeforeEnd": "Ngày bắt đầu phải trước hoặc trùng với ngày hết hạn."
+      }
+    },
+    "parkingLive": {
+      "label": "Bãi xe trực tuyến",
+      "shortLabel": "Sơ đồ bãi",
+      "description": "Cập nhật tình trạng sức chứa theo thời gian thực: sơ đồ tầng, ô trống và chi tiết."
+    },
+    "settings": {
+      "label": "Cài đặt",
+      "shortLabel": "Cài đặt",
+      "description": "Tùy chỉnh không gian làm việc, chẩn đoán phân quyền và bộ nhớ tạm."
+    },
+    "mobileCapture": {
+      "label": "Ghi nhận qua Mobile",
+      "shortLabel": "Mobile",
+      "description": "Giao diện tối ưu cho thiết bị di động để chụp và truyền ảnh."
+    }
+  },
+  "role": {
+    "anonymous": {
+      "label": "Khách",
+      "focusLabel": "Chưa đăng nhập",
+      "forbiddenCopy": "Vui lòng đăng nhập để truy cập khu vực này.",
+      "badgeLabel": "GUEST"
+    },
+    "ADMIN": {
+      "label": "Quản trị viên",
+      "focusLabel": "Quản trị hệ thống",
+      "forbiddenCopy": "Chức năng này nằm ngoài thẩm quyền của phân hệ Quản trị hiện tại.",
+      "badgeLabel": "ADMIN"
+    },
+    "OPS": {
+      "label": "Điều hành viên",
+      "focusLabel": "Điều hành vận hành",
+      "forbiddenCopy": "Chức năng này không thuộc không gian làm việc của khối Vận hành.",
+      "badgeLabel": "OPS"
+    },
+    "GUARD": {
+      "label": "Bảo vệ",
+      "focusLabel": "Kiểm soát tại làn",
+      "forbiddenCopy": "Chức năng này không nằm trong luồng nghiệp vụ trực làn của Bảo vệ.",
+      "badgeLabel": "GUARD"
+    },
+    "CASHIER": {
+      "label": "Thu ngân",
+      "focusLabel": "Kiểm soát thanh toán",
+      "forbiddenCopy": "Chức năng này nằm ngoài phạm vi xử lý giao dịch của Thu ngân.",
+      "badgeLabel": "CASHIER"
+    },
+    "WORKER": {
+      "label": "Giám sát viên",
+      "focusLabel": "Theo dõi tiến trình",
+      "forbiddenCopy": "Chức năng này không khả dụng trên màn hình Giám sát tiến trình.",
+      "badgeLabel": "WORKER"
+    }
+  },
+  "sidebar": {
+    "brandTitle": "Parkly Console",
+    "brandSubtitleOps": "Điều hành · Rà soát · Đồng bộ · Kiểm toán",
+    "brandSubtitleRole": "{{role}} · Không gian tiêu chuẩn",
+    "closeNav": "Thu gọn thanh điều hướng",
+    "mainNavAria": "Danh mục chính"
+  },
+  "topbar": {
+    "openMenu": "Mở danh mục",
+    "settings": "Cài đặt",
+    "signOut": "Đăng xuất",
+    "brandCrumb": "Parkly",
+    "consoleFallback": "Hệ thống",
+    "initialising": "Đang khởi tạo…",
+    "signedOut": "Đã đăng xuất",
+    "signingOut": "Đang xử lý đăng xuất…"
+  },
+  "auth": {
+    "bootingTitle": "Đang tải không gian làm việc",
+    "bootingDesc": "Hệ thống đang xác thực tài khoản và phân luồng dữ liệu truy cập.",
+    "bootstrapFailedTitle": "Lỗi khởi tạo phiên",
+    "bootstrapFallbackDesc": "Hệ thống không thể xác minh ngữ cảnh cần thiết để mở không gian này.",
+    "bootstrapRetry": "Thử lại",
+    "backSignIn": "Quay lại trang Đăng nhập",
+    "forbiddenTitle": "Truy cập bị từ chối",
+    "forbiddenHint": "Hãy thử làm mới trang. Nếu vẫn gặp lỗi, vui lòng đăng nhập lại hoặc kiểm tra kết nối mạng.",
+    "routeBlockedTitle": "Khu vực hạn chế",
+    "requestedRoute": "Đường dẫn yêu cầu",
+    "suggestedFallback": "Gợi ý chuyển hướng",
+    "requiredRoles": "Vai trò yêu cầu",
+    "workspaceHome": "Trang chủ",
+    "openFallback": "Chuyển hướng an toàn",
+    "openHome": "Về trang chủ",
+    "principal": "Tài khoản",
+    "siteScope": "Phạm vi quản lý",
+    "allSites": "Toàn bộ bãi xe hợp lệ",
+    "session": "Phiên làm việc",
+    "accessContext": "Ngữ cảnh truy cập",
+    "sessionState": "Trạng thái kết nối",
+    "actor": "Người thực thi",
+    "anonymousActor": "Khách (Ẩn danh)",
+    "allowedRolesLabel": "Quyền hợp lệ",
+    "unrestrictedRoles": "Không giới hạn quyền",
+    "goAllowedRoute": "Tới khu vực được phép",
+    "goRoleHome": "Về bảng điều khiển chính",
+    "openSettings": "Mở Cài đặt"
+  },
+  "common": {
+    "loadingRoute": "Đang tải {{route}}…",
+    "loadingScreen": "Đang chuẩn bị giao diện…",
+    "dash": "—",
+    "reloadApp": "Tải lại ứng dụng",
+    "backOverview": "Trở về Tổng quan",
+    "routeErrorTitle": "Không thể tải trang này",
+    "routeErrorDesc": "Hệ thống gặp sự cố khi xử lý đường dẫn. Vui lòng quay lại trang chính hoặc kiểm tra kết nối API trong phần Cài đặt.",
+    "unknownError": "Đã xảy ra lỗi không xác định"
+  },
+  "login": {
+    "title": "Đăng nhập Parkly Console",
+    "subtitle": "Hệ thống sẽ thiết lập không gian làm việc dựa trên vai trò của bạn.",
+    "username": "Tên đăng nhập",
+    "password": "Mật khẩu",
+    "signIn": "Đăng nhập",
+    "signingIn": "Đang xác thực…",
+    "sessionDest": "Đích đến",
+    "compatRole": "Phân quyền giả lập (Tùy chọn)",
+    "apiBase": "Máy chủ API",
+    "roleAuto": "Tự động phân quyền",
+    "roleAutoDesc": "Luồng tiêu chuẩn: Không gian làm việc được cấp phát dựa trên dữ liệu từ hệ thống.",
+    "compatDemoDesc": "Chế độ ghi đè: Áp dụng quyền giả lập cho tài khoản {{role}}.",
+    "roleCompat": "Chế độ giả lập (Demo)",
+    "policyShell": "Trình khởi tạo sẽ gọi `/api/auth/me` để xác thực.",
+    "policyAccess": "Điều hướng được tự động kiểm soát dựa trên phân quyền sau khi đăng nhập.",
+    "envHint": "Mẹo Dev: Để trống `VITE_API_BASE_URL` khi chạy local để sử dụng proxy Vite.",
+    "subtitleLong": "Quyền truy cập do hệ thống máy chủ (backend) quyết định. Giao diện này không có quyền tự cấp phát.",
+    "authBadge": "Bảo mật",
+    "advancedOptions": "Tùy chọn nâng cao dành cho Dev",
+    "demoRoleOverride": "Ghi đè quyền kiểm thử",
+    "demoRoleHint": "Chỉ sử dụng khi API backend đang mở chế độ tương thích demo. Môi trường Production bắt buộc phải nhận quyền từ backend.",
+    "requestedRouteLabel": "Đường dẫn yêu cầu",
+    "destRoleHome": "Không gian làm việc mặc định theo tài khoản.",
+    "destIfAllowed": "Tới {{href}} nếu có quyền; ngược lại sẽ trở về không gian mặc định.",
+    "destCompatPath": "Chuyển hướng tới {{path}} theo thiết lập ghi đè.",
+    "mobileCapture": "Thiết bị Ghi nhận (Mobile)",
+    "bootstrapApiUsing": "Máy chủ API hiện tại:",
+    "bootstrapTimeoutBody": "Gợi ý nếu kết nối quá hạn: Kiểm tra API (cổng 3000), mở cấu hình bind 0.0.0.0, hoặc xóa biến VITE_API_BASE_URL để chạy qua Vite proxy."
+  },
+  "loginPage": {
+    "brand": "Parkly Console",
+    "subtitle": "Hệ thống sẽ thiết lập không gian làm việc dựa trên vai trò của bạn.",
+    "signInMark": "Đăng nhập",
+    "footer": "Nền tảng vận hành bảo mật · Phân quyền tự động áp dụng sau xác thực"
+  },
+  "laneContext": {
+    "title": "Ngữ cảnh làn xe",
+    "description": "Chỉ ghi nhận cấu trúc bãi (topology). Dữ liệu được cô lập, không can thiệp chéo với các trạng thái khác của hệ thống.",
+    "reload": "Tải lại",
+    "loading": "Đang xử lý",
+    "site": "Bãi xe",
+    "gate": "Cổng",
+    "lane": "Làn",
+    "direction": "Hướng đi",
+    "primaryCamera": "Camera chính",
+    "loopSensor": "Cảm biến vòng từ",
+    "scopedStore": "Bộ nhớ cục bộ",
+    "topologyError": "Không thể tải dữ liệu cấu trúc bãi",
+    "placeholderLoadingSite": "Đang nạp danh sách bãi…",
+    "placeholderSelectSite": "Chọn bãi xe",
+    "placeholderSelectGateFirst": "Vui lòng chọn bãi xe trước",
+    "placeholderNoGate": "Chưa cấu hình cổng",
+    "placeholderSelectGate": "Chọn cổng",
+    "placeholderSelectLaneFirst": "Vui lòng chọn cổng trước",
+    "placeholderNoLane": "Chưa cấu hình làn",
+    "placeholderSelectLane": "Chọn làn",
+    "unresolved": "Chưa xác định",
+    "scopeFooter": "Lưu ý: Ngữ cảnh này sẽ tự động hủy khi bạn rời khỏi màn hình Vận hành làn (/run-lane) để đảm bảo an toàn dữ liệu.",
+    "scopeCreated": "Khởi tạo lúc",
+    "statusIdle": "Đang chờ",
+    "statusLoading": "Đang tải",
+    "statusReady": "Sẵn sàng",
+    "statusError": "Gián đoạn"
+  },
+  "direction": {
+    "ENTRY": "Vào",
+    "EXIT": "Ra"
+  },
+  "settingsPage": {
+    "eyebrow": "Hệ thống",
+    "title": "Cài đặt chung",
+    "description": "Quản lý kết nối, bộ nhớ tạm và tinh chỉnh giao diện làm việc.",
+    "tabOperator": "Cấu hình vận hành",
+    "tabDeveloper": "Chẩn đoán hệ thống (Dev)",
+    "tabAppearance": "Giao diện",
+    "savedContext": "Đã lưu thiết lập mặc định.",
+    "resetContext": "Đã khôi phục thiết lập gốc.",
+    "cacheCleared": "Đã dọn dẹp bộ nhớ tạm trên trình duyệt."
+  },
+  "appearance": {
+    "title": "Giao diện & Ngôn ngữ",
+    "description": "Cá nhân hóa trải nghiệm hiển thị. Cài đặt này chỉ lưu trên thiết bị của bạn.",
+    "themeLabel": "Chủ đề màu",
+    "themeDark": "Giao diện tối",
+    "themeLight": "Giao diện sáng",
+    "themeSystem": "Theo hệ thống",
+    "themeSystemDesc": "Tự động thay đổi đồng bộ với cài đặt hệ điều hành.",
+    "themeLightDesc": "Thích hợp khi làm việc trong môi trường đủ ánh sáng.",
+    "themeDarkDesc": "Giảm độ chói, bảo vệ mắt khi làm việc ban đêm hoặc thiếu sáng.",
+    "themeHint": "Tùy chọn 'Theo hệ thống' sẽ tự động áp dụng giao diện tối nếu thiết bị của bạn đang bật Dark Mode.",
+    "languageLabel": "Ngôn ngữ",
+    "languageVi": "Tiếng Việt",
+    "languageEn": "English",
+    "languageHint": "Tiếng Việt là ngôn ngữ mặc định; Tiếng Anh hỗ trợ vận hành có yếu tố nước ngoài."
+  },
+  "apiHealth": {
+    "badge": "Trạng thái API",
+    "verified": "Đã xác thực",
+    "failed": "Mất kết nối",
+    "title": "Kiểm tra kết nối Máy chủ",
+    "description": "Chẩn đoán đường truyền và tính hợp lệ của phiên làm việc hiện tại.",
+    "apiBase": "Máy chủ gốc (API Base)",
+    "verify": "Kiểm tra ngay",
+    "verifying": "Đang kiểm tra…",
+    "role": "Phân quyền",
+    "healthTime": "Cập nhật lúc",
+    "successMsg": "Kết nối ổn định và phiên làm việc hợp lệ.",
+    "detectedRole": "Quyền hạn phát hiện",
+    "notVerifiedYet": "Chưa kiểm tra",
+    "lastHealthTs": "Lần kiểm tra cuối",
+    "verifySessionApi": "Xác minh toàn diện"
+  },
+  "operator": {
+    "badgeAccess": "Quyền truy cập",
+    "badgeSession": "Phiên làm việc",
+    "currentSessionTitle": "Thông tin tài khoản",
+    "currentSessionDesc": "Dữ liệu phiên làm việc đang được hệ thống ghi nhận. Quyền truy cập các tính năng phụ thuộc vào thông tin này.",
+    "role": "Vai trò",
+    "principal": "Định danh",
+    "siteScope": "Phạm vi quản lý",
+    "session": "Mã phiên",
+    "allScopedSites": "Tất cả các bãi được cấp quyền",
+    "signOut": "Đăng xuất",
+    "signingOut": "Đang đăng xuất…",
+    "defaultContextTitle": "Cấu hình làm việc mặc định",
+    "defaultContextDesc": "Thiết lập sẵn bãi xe và làn xe thường dùng để tối ưu thao tác khi vào ca.",
+    "placeholderSite": "Mã bãi xe mặc định",
+    "placeholderLane": "Mã làn xe mặc định",
+    "saveDefaults": "Lưu cấu hình",
+    "reset": "Hủy bỏ",
+    "dirEntry": "Làn Vào",
+    "dirExit": "Làn Ra",
+    "dirEntryDesc": "Luôn ưu tiên hiển thị hướng Vào",
+    "dirExitDesc": "Luôn ưu tiên hiển thị hướng Ra",
+    "badgeDefaultContext": "Cấu hình mặc định",
+    "badgeSiteLane": "Bãi & Làn",
+    "sessionService": "Dịch vụ"
+  },
+  "developer": {
+    "title": "Công cụ Dev / Debug",
+    "description": "Truy xuất thông tin bản dựng, mã bảo mật và quản lý bộ nhớ đệm.",
+    "apiBase": "Máy chủ API",
+    "tokenPreview": "Khóa truy cập (Token)",
+    "buildInfo": "Bản dựng (Build)",
+    "cacheKeys": "Dữ liệu đệm",
+    "clearCache": "Dọn dẹp bộ nhớ đệm",
+    "resetDefaults": "Khôi phục cấu hình mặc định",
+    "localEnv": "Môi trường Local",
+    "tokenNone": "Chưa cấp phát",
+    "mode": "Chế độ (Mode)",
+    "baseUrl": "Đường dẫn gốc",
+    "unknown": "Không xác định",
+    "surfaceTitle": "Phân vùng xử lý (Surface)",
+    "surfaceBody": "Lưu ý Dev: Trình duyệt web sử dụng Access Token thông thường. Tuy nhiên, luồng Mobile Capture và tín hiệu thiết bị sử dụng chứng chỉ ký số (Device Signature). Lỗi 401 từ thiết bị ngoại vi sẽ được xử lý riêng biệt mà không làm gián đoạn phiên làm việc của Operator trên web.",
+    "defaultContextCurrent": "Cấu hình hiện tại",
+    "clearLocalTitle": "Xóa dữ liệu cục bộ",
+    "clearLocalDesc": "Dọn dẹp toàn bộ khóa cấu hình Parkly trên trình duyệt. Tác vụ này an toàn và không ảnh hưởng đến dữ liệu máy chủ.",
+    "refreshHint": "Vui lòng F5 (tải lại trang) sau khi xóa nếu giao diện chưa cập nhật.",
+    "none": "Trống",
+    "resetContextBtn": "Khôi phục",
+    "localKeys": "Khóa cục bộ",
+    "noLocalKeys": "Không phát hiện khóa ứng dụng nào.",
+    "troubleTitle": "Hướng dẫn chẩn đoán lỗi",
+    "trouble1": "1. Lỗi phân quyền Web: Liên quan đến `/api/auth/*`, mất kết nối luồng, hoặc lỗi 401 realtime.",
+    "trouble2": "2. Lỗi chứng chỉ thiết bị: Thường xảy ra tại `/api/devices/heartbeat` hoặc `/api/gate-reads/*` do sai secret key.",
+    "trouble3": "3. Lỗi xác thực từ thiết bị ngoại vi không đồng nghĩa với việc phiên web của người dùng đã hết hạn."
+  },
+  "runLaneCapture": {
+    "stageIdle": "Đang chờ hình ảnh",
+    "stageUploading": "Đang đẩy dữ liệu...",
+    "stageUploadingMsg": "Đang truyền tải hình ảnh lên hệ thống…",
+    "stageRecognizing": "Đang trích xuất dữ liệu...",
+    "stageRecognizingMsg": "Hệ thống đang phân tích biển số xe (CPU mode)…",
+    "stageReady": "Phân tích hoàn tất",
+    "stageError": "Trích xuất thất bại",
+    "noPreviewYet": "Chưa có hình ảnh nhận diện. Vui lòng tải ảnh lên.",
+    "selectImage": "Tải ảnh lên",
+    "selectImageDesc": "Nhấn để chọn file hoặc dán ảnh trực tiếp (Ctrl+V)",
+    "uploadImage": "Hệ thống đang nạp hình ảnh...",
+    "runAlpr": "AI đang phân tích biển số (quá trình này mất khoảng 30-60 giây ở chế độ CPU)...",
+    "pleaseWait": "Vui lòng đợi quá trình phân tích hoàn tất",
+    "previewSurface": "Khung xem trước",
+    "noPreviewYetAlt": "Khung ảnh trống",
+    "backendPlate": "Kết quả từ hệ thống",
+    "effectivePlate": "Biển số ghi nhận",
+    "needsConfirm": "Chờ xác nhận",
+    "ready": "Hợp lệ",
+    "manualOverrideActive": "Đang sử dụng dữ liệu nhập tay",
+    "backendSuggested": "Hệ thống đề xuất",
+    "enterOrOverridePlate": "Điều chỉnh biển số",
+    "enterPlateManually": "Nhập biển số thủ công",
+    "candidates": "Các lựa chọn dự đoán",
+    "score": "Độ chính xác",
+    "votes": "Lượt khớp",
+    "apply": "Áp dụng",
+    "noCandidates": "Chưa có dữ liệu dự đoán — Vui lòng nạp hình ảnh trước",
+    "uploaded": "Đã tải lên tệp: {{filename}}. Đang kích hoạt tiến trình phân tích biển số (Chế độ CPU — thời gian dự kiến 30-90 giây)…",
+    "processing": "Đang xử lý…",
+    "file": "Tệp tin:",
+    "fileSize": "{{size}} KB",
+    "imageSelected": "Ảnh đã sẵn sàng",
+    "imageNotSelected": "Chưa có ảnh",
+    "processingFileError": "Không thể xử lý tệp tin: {{error}}",
+    "processingClipboardError": "Không thể xử lý ảnh từ bộ nhớ tạm: {{error}}"
+  },
+  "runLanePage": {
+    "submitting": "Đang ghi nhận lượt xe...",
+    "submit": "Hoàn tất cho xe qua"
+  }
+}

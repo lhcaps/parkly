@@ -1,10 +1,11 @@
+import { useTranslation } from 'react-i18next'
 import { Link, useLocation } from 'react-router-dom'
 import { ChevronRight, LogOut, Menu } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getRouteMeta } from '@/app/routes'
 import { useAuth } from '@/features/auth/auth-context'
-import { getRoleHome } from '@/lib/auth/role-policy'
-import { getRoleLabels } from '@/lib/auth/role-labels'
+import { getRoleHome, type AppNavGroupKey } from '@/lib/auth/role-policy'
+import { translateRoleLabels } from '@/lib/auth/role-labels'
 import { cn } from '@/lib/utils'
 
 type AppTopbarProps = {
@@ -20,17 +21,18 @@ const SESSION_DOT: Record<string, string> = {
 }
 
 export function AppTopbar({ onOpenSidebar }: AppTopbarProps) {
+  const { t } = useTranslation()
   const location = useLocation()
   const current = getRouteMeta(location.pathname)
   const auth = useAuth()
   const principal = auth.principal
   const homePath = getRoleHome(principal?.role)
-  const roleLabels = getRoleLabels(principal?.role)
+  const roleLabels = translateRoleLabels(principal?.role, t)
 
   const siteScopeLabel =
     principal?.principalType === 'USER' && principal.siteScopes.length > 0
       ? principal.siteScopes.map((s) => s.siteCode).join(', ')
-      : 'All accessible sites'
+      : t('auth.allSites')
 
   const dotClass = SESSION_DOT[auth.status] ?? SESSION_DOT.anonymous
   const displayName =
@@ -49,7 +51,7 @@ export function AppTopbar({ onOpenSidebar }: AppTopbarProps) {
             size="icon"
             className="-ml-1 h-8 w-8 shrink-0 lg:hidden"
             onClick={onOpenSidebar}
-            aria-label="Open navigation"
+            aria-label={t('topbar.openMenu')}
           >
             <Menu className="h-4 w-4" />
           </Button>
@@ -60,14 +62,16 @@ export function AppTopbar({ onOpenSidebar }: AppTopbarProps) {
                 to={homePath}
                 className="hidden shrink-0 transition-colors hover:text-foreground sm:block"
               >
-                Parkly
+                {t('topbar.brandCrumb')}
               </Link>
               <ChevronRight className="hidden h-3 w-3 shrink-0 sm:block" />
-              <span className="shrink-0">{current?.group ?? 'Console'}</span>
+              <span className="shrink-0">
+                {current?.group ? t(`navGroup.${current.group as AppNavGroupKey}`) : t('topbar.consoleFallback')}
+              </span>
               {current ? (
                 <>
                   <ChevronRight className="h-3 w-3 shrink-0" />
-                  <span className="truncate font-semibold text-foreground/80">{current.shortLabel}</span>
+                  <span className="truncate font-semibold text-foreground/80">{t(current.shortLabel)}</span>
                 </>
               ) : null}
             </div>
@@ -98,7 +102,7 @@ export function AppTopbar({ onOpenSidebar }: AppTopbarProps) {
             <div className="flex items-center gap-1.5">
               <span className={cn('h-1.5 w-1.5 rounded-full', dotClass)} aria-hidden="true" />
               <span className="text-[11px] text-muted-foreground">
-                {auth.status === 'booting' ? 'Initialising…' : 'Signed out'}
+                {auth.status === 'booting' ? t('topbar.initialising') : t('topbar.signedOut')}
               </span>
             </div>
           )}
@@ -111,10 +115,10 @@ export function AppTopbar({ onOpenSidebar }: AppTopbarProps) {
               className="h-8 gap-1.5 text-muted-foreground hover:text-foreground"
               onClick={() => void auth.logout()}
               disabled={auth.isBusy || auth.isLoggingOut}
-              aria-label="Sign out of current session"
+              aria-label={t('topbar.signOut')}
             >
               <LogOut className="h-3.5 w-3.5" />
-              {auth.isLoggingOut ? 'Signing out…' : 'Sign out'}
+              {auth.isLoggingOut ? t('topbar.signingOut') : t('topbar.signOut')}
             </Button>
           ) : null}
         </div>

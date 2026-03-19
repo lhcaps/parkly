@@ -147,7 +147,21 @@ async function downloadRemoteImageToTemp(
     });
   }
 
-  const contentType = String(response.headers.get('content-type') ?? '').trim().toLowerCase();
+  const contentType = String(response.headers.get('content-type') ?? '').trim().toLowerCase()
+  const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/bmp']
+  if (!allowedImageTypes.some((type) => contentType.includes(type))) {
+    throw new ApiError({
+      code: 'BAD_REQUEST',
+      message: 'imageUrl không trỏ tới file ảnh hợp lệ.',
+      details: {
+        reason: 'ALPR_UNSUPPORTED_IMAGE_TYPE',
+        imageUrl,
+        contentType,
+        expectedTypes: allowedImageTypes,
+      },
+    })
+  }
+
   const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg';
   const tempDir = await mkdtemp(path.join(tmpdir(), 'parkly-alpr-http-'));
   const absolutePath = path.join(tempDir, `source.${ext}`);
@@ -391,7 +405,7 @@ async function collectOcrObservations(args: {
 
         const upperPath = await materializeSplitCrop(cropPath, tempDir, 'upper');
         const lowerPath = await materializeSplitCrop(cropPath, tempDir, 'lower');
-        if (!upperPath || !lowerPath) continue;
+        if (!upperPath || !lowerPath || upperPath === cropPath || lowerPath === cropPath) continue;
 
         attempts += 2;
         const upperText = await runTesseract(upperPath, psm, args.timeoutMs);
@@ -496,7 +510,19 @@ export async function recognizeLocalPlate(args: { imageUrl?: string | null; plat
     });
   }
 
-  await access(imageSource.absolutePath);
+  try {
+    await access(imageSource.absolutePath)
+  } catch (err: any) {
+    throw new ApiError({
+      code: 'NOT_FOUND',
+      message: 'File ảnh không tồn tại hoặc không thể truy cập.',
+      details: {
+        reason: 'ALPR_IMAGE_NOT_FOUND',
+        path: imageSource.absolutePath,
+        code: err?.code ?? 'UNKNOWN',
+      },
+    })
+  }
 
   try {
     const meta = await readImageMeta(imageSource.absolutePath);

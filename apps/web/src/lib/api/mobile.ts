@@ -3,6 +3,7 @@ import { isRecord } from '@/lib/http/errors'
 import { makeSseUrl } from '@/lib/http/sse'
 import type { CaptureReadRes, CaptureSignatureArgs, DeviceHeartbeatRes, GateEventWriteRes } from '@/lib/contracts/mobile'
 import type { Direction } from '@/lib/contracts/common'
+import type { AlprPreviewCandidate, AlprPreviewWinner, AlprPreviewStatus } from '@/lib/contracts/alpr'
 
 /**
  * Canonical type for the effective device context used to sign requests.
@@ -839,13 +840,73 @@ export type MobileCaptureUploadRes = {
   filename?: string
 }
 
+export type LocalAlprCandidate = AlprPreviewCandidate
+
+export type LocalAlprWinner = AlprPreviewWinner
+
+/** Subset of LocalAlprRecognition from backend — used to transform to AlprRecognizeRes */
+export type MobileCaptureRecognition = {
+  recognizedPlate: string
+  confidence: number
+  source: 'PLATE_HINT' | 'LOCAL_OCR' | 'HTTP_PROVIDER'
+  previewStatus: AlprPreviewStatus
+  needsConfirm: boolean
+  /** Alias for recognizedPlate — mirrors AlprRecognizeRes['plate'] */
+  plate?: string
+  plateFamily?: string
+  ocrSubstitutions?: string[]
+  suspiciousFlags?: string[]
+  validationNotes?: string[]
+  rawText?: string | null
+  imagePath?: string | null
+  originalFilename?: string | null
+  raw?: Record<string, unknown>
+  candidates: LocalAlprCandidate[]
+  winner: LocalAlprWinner | null
+}
+
+/** Subset of GateReadEvent persisted after ALPR ingest */
+export type MobileCaptureCapture = {
+  siteCode: string
+  laneCode: string
+  deviceCode: string
+  direction: 'ENTRY' | 'EXIT'
+  readType: 'ALPR'
+  occurredAt: string
+  sessionId: string
+  sessionStatus: string
+  readEventId: string | number
+  plateRaw: string | null
+  plateCompact: string | null
+  plateDisplay: string | null
+  plateFamily: string
+  plateValidity: string
+  plate: {
+    plateRaw: string | null
+    plateCompact: string | null
+    plateDisplay: string | null
+    plateFamily: string
+    plateValidity: string
+    ocrSubstitutions: string[]
+    suspiciousFlags: string[]
+    validationNotes: string[]
+    reviewRequired: boolean
+  }
+  imageUrl: string | null
+  ocrConfidence: number | null
+  rfidUid: string | null
+  sensorState: string | null
+  changed: boolean
+  alreadyExists: boolean
+}
+
 /** Response shape from POST /api/mobile-capture/alpr */
 export type MobileCaptureAlprRes = {
-  pairing: unknown
+  pairing: Record<string, unknown>
   mediaId: string | null
   viewUrl: string | null
-  recognition: unknown
-  capture: unknown
+  recognition: MobileCaptureRecognition
+  capture: MobileCaptureCapture
   refreshed: boolean
 }
 

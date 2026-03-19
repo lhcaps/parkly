@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { classifyApiError, formatInlineApiError } from '@/lib/http/errors'
 import {
   clearAuthTokens,
@@ -45,6 +45,8 @@ function isDeviceSignedExpiredEvent(detail?: AuthExpiredDetail) {
   return detail?.surface === 'device-signed'
 }
 
+const MIN_RELOAD_INTERVAL_MS = 5000
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('booting')
   const [principal, setPrincipal] = useState<AuthPrincipal | null>(null)
@@ -53,7 +55,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [bootstrapError, setBootstrapError] = useState('')
   const [sessionNotice, setSessionNotice] = useState<SessionNotice | null>(null)
 
+  const lastReloadTimeRef = useRef(0)
+  const reloadInFlightRef = useRef(false)
+  const mountedRef = useRef(true)
+
   const applyAnonymous = useCallback((notice?: SessionNotice | null) => {
+    if (!mountedRef.current) return
     setPrincipal(null)
     setStatus('anonymous')
     setBootstrapError('')
@@ -61,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const applyExpired = useCallback((notice?: SessionNotice | null) => {
+    if (!mountedRef.current) return
     setPrincipal(null)
     setStatus('expired')
     setBootstrapError('')
@@ -68,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const applyForbidden = useCallback((notice?: SessionNotice | null) => {
+    if (!mountedRef.current) return
     setPrincipal(null)
     setStatus('forbidden')
     setBootstrapError('')
@@ -75,6 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const applyAuthenticated = useCallback((nextPrincipal: AuthPrincipal) => {
+    if (!mountedRef.current) return
     setPrincipal(nextPrincipal)
     setStatus('authenticated')
     setBootstrapError('')
@@ -82,19 +92,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const reloadSession = useCallback(async () => {
+    if (!mountedRef.current) return null
+    if (reloadInFlightRef.current) return null
+
+    const now = Date.now()
+    if (now - lastReloadTimeRef.current < MIN_RELOAD_INTERVAL_MS) return null
+    lastReloadTimeRef.current = now
+
     if (!hasStoredTokens()) {
       applyAnonymous(null)
       return null
     }
+
+    reloadInFlightRef.current = true
 
     setStatus('booting')
     setBootstrapError('')
 
     try {
       const nextPrincipal = await getAuthMe()
+      if (!mountedRef.current) return null
       applyAuthenticated(nextPrincipal)
       return nextPrincipal
     } catch (error) {
+      if (!mountedRef.current) return null
+
       const kind = classifyApiError(error)
       if (kind === 'auth') {
         clearAuthTokens('bootstrap-auth-failed')
@@ -113,12 +135,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setBootstrapError(bootstrapFailure)
       setSessionNotice(createBootstrapFailureNotice({ detail: bootstrapFailure }))
       return null
+    } finally {
+      reloadInFlightRef.current = false
     }
   }, [applyAnonymous, applyAuthenticated, applyExpired, applyForbidden])
 
   useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
+
+  useEffect(() => {
     void reloadSession()
-  }, [reloadSession])
+  }, [])
 
   useEffect(() => {
     function onExpired(event: Event) {

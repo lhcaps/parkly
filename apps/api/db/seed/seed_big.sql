@@ -12,8 +12,8 @@
 -- ========== 0) Ensure multi-site + lane foundation ==========
 INSERT INTO parking_sites(site_code, name, timezone, is_active)
 VALUES
-  ('SITE_HCM_01', 'Bai HCM - Co so 01', 'Asia/Ho_Chi_Minh', 1),
-  ('SITE_DN_01',  'Bai Da Nang - Co so 01', 'Asia/Ho_Chi_Minh', 1)
+  ('SITE_HCM_01', 'Bãi TP.HCM – Cơ sở 01', 'Asia/Ho_Chi_Minh', 1),
+  ('SITE_DN_01',  'Bãi Đà Nẵng – Cơ sở 01', 'Asia/Ho_Chi_Minh', 1)
 ON DUPLICATE KEY UPDATE
   name = VALUES(name),
   timezone = VALUES(timezone),

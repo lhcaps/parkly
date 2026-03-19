@@ -1,14 +1,31 @@
-import { memo } from 'react'
-import { AlertCircle, ClipboardCheck, Loader2 } from 'lucide-react'
+import { memo, useMemo } from 'react'
+import { AlertCircle, ClipboardCheck, Loader2, Clock, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { ReviewQueueItem } from '@/lib/contracts/reviews'
 import { cn } from '@/lib/utils'
+import { formatRelativeMinutes } from '@/features/review-queue/review-workspace'
 
-function reviewVariant(status: string): 'amber' | 'secondary' | 'muted' {
+function reviewVariant(status: string): 'amber' | 'secondary' | 'muted' | 'destructive' | 'default' {
   if (status === 'CLAIMED') return 'secondary'
-  if (status === 'RESOLVED' || status === 'CANCELLED') return 'muted'
+  if (status === 'RESOLVED') return 'default'
+  if (status === 'CANCELLED') return 'muted'
   return 'amber'
+}
+
+function getStatusIcon(status: string) {
+  if (status === 'OPEN') return <AlertTriangle className="h-3 w-3" />
+  if (status === 'CLAIMED') return <Clock className="h-3 w-3" />
+  if (status === 'RESOLVED') return <CheckCircle2 className="h-3 w-3" />
+  if (status === 'CANCELLED') return <XCircle className="h-3 w-3" />
+  return null
+}
+
+function getPriorityClass(queueReasonCode: string): 'high' | 'medium' | 'low' {
+  const code = queueReasonCode.toUpperCase()
+  if (code.includes('DEVICE_OFFLINE') || code.includes('ANTI_PASSBACK') || code.includes('MISMATCH')) return 'high'
+  if (code.includes('OCR') || code.includes('PLATE') || code.includes('PAYMENT')) return 'medium'
+  return 'low'
 }
 
 function readTimestamp(value: unknown) {
@@ -29,6 +46,109 @@ function queueActionLabel(action: string) {
   if (action === 'CLAIM') return 'Claim'
   return action
 }
+
+const ReviewTableRow = memo(function ReviewTableRow({
+  row,
+  isSelected,
+  onSelect,
+}: {
+  row: ReviewQueueItem
+  isSelected: boolean
+  onSelect: (reviewId: string) => void
+}) {
+  const priority = useMemo(() => getPriorityClass(row.queueReasonCode), [row.queueReasonCode])
+  const timeAgo = useMemo(() => {
+    const raw = row as unknown as Record<string, unknown>
+    const timeValue = raw.updatedAt || raw.createdAt || raw.claimedAt
+    return formatRelativeMinutes(typeof timeValue === 'string' ? timeValue : null)
+  }, [row.createdAt, row.claimedAt])
+  const reviewTimeStr = useMemo(() => getReviewTime(row) || '', [row.createdAt, row.claimedAt])
+
+  return (
+    <button
+      onClick={() => onSelect(row.reviewId)}
+      className={cn(
+        'perf-list-item group relative w-full rounded-2xl border px-4 py-4 text-left transition-all',
+        isSelected
+          ? 'border-primary/50 bg-primary/10 shadow-md ring-2 ring-primary/20'
+          : 'border-border/60 bg-background/50 hover:border-border hover:bg-muted/30 hover:shadow-sm',
+        priority === 'high' && row.status === 'OPEN' && 'border-amber-500/30 bg-amber-500/5',
+      )}
+    >
+      {/* Priority indicator bar */}
+      {priority === 'high' && row.status === 'OPEN' && (
+        <div className="absolute left-0 top-0 h-full w-1 rounded-l-2xl bg-amber-500" />
+      )}
+
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={reviewVariant(row.status)} className="gap-1">
+              {getStatusIcon(row.status)}
+              {row.status}
+            </Badge>
+            <Badge variant={row.session.direction === 'ENTRY' ? 'entry' : 'exit'}>
+              {row.session.direction}
+            </Badge>
+            {row.session.reviewRequired && (
+              <Badge variant="amber" className="text-[10px]">
+                Review required
+              </Badge>
+            )}
+            {priority === 'high' && (
+              <Badge variant="destructive" className="text-[10px]">
+                High priority
+              </Badge>
+            )}
+          </div>
+
+          <p className="mt-2.5 break-all font-mono-data text-sm font-semibold leading-tight text-foreground">
+            {row.queueReasonCode}
+          </p>
+          <p className="mt-1.5 break-all text-xs leading-relaxed text-muted-foreground">
+            <span className="font-medium">{row.session.siteCode}</span> / {row.session.gateCode} /{' '}
+            {row.session.laneCode}
+            {row.session.plateCompact && (
+              <>
+                {' · '}
+                <span className="font-mono-data font-semibold text-foreground/90">
+                  {row.session.plateCompact}
+                </span>
+              </>
+            )}
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <p className="break-all text-[11px] font-mono-data text-muted-foreground/70">
+              ID: {row.reviewId.slice(0, 12)}…
+            </p>
+            {timeAgo && (
+              <span className="text-[11px] text-muted-foreground/60">· {timeAgo}</span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-col items-end gap-1 text-right">
+          <p className="text-[11px] font-mono-data text-muted-foreground">
+            {reviewTimeStr}
+          </p>
+          {timeAgo && (
+            <p className="text-[10px] text-muted-foreground/60">{timeAgo}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {row.actions.map((action) => (
+          <Badge key={action} variant="muted" className="text-[10px]">
+            {queueActionLabel(action)}
+          </Badge>
+        ))}
+      </div>
+    </button>
+  )
+}, (prev, next) => {
+  return prev.row.reviewId === next.row.reviewId && prev.isSelected === next.isSelected
+})
 
 export const ReviewTable = memo(function ReviewTable({
   rows,
@@ -73,47 +193,12 @@ export const ReviewTable = memo(function ReviewTable({
           <ScrollArea className="h-[640px] pr-3">
             <div className="space-y-3">
               {rows.map((row) => (
-                <button
+                <ReviewTableRow
                   key={row.reviewId}
-                  onClick={() => onSelect(row.reviewId)}
-                  className={cn(
-                    'perf-list-item w-full rounded-2xl border px-4 py-4 text-left transition',
-                    row.reviewId === selectedId ? 'border-primary/35 bg-primary/8' : 'border-border bg-background/40 hover:bg-muted/40',
-                  )}
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant={reviewVariant(row.status)}>{row.status}</Badge>
-                        <Badge variant={row.session.direction === 'ENTRY' ? 'entry' : 'exit'}>{row.session.direction}</Badge>
-                        {row.session.reviewRequired ? <Badge variant="amber">Review required</Badge> : null}
-                      </div>
-
-                      <p className="mt-2 break-all font-mono-data text-sm font-semibold">
-                        {row.queueReasonCode}
-                      </p>
-                      <p className="mt-1 break-all text-xs text-muted-foreground">
-                        {row.session.siteCode} / {row.session.gateCode} / {row.session.laneCode}
-                        {row.session.plateCompact ? ` · ${row.session.plateCompact}` : ''}
-                      </p>
-                      <p className="mt-0.5 break-all text-[11px] font-mono-data text-muted-foreground/70">
-                        {row.reviewId}
-                      </p>
-                    </div>
-
-                    <div className="text-right text-[11px] font-mono-data text-muted-foreground">
-                      <p>{getReviewTime(row) || ''}</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {row.actions.map((action) => (
-                      <Badge key={action} variant="muted">
-                        {queueActionLabel(action)}
-                      </Badge>
-                    ))}
-                  </div>
-                </button>
+                  row={row}
+                  isSelected={row.reviewId === selectedId}
+                  onSelect={onSelect}
+                />
               ))}
             </div>
           </ScrollArea>

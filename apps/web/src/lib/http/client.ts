@@ -14,6 +14,10 @@ const AUTH_EXPIRED_EVENT = 'parkly:http-auth-expired'
 const AUTH_CHANGED_EVENT = 'parkly:http-auth-changed'
 
 let refreshPromise: Promise<string | null> | null = null
+let lastRefreshAttempt = 0
+
+const MIN_REFRESH_INTERVAL_MS = 5000
+const MIN_RELOAD_INTERVAL_MS = 5000
 
 export type QueryPrimitive = string | number | boolean | Date | null | undefined
 export type QueryValue = QueryPrimitive | QueryPrimitive[]
@@ -66,7 +70,6 @@ export function storeAuthTokens(args: { accessToken: string; refreshToken?: stri
   if (typeof window === 'undefined') return
   writeToken(AUTH_TOKEN_STORAGE_KEY, args.accessToken)
   if (args.refreshToken === undefined) {
-    // preserve current refresh token
   } else if (args.refreshToken) {
     writeToken(REFRESH_TOKEN_STORAGE_KEY, args.refreshToken)
   } else {
@@ -226,7 +229,6 @@ function createHttpError(response: Response, payload: unknown, rawText: string) 
         ? payload.error.trim()
         : ''
 
-    // Prefer top-level code (backend fail() envelope) over generic HTTP code
     const topCode = typeof payload.code === 'string' && payload.code.trim()
       ? payload.code.trim()
       : null
@@ -328,7 +330,58 @@ function shouldAttachAccessToken(path: string) {
   return !isDeviceSignedPath(path)
 }
 
+let globalRateLimiter: { blockedUntil: number; lastReset: number; last429At: number } = {
+  blockedUntil: 0,
+  lastReset: 0,
+  last429At: 0,
+}
+const MAX_RATE_LIMIT_DURATION_MS = 60_000
+const MIN_429_INTERVAL_MS = 5000
+
+function checkAndResetRateLimiter() {
+  const now = Date.now()
+  if (globalRateLimiter.blockedUntil > 0 && now >= globalRateLimiter.blockedUntil) {
+    globalRateLimiter.blockedUntil = 0
+    globalRateLimiter.lastReset = now
+  }
+  if (now - globalRateLimiter.lastReset > MAX_RATE_LIMIT_DURATION_MS) {
+    globalRateLimiter.blockedUntil = 0
+    globalRateLimiter.lastReset = now
+    globalRateLimiter.last429At = 0
+  }
+}
+
+function shouldApplyRateLimit(): boolean {
+  const now = Date.now()
+  if (now - globalRateLimiter.last429At < MIN_429_INTERVAL_MS) {
+    return false
+  }
+  return true
+}
+
+async function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, Math.max(0, ms)))
+}
+
 async function sendRequest(path: string, init?: RequestInit, accessTokenOverride?: string) {
+  const normalizedPath = normalizeRequestPath(path)
+  const isAuthEndpoint = normalizedPath.startsWith('/api/auth/')
+  const isMediaUpload = normalizedPath.startsWith('/api/media/upload')
+
+  checkAndResetRateLimiter()
+
+  if (!isAuthEndpoint && !isMediaUpload) {
+    const now = Date.now()
+    if (now < globalRateLimiter.blockedUntil) {
+      const waitMs = globalRateLimiter.blockedUntil - now
+      if (waitMs > MAX_RATE_LIMIT_DURATION_MS) {
+        globalRateLimiter.blockedUntil = 0
+      } else {
+        await delay(waitMs)
+      }
+    }
+  }
+
   const token = shouldAttachAccessToken(path) ? (accessTokenOverride ?? getToken()) : ''
   return fetch(buildUrl(path), {
     ...init,
@@ -339,6 +392,12 @@ async function sendRequest(path: string, init?: RequestInit, accessTokenOverride
 async function refreshAccessToken(): Promise<string | null> {
   const refreshToken = getRefreshToken()
   if (!refreshToken) return null
+
+  const now = Date.now()
+  if (now - lastRefreshAttempt < MIN_REFRESH_INTERVAL_MS) {
+    return refreshPromise ?? null
+  }
+  lastRefreshAttempt = now
 
   if (!refreshPromise) {
     refreshPromise = (async () => {
@@ -354,6 +413,14 @@ async function refreshAccessToken(): Promise<string | null> {
       }
 
       const { payload, rawText } = await readResponsePayload(response)
+
+      if (response.status === 429) {
+        const retryAfter = response.headers.get('Retry-After')
+        const waitMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : MIN_REFRESH_INTERVAL_MS
+        globalRateLimiter.blockedUntil = Date.now() + waitMs
+        throw createHttpError(response, payload, rawText)
+      }
+
       if (!response.ok) {
         throw createHttpError(response, payload, rawText)
       }
@@ -390,6 +457,7 @@ async function refreshAccessToken(): Promise<string | null> {
 
 async function apiFetchInternal<T>(path: string, init: RequestInit | undefined, normalize: ((value: unknown) => T) | undefined, allowRefresh: boolean): Promise<T> {
   let response: Response
+
   try {
     response = await sendRequest(path, init)
   } catch (error) {
@@ -407,14 +475,48 @@ async function apiFetchInternal<T>(path: string, init: RequestInit | undefined, 
     })
   }
 
+  if (response.status === 429) {
+    const normalizedPath = normalizeRequestPath(path)
+    const isMediaUpload = normalizedPath.startsWith('/api/media/upload')
+    const now = Date.now()
+    
+    if (!isMediaUpload && shouldApplyRateLimit()) {
+      const retryAfter = response.headers.get('Retry-After')
+      const waitMs = Math.min(
+        retryAfter ? parseInt(retryAfter, 10) * 1000 : MIN_REFRESH_INTERVAL_MS,
+        MAX_RATE_LIMIT_DURATION_MS
+      )
+      globalRateLimiter.blockedUntil = now + waitMs
+      globalRateLimiter.lastReset = now
+      globalRateLimiter.last429At = now
+    } else if (!isMediaUpload) {
+      globalRateLimiter.last429At = now
+    }
+
+    const { payload, rawText } = await readResponsePayload(response)
+    const error = createHttpError(response, payload, rawText)
+    throw error
+  }
+
   if (response.status === 401 && allowRefresh && !isAuthSessionMutation(path) && !isDeviceSignedPath(path) && getRefreshToken()) {
     try {
       const refreshedToken = await refreshAccessToken()
       if (refreshedToken) {
         response = await sendRequest(path, init, refreshedToken)
       }
-    } catch {
-      // handled below as a standard auth failure
+    } catch (refreshError) {
+      // Refresh failed — bubble the error up so callers get a proper 401
+      const normalized = normalizeApiError(refreshError)
+      if (normalized.code === 'REQUEST_ABORTED') throw normalized
+      const args = {
+        code: 'REFRESH_FAILED',
+        message: 'Token refresh failed; please log in again.',
+        cause: refreshError,
+      }
+      throw new ApiError({
+        ...args,
+        message: toApiErrorDisplay(new ApiError(args)).message,
+      })
     }
   }
 

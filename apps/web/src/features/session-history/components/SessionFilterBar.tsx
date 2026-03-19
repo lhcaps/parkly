@@ -1,8 +1,9 @@
-import { Search } from 'lucide-react'
+import { Calendar, Search } from 'lucide-react'
 import { FilterCard } from '@/components/ops/console'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, type SelectOption } from '@/components/ui/select'
+import { cn } from '@/lib/utils'
 import type { Direction } from '@/lib/contracts/common'
 import type { SessionState } from '@/lib/contracts/sessions'
 import type { LaneRow, SiteRow } from '@/lib/contracts/topology'
@@ -133,24 +134,25 @@ export function SessionFilterBar({
       description="Filter by site, lane, direction, and status to locate the session to investigate."
       actions={
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={onRefresh} disabled={loading}>
+          <Button variant="outline" size="lg" onClick={onRefresh} disabled={loading} className="h-11 px-5 gap-2">
             Refresh
           </Button>
-          <Button variant="ghost" size="sm" onClick={onReset} disabled={loading}>
+          <Button variant="ghost" size="lg" onClick={onReset} disabled={loading} className="h-11 px-5">
             Reset filters
           </Button>
         </div>
       }
     >
-      <div className="space-y-3">
+      <div className="space-y-5">
         {/* Row 1: context selects + search */}
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[200px_200px_200px_200px_1fr]">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[200px_200px_200px_200px_1fr]">
           <Select
             value={siteCode}
             onChange={onSiteCodeChange}
             options={buildSiteOptions(sites)}
             placeholder="Select site"
             disabled={loading}
+            size="md"
           />
 
           <Select
@@ -159,6 +161,7 @@ export function SessionFilterBar({
             options={buildLaneOptions(lanes)}
             placeholder="Select lane"
             disabled={loading}
+            size="md"
           />
 
           <Select
@@ -167,6 +170,7 @@ export function SessionFilterBar({
             options={buildStatusOptions()}
             placeholder="Select status"
             disabled={loading}
+            size="md"
           />
 
           <Select
@@ -175,41 +179,66 @@ export function SessionFilterBar({
             options={DIRECTION_OPTIONS}
             placeholder="Select direction"
             disabled={loading}
+            size="md"
           />
 
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={search}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Session ID, plate, lane, or status…"
               aria-label="Search sessions by ID, plate, or status"
-              className="pl-9"
+              className="h-12 pl-11 text-base"
             />
           </div>
         </div>
 
-        {/* Row 2: date range */}
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1fr_1fr]">
-          <div className="space-y-1">
-            <p className="text-[10px] font-mono-data uppercase tracking-[0.16em] text-muted-foreground/70">From</p>
-            <Input
-              type="datetime-local"
-              value={from}
-              onChange={(e) => onFromChange(e.target.value)}
-              aria-label="From date"
-              disabled={loading}
-            />
+        {/* Row 2: date range - Large and Beautiful */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Calendar className="h-4 w-4 text-primary" />
+              Từ ngày giờ
+            </label>
+            <div className="relative">
+              <Calendar className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="datetime-local"
+                value={from}
+                onChange={(e) => onFromChange(e.target.value)}
+                aria-label="From date"
+                disabled={loading}
+                className={cn(
+                  'h-14 pl-12 pr-4 text-base font-medium',
+                  'border-2 border-border/80 bg-card/80',
+                  'hover:border-primary/40 focus:border-primary focus:ring-2 focus:ring-primary/20',
+                  'transition-all duration-200'
+                )}
+              />
+            </div>
           </div>
-          <div className="space-y-1">
-            <p className="text-[10px] font-mono-data uppercase tracking-[0.16em] text-muted-foreground/70">To</p>
-            <Input
-              type="datetime-local"
-              value={to}
-              onChange={(e) => onToChange(e.target.value)}
-              aria-label="To date"
-              disabled={loading}
-            />
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Calendar className="h-4 w-4 text-primary" />
+              Đến ngày giờ
+            </label>
+            <div className="relative">
+              <Calendar className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="datetime-local"
+                value={to}
+                onChange={(e) => onToChange(e.target.value)}
+                aria-label="To date"
+                disabled={loading}
+                className={cn(
+                  'h-14 pl-12 pr-4 text-base font-medium',
+                  'border-2 border-border/80 bg-card/80',
+                  'hover:border-primary/40 focus:border-primary focus:ring-2 focus:ring-primary/20',
+                  'transition-all duration-200'
+                )}
+              />
+            </div>
           </div>
         </div>
       </div>

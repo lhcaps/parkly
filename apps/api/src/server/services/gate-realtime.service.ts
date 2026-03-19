@@ -125,16 +125,40 @@ function deriveDeviceHealth(args: {
   const now = args.now ?? new Date()
   const thresholds = getRealtimeThresholds()
   const reportedAt = args.heartbeatReportedAt
-  const ageSeconds = reportedAt == null ? null : Math.max(0, Math.trunc((now.getTime() - reportedAt.getTime()) / 1000))
+
+  if (reportedAt == null) {
+    return { derivedHealth: 'OFFLINE', heartbeatAgeSeconds: null, healthReason: 'Chưa có heartbeat nào từ thiết bị.' }
+  }
+
+  const ageMs = now.getTime() - reportedAt.getTime()
+
+  // Reject impossible ages: future (device clock ahead) or absurdly old (>30 days → treat as missing)
+  const CLOCK_SKEW_FUTURE_MS = 60_000       // 60 s future tolerance
+  const MAX_REASONABLE_AGE_MS = 30 * 86_400_000  // 30 days
+
+  if (ageMs < -CLOCK_SKEW_FUTURE_MS) {
+    return {
+      derivedHealth: 'DEGRADED',
+      heartbeatAgeSeconds: null,
+      healthReason: 'Heartbeat reported_at ở tương lai (clock skew). Thiết bị bị coi là degraded.',
+    }
+  }
+
+  if (ageMs > MAX_REASONABLE_AGE_MS) {
+    return {
+      derivedHealth: 'OFFLINE',
+      heartbeatAgeSeconds: null,
+      healthReason: 'Heartbeat age vượt ngưỡng tối đa hợp lý (30 ngày). Thiết bị được coi là offline.',
+    }
+  }
+
+  const ageSeconds = Math.max(0, Math.trunc(ageMs / 1000))
   const raw = args.heartbeatStatus
 
   if (raw === 'OFFLINE') {
     return { derivedHealth: 'OFFLINE', heartbeatAgeSeconds: ageSeconds, healthReason: 'Heartbeat gần nhất báo OFFLINE.' }
   }
-  if (reportedAt == null) {
-    return { derivedHealth: 'OFFLINE', heartbeatAgeSeconds: null, healthReason: 'Chưa có heartbeat nào từ thiết bị.' }
-  }
-  if (ageSeconds != null && ageSeconds > thresholds.offlineHeartbeatAgeSeconds) {
+  if (ageSeconds > thresholds.offlineHeartbeatAgeSeconds) {
     return {
       derivedHealth: 'OFFLINE',
       heartbeatAgeSeconds: ageSeconds,
@@ -147,7 +171,7 @@ function deriveDeviceHealth(args: {
   if (raw === 'MAINTENANCE') {
     return { derivedHealth: 'DEGRADED', heartbeatAgeSeconds: ageSeconds, healthReason: 'Thiết bị đang ở MAINTENANCE.' }
   }
-  if (ageSeconds != null && ageSeconds > thresholds.degradedHeartbeatAgeSeconds) {
+  if (ageSeconds > thresholds.degradedHeartbeatAgeSeconds) {
     return {
       derivedHealth: 'DEGRADED',
       heartbeatAgeSeconds: ageSeconds,
@@ -164,7 +188,10 @@ export async function pumpBarrierCommandLifecycle(): Promise<{ promotedToSent: n
   const timeoutBefore = new Date(now.getTime() - thresholds.barrierAckTimeoutSeconds * 1000)
 
   const promoted = await prisma.gate_barrier_commands.updateMany({
-    where: { status: gate_barrier_commands_status.PENDING },
+    where: {
+      status: gate_barrier_commands_status.PENDING,
+      issued_at: { not: null },
+    },
     data: { status: gate_barrier_commands_status.SENT },
   })
 
@@ -314,6 +341,7 @@ function decideLaneAggregateHealth(args: {
   const roleHasProblem = (roles: string[]) => byRole(roles).some((item) => item.derivedHealth !== 'ONLINE')
   const barrierHasProblem = roleHasProblem(['BARRIER'])
 
+  // 1. Barrier command-level failure is always BARRIER_FAULT
   if (args.lastBarrierStatus === 'NACKED' || args.lastBarrierStatus === 'TIMEOUT') {
     return {
       aggregateHealth: 'BARRIER_FAULT',
@@ -321,13 +349,23 @@ function decideLaneAggregateHealth(args: {
     }
   }
 
-  if (required.length === 0 || online.length === 0) {
+  // 2. No required devices at all → OFFLINE
+  if (required.length === 0) {
+    return {
+      aggregateHealth: 'OFFLINE',
+      aggregateReason: 'Lane không có thiết bị required nào được cấu hình.',
+    }
+  }
+
+  // 3. No device ONLINE → OFFLINE (even if some are degraded)
+  if (online.length === 0) {
     return {
       aggregateHealth: 'OFFLINE',
       aggregateReason: 'Không còn thiết bị required nào đang ONLINE trên lane này.',
     }
   }
 
+  // 4. At least one device is ONLINE — check for role-specific problems
   if (barrierHasProblem) {
     return {
       aggregateHealth: 'BARRIER_FAULT',
@@ -356,13 +394,16 @@ function decideLaneAggregateHealth(args: {
     }
   }
 
-  if (degraded.length > 0 || offline.length > 0) {
+  // 5. Some devices are degraded but no role-specific degradation → DEGRADED overall
+  if (degraded.length > 0) {
+    const degradedRoles = [...new Set(degraded.map((d) => d.deviceRole ?? 'UNKNOWN'))].join(', ')
     return {
       aggregateHealth: 'OFFLINE',
-      aggregateReason: 'Lane có thiết bị required đang degraded/offline nhưng không map được role chi tiết.',
+      aggregateReason: `Lane có thiết bị required đang degraded (${degradedRoles}) nhưng không map được role chi tiết.`,
     }
   }
 
+  // 6. All required devices are ONLINE
   return {
     aggregateHealth: 'HEALTHY',
     aggregateReason: 'Tất cả thiết bị required của lane đang ONLINE.',
@@ -412,7 +453,7 @@ export async function getLaneStatusSnapshot(siteCode?: string): Promise<LaneStat
       JOIN parking_sites ps
         ON ps.site_id = gl.site_id
       WHERE (? IS NULL OR ps.site_code = ?)
-      ORDER BY ps.site_code ASC, gl.gate_code ASC, gl.sort_order ASC, gl.lane_code ASC
+      ORDER BY ps.site_code ASC, gl.gate_code ASC, gl.sort_order ASC, gl.lane_code ASC, gl.lane_id ASC
     `,
     siteCode ?? null,
     siteCode ?? null,

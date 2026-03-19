@@ -1,184 +1,121 @@
 # =============================================
-# Python
+# 📦 Package Manager
 # =============================================
-# Byte-compiled / optimized / DLL files
+# pnpm
+.pnpm/
+pnpm-debug.log*
+.pnpm-store/
+
+# npm/yarn fallbacks
+node_modules/
+package-lock.json
+yarn.lock
+
+# =============================================
+# 🏗️ Build Outputs
+# =============================================
+.next/
+out/
+dist/
+build/
+*.tgz
+.turbo/
+
+# Prisma generated client
+apps/api/node_modules/.prisma/
+packages/*/node_modules/.prisma/
+
+# =============================================
+# 🔐 Environment & Secrets
+# =============================================
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+cursor.env
+
+# Keep example files
+!.env.example
+apps/api/.env.example
+apps/web/.env.example
+
+# =============================================
+# 🗄️ Database & Runtime
+# =============================================
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.log
+
+# Runtime artifacts
+.runtime/
+.backups/
+instance/
+
+# Flyway migrations outputs
+apps/api/db/flyway.conf
+
+# =============================================
+# 🤖 ALPR Service (External ML Service)
+# =============================================
+# ALPR service is a separate heavy ML service
+# Should be deployed and run independently
+services/alpr/
+!services/alpr/README.md
+!services/alpr/requirements.txt
+!services/alpr/requirements-cpu.txt
+
+# ALPR model weights (large binary files - use Git LFS or download separately)
+# !services/alpr/yolov8n.pt  # Uncomment if you want to track the model file
+
+# ML caches
+*.cache
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
-
-# Virtual environments
-*.venv/
-venv/
 .venv/
+venv/
 
-# pip/poetry lock files (commit the template, not the lock)
-# pip freeze output (local dev artifact)
-requirements.txt
+# =============================================
+# 📸 Media & Uploads
+# =============================================
+media/
+uploads/
+*.media
+*.upload
 
-# PyInstaller
-*.manifest
-*.spec
+# Keep empty placeholder for structure
+uploads/.gitkeep
 
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
+# =============================================
+# 🧪 Testing & Coverage
+# =============================================
 htmlcov/
-.tox/
-.nox/
 .coverage
 .coverage.*
-.cache
+.cache/
 nosetests.xml
 coverage.xml
 *.cover
-*.py,cover
-.hypothesis/
 .pytest_cache/
 pytest_cache/
+vitest.config.*.timestamp-*
 
-# Translations
-*.mo
-*.pot
-
-# Environments
-.env
-.env.local
-.env.*.local
-*.log
-local_settings.py
-db.json
-
-# Flask stuff
-instance/
-.webassets-cache
-
-# Scrapy
-.scrapy
-
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-
-# FastAPI / uvicorn
-*.pid
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# IPython
-profile_default/
-ipython_config.py
-
-# pyenv
-.python-version
-
-# PEP 582
-__pypackages__/
-
-# Celery
-celerybeat-schedule
-celerybeat.pid
-
-# SageMath parsed files
-*.sage.py
-
-# Environments (Django/ninja)
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs
-/site
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
+# Test scripts that may be generated
+apps/web/scripts/smoke-web.mjs
 
 # =============================================
-# Node.js / npm
+# 📝 Documentation & Evidence
 # =============================================
-# Dependencies
-node_modules/
-jspm_packages/
-
-# Build outputs
-.next/
-out/
-build/
-dist/
-*.tgz
-
-# Generated files
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
-.pnpm-debug.log*
-
-# Diagnostic reports
-*.tsbuildinfo
-
-# Optional npm cache directory
-.npm
-
-# Optional eslint cache
-.eslintcache
-
-# Optional stylelint cache
-.stylelintcache
-
-# Microbundle
-*.tsbuildinfo
+release-evidence/
 
 # =============================================
-# Services / ML Models
+# 🎨 IDE & Editor
 # =============================================
-# ML model weights - use Git LFS for large models
-*.pt
-*.pth
-*.onnx
-*.h5
-*.pb
-*.tflite
-*.mlmodel
-*.pkl
-*.pickle
-!services/alpr/yolov8n.pt
-
-# Dataset cache
-*.cache
-
-# Model checkpoints
-checkpoints/
-*.ckpt
-
-# =============================================
-# IDE / OS
-# =============================================
-# IDE
 .idea/
-.idea_modules/
 *.iml
 .vscode/
 !.vscode/settings.json
@@ -190,18 +127,13 @@ checkpoints/
 *~
 .DS_Store
 
-# Project specific
-cursor.env
+# Cursor
 .cursor/
+.cursorignore
 
-# Temporary files
-*.tmp
-*.temp
-*.bak
-*.orig
-*___jb_tmp___*
-
-# OS
+# =============================================
+# 💻 OS Specific
+# =============================================
 Thumbs.db
 Thumbs.db:encryptable
 ehthumbs.db
@@ -209,31 +141,83 @@ ehthumbs_vista.db
 *.lnk
 
 # =============================================
-# Docker / Dev
+# 🔒 Security & Keys
+# =============================================
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.jks
+
+# =============================================
+# 📦 Docker & Infrastructure
 # =============================================
 .dockerignore
 
-# Docker volumes
+# Docker volumes (runtime data)
 *.vol
 
-# Local development
-*.local
-.local/
+# Keep docker-compose files
+!infra/docker/docker-compose*.yml
+!infra/docker/minio/
 
 # =============================================
-# Backup & Evidence artifacts
+# 🗂️ Temporary & Backup Files
 # =============================================
-apps/api/.backups/
-apps/api/.runtime/
-release-evidence/*/artifacts/
+*.tmp
+*.temp
+*.bak
+*.orig
+*___jb_tmp___*
 *.backup
 *.sql.bak
 
-# Media / Uploads
-media/
-uploads/
-*.media
+# Python
+profile_default/
+ipython_config.py
+.python-version
 
-# Observability (runtime)
+# Jupyter
+.ipynb_checkpoints/
+
+# =============================================
+# 🌐 Web Build Artifacts
+# =============================================
+apps/web/dist/
+apps/web/.parcel-cache/
+
+# TypeScript
+*.tsbuildinfo
+
+# ESLint
+.eslintcache
+.stylelintcache
+
+# =============================================
+# 📊 Observability & Metrics
+# =============================================
 *.prom
 *.metrics
+*.grafana/
+
+# =============================================
+# 🔧 Development Scripts (Not for Production)
+# =============================================
+debug_lines.py
+find_chars.py
+find_garbled.py
+fix_*.py
+fix_encoding*.py
+fix_log*.txt
+fix_strings.py
+
+# =============================================
+# 📦 Workspace Specific
+# =============================================
+packages/*/dist/
+packages/*/build/
+packages/*/.turbo/
+
+# Private/Untracked overrides
+cursor.env

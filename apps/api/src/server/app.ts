@@ -173,7 +173,7 @@ function buildGateRowsFromLanes(lanes: LaneRow[]): GateRow[] {
 
   for (const lane of lanes) {
     const existing = gateMap.get(lane.gateCode);
-    const locationTail = lane.locationHint ? ` Ã‚Â· ${lane.locationHint}` : '';
+    const locationTail = lane.locationHint ? ` · ${lane.locationHint}` : '';
     if (!existing) {
       gateMap.set(lane.gateCode, {
         siteCode: lane.siteCode,
@@ -199,7 +199,7 @@ function requestHash(payload: unknown): string {
 function idempotencyBusy(scope: string, key: string, status: string): never {
   throw new ApiError({
     code: 'CONFLICT',
-    message: 'YÃƒÂªu cÃ¡ÂºÂ§u idempotent Ã„â€˜ang Ã„â€˜Ã†Â°Ã¡Â»Â£c xÃ¡Â»Â­ lÃƒÂ½ hoÃ¡ÂºÂ·c Ã„â€˜ÃƒÂ£ thÃ¡ÂºÂ¥t bÃ¡ÂºÂ¡i trÃ†Â°Ã¡Â»â€ºc Ã„â€˜ÃƒÂ³',
+    message: 'Yêu cầu idempotent đang được xử lý hoặc đã thất bại trước đó',
     details: { scope, idempotencyKey: key, status },
   });
 }
@@ -231,7 +231,7 @@ function buildMasterDataFromDevices(siteCode: string, devices: Array<any>): { ga
       siteCode,
       gateCode,
       laneCode: direction,
-      label: `${direction} Ã‚Â· ${String(d.device_code)}`,
+      label: `${direction} · ${String(d.device_code)}`,
       direction,
       deviceCode: String(d.device_code),
       deviceType: String(d.device_type),
@@ -410,7 +410,7 @@ async function buildTopology(siteCode: string) {
   if (!site) {
     throw new ApiError({
       code: 'NOT_FOUND',
-      message: `KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y site '${siteCode}'`,
+      message: `Không tìm thấy site '${siteCode}'`,
       details: { siteCode },
     });
   }
@@ -906,7 +906,19 @@ export async function buildApp() {
     });
   }
 
+  // Cache to avoid hitting the database on every /outbox request.
+  // Business metrics (review queue size, device health counts) are aggregated in-memory
+  // and refreshed only when the cache is stale. TTL: 30 seconds.
+  let _metricsCache: { refreshedAt: number; siteCode: string | undefined } | null = null;
+  const _METRICS_CACHE_TTL_MS = 30_000;
+
   async function refreshBusinessMetrics(siteCode?: string) {
+    const now = Date.now();
+    if (_metricsCache && now - _metricsCache.refreshedAt < _METRICS_CACHE_TTL_MS && _metricsCache.siteCode === siteCode) {
+      return; // Cache hit — skip expensive DB queries
+    }
+    _metricsCache = { refreshedAt: now, siteCode };
+
     const degradedThresholdSeconds = Number.isFinite(Number(process.env.GATE_REALTIME_DEVICE_DEGRADED_THRESHOLD_SECONDS ?? process.env.GATE_DECISION_DEVICE_DEGRADED_THRESHOLD_SECONDS ?? '90'))
       ? Number(process.env.GATE_REALTIME_DEVICE_DEGRADED_THRESHOLD_SECONDS ?? process.env.GATE_DECISION_DEVICE_DEGRADED_THRESHOLD_SECONDS ?? '90')
       : 90;
@@ -1157,24 +1169,30 @@ export async function buildApp() {
         rawPayload: persistedRawPayload,
       });
 
-      globalThis.__parklyLastEvents = globalThis.__parklyLastEvents ?? [];
-      globalThis.__parklyLastEvents.push({
-        ts: Date.now(),
-        siteCode,
-        deviceCode,
-        laneCode,
-        eventId: String(result.eventId),
-        direction: body.direction,
-        eventTime: eventTime.toISOString(),
-        licensePlateRaw: plateCanonical?.plateRaw ?? null,
-        plateCompact: plateCanonical?.plateCompact ?? null,
-        plateDisplay: plateCanonical?.plateDisplay ?? null,
-        plateValidity: plateCanonical?.plateValidity ?? null,
-        reviewRequired,
-        imageUrl: body.imageUrl ?? null,
-        outboxId: String(result.outboxId),
-      });
-      globalThis.__parklyLastEvents = globalThis.__parklyLastEvents.slice(-200);
+      // Development-only: keep an in-memory ring buffer of the last events for
+      // interactive debugging via the browser console (__parklyLastEvents).
+      // This MUST NOT be enabled in production â it leaks data to any client that
+      // can call the endpoint and creates unbounded memory growth.
+      if (process.env.NODE_ENV === 'development') {
+        globalThis.__parklyLastEvents = globalThis.__parklyLastEvents ?? [];
+        globalThis.__parklyLastEvents.push({
+          ts: Date.now(),
+          siteCode,
+          deviceCode,
+          laneCode,
+          eventId: String(result.eventId),
+          direction: body.direction,
+          eventTime: eventTime.toISOString(),
+          licensePlateRaw: plateCanonical?.plateRaw ?? null,
+          plateCompact: plateCanonical?.plateCompact ?? null,
+          plateDisplay: plateCanonical?.plateDisplay ?? null,
+          plateValidity: plateCanonical?.plateValidity ?? null,
+          reviewRequired,
+          imageUrl: body.imageUrl ?? null,
+          outboxId: String(result.outboxId),
+        });
+        globalThis.__parklyLastEvents = globalThis.__parklyLastEvents.slice(-200);
+      }
 
       let legacyMappedSession: { sessionId: string; status: string; decisionCode: string | null } | null = null;
       if (body.direction === 'ENTRY' || body.direction === 'EXIT') {
@@ -1395,7 +1413,7 @@ export async function buildApp() {
     <div class="card stack">
       <div>
         <h1 style="margin:0 0 6px;font-size:24px;">Mobile camera as edge device</h1>
-        <div class="muted">Ã„ÂiÃ¡Â»â€¡n thoÃ¡ÂºÂ¡i nÃƒÂ y pair trÃ¡Â»Â±c tiÃ¡ÂºÂ¿p vÃƒÂ o lane. KhÃƒÂ´ng cÃ¡ÂºÂ§n device secret Ã¡Â»Å¸ phÃƒÂ­a mobile.</div>
+        <div class="muted">Điện thoại này pair trực tiếp vào lane. Không cần device secret ở phía mobile.</div>
       </div>
       <div id="pairing" class="stack"></div>
     </div>
@@ -1403,16 +1421,16 @@ export async function buildApp() {
     <div class="card stack">
       <label class="file">
         <input id="file" type="file" accept="image/*" capture="environment" style="display:none" />
-        <div style="font-weight:700;margin-bottom:6px;">ChÃ¡ÂºÂ¡m Ã„â€˜Ã¡Â»Æ’ chÃ¡Â»Â¥p Ã¡ÂºÂ£nh biÃ¡Â»Æ’n sÃ¡Â»â€˜</div>
+        <div style="font-weight:700;margin-bottom:6px;">Chạm để chụp ảnh biển số</div>
         <div class="muted">JPG / PNG / WEBP</div>
       </label>
       <img id="preview" class="preview" style="display:none" alt="preview" />
-      <input id="plateHint" class="inp" placeholder="Plate hint nÃ¡ÂºÂ¿u OCR local chÃ†Â°a chÃ¡ÂºÂ¯c" />
+      <input id="plateHint" class="inp" placeholder="Plate hint nếu OCR local chưa chắc" />
       <div class="stack" style="grid-template-columns:1fr 1fr;">
-        <button id="submitBtn" class="btn">GÃ¡Â»Â­i ALPR capture</button>
+        <button id="submitBtn" class="btn">Gửi ALPR capture</button>
         <button id="pulseBtn" class="btn secondary">Pulse heartbeat</button>
       </div>
-      <div id="status" class="log">Ã„Âang khÃ¡Â»Å¸i tÃ¡ÂºÂ¡o...</div>
+      <div id="status" class="log">Đang khởi tạo...</div>
     </div>
   </div>
 
@@ -1451,10 +1469,10 @@ export async function buildApp() {
         '<span class="badge">' + session.deviceCode + '</span>',
         '<span class="badge">' + session.direction + '</span>',
         '</div>',
-        '<div class="muted">HÃ¡ÂºÂ¿t hÃ¡ÂºÂ¡n: ' + new Date(session.expiresAt).toLocaleString('vi-VN') + '</div>'
+        '<div class="muted">Hết hạn: ' + new Date(session.expiresAt).toLocaleString('vi-VN') + '</div>'
       ].join('');
       await pulseHeartbeat();
-      setStatus('Ã„ÂiÃ¡Â»â€¡n thoÃ¡ÂºÂ¡i Ã„â€˜ÃƒÂ£ pair vÃƒÂ o lane. CÃƒÂ³ thÃ¡Â»Æ’ chÃ¡Â»Â¥p Ã¡ÂºÂ£nh vÃƒÂ  gÃ¡Â»Â­i capture.');
+      setStatus('Điện thoại đã pair vào lane. Có thể chụp ảnh và gửi capture.');
     }
 
     async function pulseHeartbeat() {
@@ -1482,12 +1500,12 @@ export async function buildApp() {
       const file = fileInput.files && fileInput.files[0];
       const plateHint = plateHintInput.value.trim();
       if (!file && !plateHint) {
-        setStatus('CÃ¡ÂºÂ§n Ã¡ÂºÂ£nh hoÃ¡ÂºÂ·c plate hint trÃ†Â°Ã¡Â»â€ºc khi gÃ¡Â»Â­i.');
+        setStatus('Cần ảnh hoặc plate hint trước khi gửi.');
         return;
       }
       submitBtn.disabled = true;
       try {
-        setStatus('Ã„Âang upload Ã¡ÂºÂ£nh vÃƒÂ  gÃ¡Â»Â­i ALPR capture...');
+        setStatus('Đang upload ảnh và gửi ALPR capture...');
         let imageUrl = undefined;
         let mediaId = undefined;
         if (file) {
@@ -1511,7 +1529,7 @@ export async function buildApp() {
         });
         await pulseHeartbeat();
         const plate = result.capture?.plate?.plateDisplay || result.recognition?.plate?.plateDisplay || result.recognition?.recognizedPlate || 'OK';
-        setStatus('Ã„ÂÃƒÂ£ gÃ¡Â»Â­i capture thÃƒÂ nh cÃƒÂ´ng. BiÃ¡Â»Æ’n sÃ¡Â»â€˜: ' + plate + '\nSession: ' + (result.capture?.sessionId || 'n/a'));
+        setStatus('Đã gửi capture thành công. Biển số: ' + plate + '\nSession: ' + (result.capture?.sessionId || 'n/a'));
       } catch (error) {
         setStatus(error instanceof Error ? error.message : String(error));
       } finally {
@@ -1523,7 +1541,7 @@ export async function buildApp() {
       pulseBtn.disabled = true;
       try {
         await pulseHeartbeat();
-        setStatus('Ã„ÂÃƒÂ£ pulse heartbeat ONLINE cho mobile camera.');
+        setStatus('Đã pulse heartbeat ONLINE cho mobile camera.');
       } catch (error) {
         setStatus(error instanceof Error ? error.message : String(error));
       } finally {
@@ -1599,7 +1617,7 @@ export async function buildApp() {
     try {
       const pairToken = String((req.query as any)?.pairToken ?? '').trim();
       if (!pairToken) {
-        throw new ApiError({ code: 'BAD_REQUEST', message: 'Thiếu pairToken cho mobile capture surface' });
+        throw new ApiError({ code: 'BAD_REQUEST', message: 'Thiáº¿u pairToken cho mobile capture surface' });
       }
       const pairing = await getMobilePairing(pairToken, { refreshTtlOnAccess: true });
       if (!pairing) {
@@ -1626,7 +1644,7 @@ export async function buildApp() {
       if (!pairing) {
         throw new ApiError({ 
           code: 'NOT_FOUND', 
-          message: 'Pair token mobile camera không còn hiệu lực hoặc đã hết hạn. Vui lòng tạo pairing mới.' 
+          message: 'Pair token mobile camera không còn hiệu lực hoặc đã hết hạn. Vui lòng tạo pairing mới.'
         });
       }
       
@@ -1646,7 +1664,7 @@ export async function buildApp() {
       const direction = String(body.direction ?? 'ENTRY').trim().toUpperCase() === 'EXIT' ? 'EXIT' : 'ENTRY';
 
       if (!siteCode || !laneCode || !deviceCode) {
-        throw new ApiError({ code: 'BAD_REQUEST', message: 'siteCode, laneCode vÃƒÂ  deviceCode lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c Ã„â€˜Ã¡Â»Æ’ pair mobile camera' });
+        throw new ApiError({ code: 'BAD_REQUEST', message: 'siteCode, laneCode và deviceCode là bắt buộc để pair mobile camera' });
       }
 
       const pairing = await createMobilePairing({ siteCode, laneCode, direction, deviceCode });
@@ -1687,14 +1705,14 @@ export async function buildApp() {
       const pairToken = String((req.query as any)?.pairToken ?? '').trim();
       
       if (!pairToken) {
-        throw new ApiError({ code: 'BAD_REQUEST', message: 'Thiếu pairToken cho upload' });
+        throw new ApiError({ code: 'BAD_REQUEST', message: 'Thiáº¿u pairToken cho upload' });
       }
       
       const pairing = await getMobilePairing(pairToken, { refreshTtlOnAccess: true });
       if (!pairing) {
         throw new ApiError({ 
           code: 'NOT_FOUND', 
-          message: 'Pair token mobile camera không còn hiệu lực hoặc đã hết hạn. Vui lòng tạo pairing mới.' 
+          message: 'Pair token mobile camera không còn hiệu lực hoặc đã hết hạn. Vui lòng tạo pairing mới.'
         });
       }
 
@@ -1791,14 +1809,14 @@ export async function buildApp() {
       const pairToken = String((req.query as any)?.pairToken ?? '').trim();
       
       if (!pairToken) {
-        throw new ApiError({ code: 'BAD_REQUEST', message: 'Thiếu pairToken cho heartbeat' });
+        throw new ApiError({ code: 'BAD_REQUEST', message: 'Thiáº¿u pairToken cho heartbeat' });
       }
       
       const pairing = await getMobilePairing(pairToken, { refreshTtlOnAccess: true });
       if (!pairing) {
         throw new ApiError({ 
           code: 'NOT_FOUND', 
-          message: 'Pair token mobile camera không còn hiệu lực hoặc đã hết hạn. Vui lòng tạo pairing mới.' 
+          message: 'Pair token mobile camera không còn hiệu lực hoặc đã hết hạn. Vui lòng tạo pairing mới.'
         });
       }
       
@@ -1872,14 +1890,14 @@ export async function buildApp() {
       const pairToken = String((req.query as any)?.pairToken ?? '').trim();
       
       if (!pairToken) {
-        throw new ApiError({ code: 'BAD_REQUEST', message: 'Thiếu pairToken cho ALPR capture' });
+        throw new ApiError({ code: 'BAD_REQUEST', message: 'Thiáº¿u pairToken cho ALPR capture' });
       }
       
       const pairing = await getMobilePairing(pairToken, { refreshTtlOnAccess: true });
       if (!pairing) {
         throw new ApiError({ 
           code: 'NOT_FOUND', 
-          message: 'Pair token mobile camera không còn hiệu lực hoặc đã hết hạn. Vui lòng tạo pairing mới.' 
+          message: 'Pair token mobile camera không còn hiệu lực hoặc đã hết hạn. Vui lòng tạo pairing mới.'
         });
       }
       
@@ -1907,12 +1925,12 @@ export async function buildApp() {
       });
 
       // Smart plate selection: if plateHint is valid VN format, use it instead of Tesseract garbage.
-      // Tesseract on mobile/casual photos often produces garbage → invalid.
+      // Tesseract on mobile/casual photos often produces garbage â invalid.
       const plateHintRaw = typeof body.plateHint === 'string' ? body.plateHint.trim() : '';
       const plateHintCanonical = plateHintRaw ? buildPlateCanonical(plateHintRaw) : null;
       const usePlateHint = plateHintCanonical && plateHintCanonical.plateValidity !== 'INVALID';
       // If no valid plateHint: only use Tesseract result if it's valid VN format.
-      // Garbage Tesseract output → pass undefined so session opens as sensor event (no plate).
+      // Garbage Tesseract output â pass undefined so session opens as sensor event (no plate).
       const tesseractIsValid = buildPlateCanonical(recognition.recognizedPlate).plateValidity !== 'INVALID';
       const effectivePlateRaw = usePlateHint
         ? (plateHintCanonical.plateRaw ?? plateHintRaw)
@@ -1932,7 +1950,7 @@ export async function buildApp() {
         imageUrl: imageUrl ?? undefined,
         sourceMediaId: mediaId ?? undefined,
         ocrConfidence: usePlateHint ? 0.99 : recognition.confidence,
-        // Mobile capture: always skip strict validation — low-quality camera photos
+        // Mobile capture: always skip strict validation â low-quality camera photos
         // may produce Tesseract garbage. Let REVIEW queue handle uncertain plates.
         skipStrictPlateValidation: true,
         rawPayload: {
@@ -1980,7 +1998,7 @@ export async function buildApp() {
       const deviceCode = String(body.deviceCode ?? '').trim();
       const status = String(body.status ?? 'ONLINE').trim().toUpperCase();
       if (!siteCode || !deviceCode) {
-        throw new ApiError({ code: 'BAD_REQUEST', message: 'siteCode vÃƒÂ  deviceCode lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c Ã„â€˜Ã¡Â»Æ’ pulse heartbeat' });
+        throw new ApiError({ code: 'BAD_REQUEST', message: 'siteCode và deviceCode là bắt buộc để pulse heartbeat' });
       }
       const result = await recordDeviceHeartbeat({
         requestId: `manual-pulse:${randomUUID()}`,
@@ -2018,7 +2036,7 @@ export async function buildApp() {
       if (!parsed.plateHint?.trim() && !parsed.imageUrl?.trim()) {
         throw new ApiError({
           code: 'BAD_REQUEST',
-          message: 'Cáº§n imageUrl hoáº·c plateHint Ä‘á»ƒ nháº­n diá»‡n biá»ƒn sá»‘. Backend khÃ´ng cÃ²n tá»± sinh biá»ƒn sá»‘ fallback khi Ä‘á»ƒ trá»‘ng.',
+          message: 'Cần imageUrl hoặc plateHint để nhận diện biển số. Backend không còn tự sinh biển số fallback khi để trống.',
         });
       }
 
@@ -2225,8 +2243,8 @@ export async function buildApp() {
             finalAction: 'REVIEW',
             reasonCode: authority.decisionPolicy === 'NO_PLATE' ? 'NO_PLATE_RULE_APPLIED' : 'OCR_AMBIGUOUS_SOFT_REVIEW',
             reasonDetail: authority.decisionPolicy === 'NO_PLATE'
-              ? 'Lane-flow submit chÃ†Â°a cÃƒÂ³ plate authoritative nÃƒÂªn session Ã„â€˜Ã†Â°Ã¡Â»Â£c giÃ¡Â»Â¯ Ã¡Â»Å¸ WAITING_READ Ã„â€˜Ã¡Â»Æ’ chÃ¡Â»Â thÃƒÂªm evidence.'
-              : 'OCR ambiguous Ã„â€˜Ã†Â°Ã¡Â»Â£c hÃ¡ÂºÂ¡ xuÃ¡Â»â€˜ng review mÃ¡Â»Âm; backend khÃƒÂ´ng hard-deny chÃ¡Â»â€° vÃƒÂ¬ preview chÃ†Â°a chÃ¡ÂºÂ¯c chÃ¡ÂºÂ¯n.',
+              ? 'Lane-flow submit chưa có plate authoritative nên session được giữ ở WAITING_READ để chờ thêm evidence.'
+              : 'OCR ambiguous được hạ xuống review mềm; backend không hard-deny chuyến vì preview chưa chắc chắn.',
             reviewRequired: true,
             explanation: authority.decisionPolicy === 'NO_PLATE'
               ? 'No-plate rule applied.'

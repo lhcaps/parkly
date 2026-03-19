@@ -51,27 +51,29 @@ export function SubscriptionEditorDialogShell({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={description ? descriptionId : undefined}
-        className="relative z-[111] w-full max-w-2xl rounded-3xl border border-border/90 bg-card/98 shadow-[0_36px_120px_rgba(0,0,0,0.42)]"
+        className="relative z-[111] w-full max-w-3xl rounded-3xl border border-border/90 bg-card/98 shadow-[0_36px_120px_rgba(0,0,0,0.42)]"
       >
         <form onSubmit={onSubmit}>
-          <div className="flex items-start justify-between gap-4 border-b border-border/70 px-5 py-4 sm:px-6">
+          <div className="flex items-start justify-between gap-4 border-b border-border/70 px-6 py-5 bg-gradient-to-r from-primary/5 via-transparent to-transparent">
             <div className="min-w-0">
-              <h2 id={titleId} className="text-lg font-semibold tracking-tight text-foreground">{title}</h2>
-              {description ? <p id={descriptionId} className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
+              <h2 id={titleId} className="text-xl font-bold tracking-tight text-foreground">{title}</h2>
+              {description ? <p id={descriptionId} className="mt-2 text-sm text-muted-foreground leading-relaxed">{description}</p> : null}
             </div>
-            <Button type="button" variant="ghost" size="icon" onClick={onClose} disabled={busy} title="Close dialog">
-              <X className="h-4 w-4" />
+            <Button type="button" variant="ghost" size="icon" onClick={onClose} disabled={busy} title="Close dialog" className="h-9 w-9">
+              <X className="h-5 w-5" />
             </Button>
           </div>
 
-          <div className="max-h-[70vh] overflow-y-auto px-5 py-5 sm:px-6">{children}</div>
+          <div className="max-h-[75vh] overflow-y-auto px-6 py-6">{children}</div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/70 px-5 py-4 sm:px-6">
-            <div className="min-h-6 text-sm text-muted-foreground">{footer}</div>
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
-              <Button type="submit" disabled={busy}>
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border/70 px-6 py-5 bg-gradient-to-r from-primary/5 via-transparent to-transparent">
+            <div className="min-h-6 text-sm text-muted-foreground leading-relaxed">{footer}</div>
+            <div className="flex flex-wrap gap-3">
+              <Button type="button" variant="outline" onClick={onClose} disabled={busy} size="lg" className="h-11 px-6">
+                Cancel
+              </Button>
+              <Button type="submit" disabled={busy} size="lg" className="h-11 px-6 gap-2">
+                {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
                 {submitLabel}
               </Button>
             </div>

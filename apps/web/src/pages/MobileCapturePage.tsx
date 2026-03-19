@@ -484,24 +484,53 @@ export function MobileCapturePage() {
           plateHint: plateHint || undefined,
         })
         // Transform to AlprRecognizeRes format
+        // NOTE: recognition.recognizedPlate is the OCR result; recognition.plate (if set) is the canonical form.
+        // Backend (local-alpr.service.ts) returns recognizedPlate + optionally plate.
+        const rec = alprRes.recognition
+        const canonicalPlate = rec.plate || rec.recognizedPlate || null
         result = {
-          plate: alprRes.recognition?.plate || null,
-          plateRaw: alprRes.recognition?.recognizedPlate || alprRes.capture?.plateRaw || null,
+          plate: {
+            plateRaw: rec.plate || rec.recognizedPlate || null,
+            plateCompact: null,
+            plateDisplay: canonicalPlate,
+            plateFamily: (rec.plateFamily as AlprRecognizeRes['plateFamily']) || 'UNKNOWN',
+            plateValidity: (rec.previewStatus as AlprRecognizeRes['plateValidity']) || 'INVALID',
+            ocrSubstitutions: rec.ocrSubstitutions || [],
+            suspiciousFlags: rec.suspiciousFlags || [],
+            validationNotes: rec.validationNotes || [],
+            reviewRequired: rec.needsConfirm ?? rec.previewStatus !== 'STRICT_VALID',
+          },
+          recognizedPlate: rec.recognizedPlate || '',
+          confidence: rec.confidence ?? 0,
+          previewStatus: rec.previewStatus || 'INVALID',
+          needsConfirm: rec.needsConfirm ?? rec.previewStatus !== 'STRICT_VALID',
+          candidates: (rec.candidates || []).map((c) => ({
+            plate: c.plate,
+            score: c.score,
+            votes: c.votes,
+            cropVariants: c.cropVariants,
+            psmModes: c.psmModes,
+            suspiciousFlags: c.suspiciousFlags,
+          })),
+          winner: rec.winner
+            ? {
+                plate: rec.winner.rawText || rec.recognizedPlate,
+                cropVariant: rec.winner.cropVariant,
+                psm: rec.winner.psm,
+                rawText: rec.winner.rawText,
+                score: rec.winner.score,
+              }
+            : null,
+          plateRaw: alprRes.capture?.plateRaw || null,
           plateCompact: null,
-          plateDisplay: alprRes.recognition?.plate || alprRes.capture?.plateRaw || null,
-          plateFamily: (alprRes.recognition?.plateFamily as AlprRecognizeRes['plateFamily']) || 'UNKNOWN',
-          plateValidity: (alprRes.recognition?.previewStatus as AlprRecognizeRes['plateValidity']) || 'INVALID',
-          recognizedPlate: alprRes.recognition?.recognizedPlate || alprRes.capture?.plateRaw || '',
-          confidence: alprRes.recognition?.confidence ?? alprRes.capture?.ocrConfidence ?? 0,
-          previewStatus: alprRes.recognition?.previewStatus || 'INVALID',
-          needsConfirm: alprRes.recognition?.previewStatus !== 'STRICT_VALID',
-          candidates: [],
-          winner: null,
-          raw: alprRes.recognition?.raw || {},
-          ocrSubstitutions: alprRes.recognition?.ocrSubstitutions || [],
-          suspiciousFlags: alprRes.recognition?.suspiciousFlags || [],
-          validationNotes: alprRes.recognition?.validationNotes || [],
-          reviewRequired: alprRes.recognition?.previewStatus !== 'STRICT_VALID',
+          plateDisplay: canonicalPlate,
+          plateFamily: (rec.plateFamily as AlprRecognizeRes['plateFamily']) || 'UNKNOWN',
+          plateValidity: (rec.previewStatus as AlprRecognizeRes['plateValidity']) || 'INVALID',
+          ocrSubstitutions: rec.ocrSubstitutions || [],
+          suspiciousFlags: rec.suspiciousFlags || [],
+          validationNotes: rec.validationNotes || [],
+          reviewRequired: rec.needsConfirm ?? rec.previewStatus !== 'STRICT_VALID',
+          raw: rec.raw || {},
         }
       } else {
         // Fallback to regular ALPR API (requires user auth)
@@ -655,45 +684,48 @@ export function MobileCapturePage() {
         })
         
         // Transform to CaptureReadRes format
+        // capture.plate holds the authoritative PlateCanonical from ingest-alpr-read.ts
         const captureData = alprRes.capture
         const recData = alprRes.recognition
+        const capturePlate = captureData?.plate
+        const recPreviewStatus = recData?.previewStatus ?? capturePlate?.plateValidity ?? 'INVALID'
         const rawPlate: PlateCanonicalDto = {
           plateRaw: captureData?.plateRaw || effectivePlate || '',
-          plateCompact: null,
-          plateDisplay: recData?.plate || captureData?.plateRaw || effectivePlate || '',
-          plateFamily: (recData?.plateFamily as PlateCanonicalDto['plateFamily']) || 'UNKNOWN',
-          plateValidity: (recData?.previewStatus as PlateCanonicalDto['plateValidity']) || 'INVALID',
+          plateCompact: captureData?.plateCompact || null,
+          plateDisplay: capturePlate?.plateDisplay || recData?.plate || captureData?.plateRaw || effectivePlate || '',
+          plateFamily: (capturePlate?.plateFamily || 'UNKNOWN') as PlateCanonicalDto['plateFamily'],
+          plateValidity: (capturePlate?.plateValidity || 'INVALID') as PlateCanonicalDto['plateValidity'],
           ocrSubstitutions: recData?.ocrSubstitutions || [],
           suspiciousFlags: recData?.suspiciousFlags || [],
           validationNotes: recData?.validationNotes || [],
-          reviewRequired: recData?.previewStatus !== 'STRICT_VALID',
+          reviewRequired: recPreviewStatus !== 'STRICT_VALID',
         }
         data = {
-          siteCode: alprRes.pairing?.siteCode || effectiveCtx.siteCode,
-          laneCode: alprRes.pairing?.laneCode || effectiveCtx.laneCode,
-          deviceCode: alprRes.pairing?.deviceCode || effectiveCtx.deviceCode,
-          direction: (alprRes.pairing?.direction as 'ENTRY' | 'EXIT') || effectiveCtx.direction,
+          siteCode: captureData?.siteCode || effectiveCtx.siteCode,
+          laneCode: captureData?.laneCode || effectiveCtx.laneCode,
+          deviceCode: captureData?.deviceCode || effectiveCtx.deviceCode,
+          direction: (captureData?.direction as 'ENTRY' | 'EXIT') || effectiveCtx.direction,
           plateRaw: captureData?.plateRaw || effectivePlate || '',
-          plateCompact: null,
-          plateDisplay: recData?.plate || captureData?.plateRaw || effectivePlate || '',
-          plateFamily: (recData?.plateFamily as PlateCanonicalDto['plateFamily']) || 'UNKNOWN',
-          plateValidity: (recData?.previewStatus as PlateCanonicalDto['plateValidity']) || 'INVALID',
+          plateCompact: captureData?.plateCompact || null,
+          plateDisplay: capturePlate?.plateDisplay || recData?.plate || captureData?.plateRaw || effectivePlate || '',
+          plateFamily: rawPlate.plateFamily,
+          plateValidity: rawPlate.plateValidity,
           plate: rawPlate,
           ocrSubstitutions: recData?.ocrSubstitutions || [],
           suspiciousFlags: recData?.suspiciousFlags || [],
           validationNotes: recData?.validationNotes || [],
-          reviewRequired: recData?.previewStatus !== 'STRICT_VALID',
+          reviewRequired: recPreviewStatus !== 'STRICT_VALID',
           readType: 'ALPR' as const,
-          readEventId: Date.now(),
-          occurredAt: now,
+          readEventId: captureData?.readEventId ?? Date.now(),
+          occurredAt: captureData?.occurredAt || now,
           sessionId: String(captureData?.sessionId || 0),
-          sessionStatus: 'OPEN',
-          changed: false,
-          alreadyExists: false,
+          sessionStatus: captureData?.sessionStatus || 'OPEN',
+          changed: captureData?.changed ?? false,
+          alreadyExists: captureData?.alreadyExists ?? false,
           imageUrl: alprRes.viewUrl || null,
-          ocrConfidence: recData?.confidence ?? null,
-          rfidUid: null,
-          sensorState: null,
+          ocrConfidence: recData?.confidence ?? captureData?.ocrConfidence ?? null,
+          rfidUid: captureData?.rfidUid || null,
+          sensorState: (captureData?.sensorState as CaptureReadRes['sensorState']) || null,
         } as unknown as CaptureReadRes
       } else {
         // Fallback to regular capture API (requires user auth and device signature)

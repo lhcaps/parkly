@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
-import { Settings2, Wrench } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { Languages, Settings2, Wrench } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PageHeader } from '@/components/ops/console'
+import { AppearancePreferencesTab } from '@/features/settings/components/AppearancePreferencesTab'
 import { OperatorSetupTab } from '@/features/settings/components/OperatorSetupTab'
 import { DeveloperDebugTab } from '@/features/settings/components/DeveloperDebugTab'
 import { useAuth } from '@/features/auth/auth-context'
@@ -16,6 +18,7 @@ import {
 import { getApiBasePreview, getRefreshToken, getToken } from '@/lib/http/client'
 
 export function SettingsPage() {
+  const { t } = useTranslation()
   const auth = useAuth()
   const [prefs, setPrefs] = useState(readDefaultContextPrefs())
   const [message, setMessage] = useState('')
@@ -36,39 +39,43 @@ export function SettingsPage() {
   function savePrefsValue() {
     const next = writeDefaultContextPrefs(prefs)
     setPrefs(next ?? readDefaultContextPrefs())
-    setMessage('Default context saved.')
+    setMessage(t('settingsPage.savedContext'))
   }
 
   function resetPrefsValue() {
     const next = resetDefaultContextPrefs()
     setPrefs(next)
-    setMessage('Default context reset.')
-    setDevMessage('Default context has been reset.')
+    setMessage(t('settingsPage.resetContext'))
+    setDevMessage(t('settingsPage.resetContext'))
   }
 
   function clearCacheValue() {
     clearLocalAppCache()
     setPrefs(readDefaultContextPrefs())
-    setDevMessage('Local app cache cleared for this browser.')
+    setDevMessage(t('settingsPage.cacheCleared'))
   }
 
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="System"
-        title="Settings"
-        description="Diagnostics for auth shell, token runtime, and default context for this browser.manual không còn là luồng đăng nhập chính."
+        eyebrow={t('settingsPage.eyebrow')}
+        title={t('settingsPage.title')}
+        description={t('settingsPage.description')}
       />
 
-      <Tabs defaultValue="operator" className="space-y-5">
-        <TabsList className="w-full justify-start">
+      <Tabs defaultValue="operator" className="space-y-6">
+        <TabsList className="w-full justify-start gap-2 rounded-2xl border border-border bg-muted/60 p-1.5">
           <TabsTrigger value="operator">
-            <Settings2 className="h-4 w-4" />
-            Operator setup
+            <Settings2 className="h-5 w-5" />
+            {t('settingsPage.tabOperator')}
+          </TabsTrigger>
+          <TabsTrigger value="appearance">
+            <Languages className="h-5 w-5" />
+            {t('settingsPage.tabAppearance')}
           </TabsTrigger>
           <TabsTrigger value="developer">
-            <Wrench className="h-4 w-4" />
-            Developer / debug
+            <Wrench className="h-5 w-5" />
+            {t('settingsPage.tabDeveloper')}
           </TabsTrigger>
         </TabsList>
 
@@ -83,6 +90,10 @@ export function SettingsPage() {
             onSavePrefs={savePrefsValue}
             onResetPrefs={resetPrefsValue}
           />
+        </TabsContent>
+
+        <TabsContent value="appearance">
+          <AppearancePreferencesTab />
         </TabsContent>
 
         <TabsContent value="developer">

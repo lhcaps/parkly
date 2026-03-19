@@ -240,14 +240,10 @@ export function evaluateGateDecision(
     )
   }
 
-  if (input.laneDirection === 'ENTRY' && input.openTicket) {
-    return decision(
-      'ANTI_PASSBACK_BLOCKED',
-      'DENY',
-      'ENTRY_ALREADY_HAS_OPEN_TICKET',
-      'Xe đang có open ticket ở hệ thống nên entry lane bị chặn để tránh anti-passback.',
-    )
-  }
+  // NOTE: Anti-passback for ENTRY is enforced by the activePresence check above.
+  // The openTicket condition (below) was removed — having an open ticket does not
+  // by itself indicate the vehicle is still physically inside the site. The
+  // presenceActive flag is the authoritative signal for anti-passback.
 
   if (input.laneDirection === 'EXIT') {
     if (input.paymentStatus === 'UNPAID') {

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { connectSseWithRetry, SseHttpError, type RealtimeConnectionState } from '@/lib/http/sse'
 import { emitRealtimeTelemetry } from '@/features/_shared/realtime/realtime-telemetry'
+import { sseManager } from '@/lib/http/sse-manager'
+import type { SseMessage } from '@/lib/http/sse'
 
 export type StreamState = {
-  status: RealtimeConnectionState
+  status: 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'stale' | 'unauthorized' | 'failed'
   connected: boolean
   unauthorized: boolean
   stale: boolean
@@ -16,8 +17,8 @@ export type StreamState = {
 }
 
 function toStreamError(error: unknown) {
-  if (error instanceof SseHttpError) return error.message
-  return error instanceof Error ? error.message : 'SSE disconnected. Check token or backend.'
+  const msg = error instanceof Error ? error.message : String(error)
+  return msg || 'SSE disconnected. Check token or backend.'
 }
 
 function safeHash(value: unknown) {
@@ -54,13 +55,19 @@ export function useSseSnapshot<T>(args: {
   const [data, setData] = useState<T | null>(null)
   const [state, setState] = useState<StreamState>(() => createInitialState())
   const [resyncNonce, setResyncNonce] = useState(0)
+
   const firstOpenSeenRef = useRef(false)
   const lastSemanticKeyRef = useRef('')
   const lastSnapshotHashRef = useRef('')
-  const reconnectCountRef = useRef(0)
-  const lastSnapshotAtRef = useRef<string | null>(null)
+  const refreshInFlightRef = useRef(false)
+  const lastRefreshTimeRef = useRef(0)
+  const mountedRef = useRef(true)
+  const subscriptionIdRef = useRef<string | null>(null)
+  const bootstrapDoneRef = useRef(false)
 
   const applySnapshot = useCallback((next: T, source: 'stream' | 'bootstrap' | 'manual' | 'reconnect') => {
+    if (!mountedRef.current) return
+
     const now = new Date().toISOString()
     const nextHash = safeHash(next)
     const previousHash = lastSnapshotHashRef.current
@@ -71,12 +78,14 @@ export function useSseSnapshot<T>(args: {
         eventName: args.eventName,
         reason: source,
         receivedAt: now,
-        lastSnapshotAt: lastSnapshotAtRef.current,
+        lastSnapshotAt: lastSnapshotHashRef.current || null,
       })
     }
 
     lastSnapshotHashRef.current = nextHash
-    lastSnapshotAtRef.current = now
+    lastSemanticKeyRef.current = ''
+    refreshInFlightRef.current = false
+
     setData(next)
     setState((current) => ({
       ...current,
@@ -91,6 +100,14 @@ export function useSseSnapshot<T>(args: {
   }, [args.eventName, args.url])
 
   const refreshSnapshot = useCallback(async (reason: 'bootstrap' | 'manual' | 'reconnect' = 'manual') => {
+    if (!mountedRef.current) return
+    if (refreshInFlightRef.current) return
+
+    const now = Date.now()
+    const minRefreshInterval = 8_000
+    if (now - lastRefreshTimeRef.current < minRefreshInterval) return
+    lastRefreshTimeRef.current = now
+
     if (!args.loadSnapshot) {
       setResyncNonce((value) => value + 1)
       return
@@ -101,9 +118,11 @@ export function useSseSnapshot<T>(args: {
         stream: args.url,
         eventName: args.eventName,
         reason,
-        reconnectCount: reconnectCountRef.current,
+        reconnectCount: 0,
       })
     }
+
+    refreshInFlightRef.current = true
 
     setState((current) => ({
       ...current,
@@ -113,12 +132,15 @@ export function useSseSnapshot<T>(args: {
 
     try {
       const snapshot = await args.loadSnapshot()
+      if (!mountedRef.current) return
       applySnapshot(snapshot, reason)
       setState((current) => ({
         ...current,
         refreshing: false,
       }))
     } catch (error) {
+      if (!mountedRef.current) return
+      refreshInFlightRef.current = false
       setState((current) => ({
         ...current,
         refreshing: false,
@@ -127,117 +149,138 @@ export function useSseSnapshot<T>(args: {
     }
   }, [applySnapshot, args.eventName, args.loadSnapshot, args.url])
 
+  // Mount/unmount
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
+
+  // Subscribe to SSE via global manager
   useEffect(() => {
     if (args.enabled === false) {
       setState(createInitialState())
       setData(null)
+      if (subscriptionIdRef.current !== null) {
+        sseManager.unsubscribe(args.url, subscriptionIdRef.current)
+        subscriptionIdRef.current = null
+      }
       return
     }
 
-    const controller = new AbortController()
-    let active = true
+    const onOpen = () => {
+      if (!mountedRef.current) return
+      emitRealtimeTelemetry(firstOpenSeenRef.current ? 'reconnect' : 'stream_opened', {
+        stream: args.url,
+        eventName: args.eventName,
+        reconnectCount: 0,
+      })
 
-    firstOpenSeenRef.current = false
-    lastSemanticKeyRef.current = ''
+      firstOpenSeenRef.current = true
 
-    if (args.loadSnapshot) {
-      void refreshSnapshot('bootstrap')
-    } else {
-      setState((current) => ({
-        ...current,
-        status: 'connecting',
-        connected: false,
-        unauthorized: false,
-        stale: false,
-        error: '',
-      }))
+      // Only do bootstrap refresh on very first open, not on every reconnect
+      if (!bootstrapDoneRef.current && args.loadSnapshot) {
+        bootstrapDoneRef.current = true
+        void refreshSnapshot('bootstrap')
+      }
     }
 
-    void connectSseWithRetry({
-      url: args.url,
-      signal: controller.signal,
-      onOpen: () => {
-        emitRealtimeTelemetry(firstOpenSeenRef.current ? 'reconnect' : 'stream_opened', {
+    const onStatusChange = (status: StreamState['status'], detail: { reconnectCount: number; error?: string }) => {
+      if (!mountedRef.current) return
+      setState((current) => ({
+        ...current,
+        status,
+        connected: status === 'connected',
+        unauthorized: status === 'unauthorized',
+        stale: status === 'stale',
+        reconnectCount: detail.reconnectCount,
+        error: detail.error || (status === 'connected' ? '' : current.error),
+      }))
+
+      if (status === 'unauthorized') {
+        emitRealtimeTelemetry('unauthorized', {
           stream: args.url,
           eventName: args.eventName,
-          reconnectCount: reconnectCountRef.current,
-        })
-
-        if (firstOpenSeenRef.current && args.loadSnapshot) {
-          void refreshSnapshot('reconnect')
-        }
-
-        firstOpenSeenRef.current = true
-      },
-      onStatusChange: (status, detail) => {
-        if (!active) return
-        reconnectCountRef.current = detail.reconnectCount
-        setState((current) => ({
-          ...current,
-          status,
-          connected: status === 'connected',
-          unauthorized: status === 'unauthorized',
-          stale: status === 'stale',
           reconnectCount: detail.reconnectCount,
-          error: detail.error || (status === 'connected' ? '' : current.error),
-        }))
+          status,
+        })
+      }
+    }
 
-        if (status === 'unauthorized') {
-          emitRealtimeTelemetry('unauthorized', {
-            stream: args.url,
-            eventName: args.eventName,
-            reconnectCount: detail.reconnectCount,
-            status,
-          })
-        }
-      },
-      onError: (error) => {
-        if (!active) return
-        const message = toStreamError(error)
+    const onMessage = (message: SseMessage) => {
+      if (!mountedRef.current) return
+      if (message.event !== args.eventName) return
+
+      const semanticKey = message.id || `${message.event}:${message.data}`
+      if (semanticKey && semanticKey === lastSemanticKeyRef.current) return
+      lastSemanticKeyRef.current = semanticKey
+
+      try {
+        const next = JSON.parse(message.data) as T
+        applySnapshot(next, 'stream')
+      } catch {
+        if (!mountedRef.current) return
         setState((current) => ({
           ...current,
           connected: false,
-          error: message,
+          status: current.unauthorized ? 'unauthorized' : 'failed',
+          error: 'SSE payload could not be parsed.',
         }))
-      },
-      onMessage: (message) => {
-        if (message.event !== args.eventName) return
-        const semanticKey = message.id || `${message.event}:${message.data}`
-        if (semanticKey && semanticKey === lastSemanticKeyRef.current) return
-        lastSemanticKeyRef.current = semanticKey
+      }
+    }
 
-        try {
-          const next = JSON.parse(message.data) as T
-          applySnapshot(next, 'stream')
-        } catch {
-          setState((current) => ({
-            ...current,
-            connected: false,
-            status: current.unauthorized ? 'unauthorized' : 'failed',
-            error: 'SSE payload could not be parsed.',
-          }))
-        }
-      },
+    const onError = (error: unknown) => {
+      if (!mountedRef.current) return
+      const message = toStreamError(error)
+      setState((current) => ({
+        ...current,
+        connected: false,
+        error: message,
+      }))
+    }
+
+    const id = sseManager.subscribe({
+      url: args.url,
+      onOpen,
+      onMessage,
+      onError,
+      onStatusChange,
     })
+    subscriptionIdRef.current = id
+
+    // Bootstrap if snapshot is provided
+    if (args.loadSnapshot && !bootstrapDoneRef.current) {
+      void refreshSnapshot('bootstrap')
+      bootstrapDoneRef.current = true
+    }
 
     return () => {
-      active = false
-      controller.abort()
+      if (subscriptionIdRef.current !== null) {
+        sseManager.unsubscribe(args.url, subscriptionIdRef.current)
+        subscriptionIdRef.current = null
+      }
     }
-  }, [applySnapshot, args.enabled, args.eventName, args.loadSnapshot, args.url, refreshSnapshot, resyncNonce])
+  }, [args.enabled, args.eventName, args.loadSnapshot, args.url, applySnapshot, refreshSnapshot])
 
+  // Stale detection interval
   useEffect(() => {
     if (args.enabled === false) return
 
+    let active = true
+
     const timer = window.setInterval(() => {
+      if (!active || !mountedRef.current) return
       setState((current) => {
         if (current.unauthorized) return current
-        const anchor = current.lastSnapshotAt ?? current.receivedAt
-        if (!anchor) return current
-        const anchorMs = new Date(anchor).getTime()
-        if (!Number.isFinite(anchorMs)) return current
 
-        const expired = Date.now() - anchorMs > staleAfterMs
+        const snapshotAnchor = current.lastSnapshotAt
+        const eventAnchor = current.receivedAt
+
+        const isSnapshotStale = snapshotAnchor && Date.now() - new Date(snapshotAnchor).getTime() > staleAfterMs
+        const isEventStale = eventAnchor && Date.now() - new Date(eventAnchor).getTime() > staleAfterMs
+        const expired = isSnapshotStale && isEventStale
+
         if (!expired) {
           if (!current.stale && current.status !== 'stale') return current
           return {
@@ -270,6 +313,7 @@ export function useSseSnapshot<T>(args: {
     }, 5_000)
 
     return () => {
+      active = false
       window.clearInterval(timer)
     }
   }, [args.enabled, args.eventName, args.url, staleAfterMs])

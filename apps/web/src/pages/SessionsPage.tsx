@@ -2,38 +2,32 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertCircle,
   AlertTriangle,
-  CheckCircle2,
+  ChevronRight,
   ClipboardList,
   Loader2,
   RefreshCw,
-  ShieldAlert,
-  ShieldCheck,
-  XCircle,
 } from 'lucide-react'
 import { PageHeader } from '@/components/ops/console'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  canRunSessionAction,
-  getSessionActionLockReason,
-  isSessionTerminal,
-  type OperatorRole,
-} from '@/features/manual-control/session-action-access'
+import { CollapsibleSection } from '@/components/ui/collapsible-section'
 import { SessionFilterBar } from '@/features/session-history/components/SessionFilterBar'
-import { SessionManualBarrierOverrideCard } from '@/features/session-history/components/SessionManualBarrierOverrideCard'
-import { SessionTable } from '@/features/session-history/components/SessionTable'
 import { SessionTimeline } from '@/features/session-history/components/SessionTimeline'
 import { SessionDetailConsole } from '@/features/session-history/SessionDetailConsole'
-import { cancelSession, confirmPass, getSessionDetail, getSessions, resolveSession } from '@/lib/api/sessions'
+import { SessionMediaStrip } from '@/features/session-history/components/SessionMediaStrip'
+import { getSessions, getSessionDetail } from '@/lib/api/sessions'
 import { getMe } from '@/lib/api/system'
 import { getLanes, getSites } from '@/lib/api/topology'
 import type { Direction } from '@/lib/contracts/common'
-import type { SessionAllowedAction, SessionDetail, SessionState, SessionSummary } from '@/lib/contracts/sessions'
+import type { SessionState, SessionSummary } from '@/lib/contracts/sessions'
 import type { LaneRow, SiteRow } from '@/lib/contracts/topology'
-import { toAppErrorDisplay, type AppErrorDisplay } from '@/lib/http/errors'
+import { toAppErrorDisplay } from '@/lib/http/errors'
 import { measureAsync } from '@/lib/query/perf'
 import { useDebouncedValue } from '@/lib/query/use-debounced-value'
+import { cn } from '@/lib/utils'
+import type { SessionDetail } from '@/lib/contracts/sessions'
+import { Link } from 'react-router-dom'
+import { collectSessionMedia } from '@/features/session-history/session-history-model'
 
 function rid() {
   return `ui_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`
@@ -46,173 +40,111 @@ function sessionVariant(status: SessionState): 'secondary' | 'entry' | 'amber' |
   return 'muted'
 }
 
-function SummaryRow({ label, value }: { label: string; value: string }) {
+function QuickSummaryCard({ detail }: { detail: SessionDetail }) {
+  const s = detail.session
+  const media = collectSessionMedia(detail)
+
   return (
-    <div className="flex items-start justify-between gap-3 border-b border-border/60 py-3 first:pt-0 last:border-b-0 last:pb-0">
-      <p className="text-[11px] font-mono-data uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
-      <p className="max-w-[68%] break-all text-right text-sm font-medium text-foreground">{value}</p>
+    <CollapsibleSection title="Session summary" defaultOpen={true} className="mb-4">
+      <div className="flex flex-wrap gap-2 mb-4">
+        <Badge variant={s.direction === 'ENTRY' ? 'entry' : 'exit'} className="text-xs px-2.5 py-1">{s.direction}</Badge>
+        <Badge variant={sessionVariant(s.status)} className="text-xs px-2.5 py-1">{s.status}</Badge>
+        {s.reviewRequired ? <Badge variant="amber" className="text-xs px-2.5 py-1">review</Badge> : null}
+        {detail.incidents.some((i) => i.status === 'OPEN') ? <Badge variant="destructive" className="text-xs px-2.5 py-1">incident</Badge> : null}
+      </div>
+
+      <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+        <div className="space-y-2">
+          <div>
+            <p className="text-xs font-mono-data uppercase tracking-widest text-muted-foreground/70 mb-1">Session</p>
+            <p className="text-sm font-semibold font-mono-data break-all">{String(s.sessionId)}</p>
+          </div>
+          <div>
+            <p className="text-xs font-mono-data uppercase tracking-widest text-muted-foreground/70 mb-1">Plate</p>
+            <p className="text-sm font-semibold font-mono-data">{s.plateCompact || '—'}</p>
+          </div>
+          <div>
+            <p className="text-xs font-mono-data uppercase tracking-widest text-muted-foreground/70 mb-1">Opened</p>
+            <p className="text-sm font-mono-data">{new Date(s.openedAt).toLocaleString('vi-VN')}</p>
+          </div>
+          {s.resolvedAt ? (
+            <div>
+              <p className="text-xs font-mono-data uppercase tracking-widest text-muted-foreground/70 mb-1">Resolved</p>
+              <p className="text-sm font-mono-data">{new Date(s.resolvedAt).toLocaleString('vi-VN')}</p>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="space-y-2">
+          <div>
+            <p className="text-xs font-mono-data uppercase tracking-widest text-muted-foreground/70 mb-1">Location</p>
+            <p className="text-sm font-semibold font-mono-data">{s.siteCode} / {s.gateCode} / {s.laneCode}</p>
+          </div>
+          <div>
+            <p className="text-xs font-mono-data uppercase tracking-widest text-muted-foreground/70 mb-1">RFID</p>
+            <p className="text-sm font-mono-data">{s.rfidUid || '—'}</p>
+          </div>
+          <div>
+            <p className="text-xs font-mono-data uppercase tracking-widest text-muted-foreground/70 mb-1">Counts</p>
+            <p className="text-sm font-mono-data">{s.readCount}r · {s.decisionCount}d · {s.barrierCommandCount}b</p>
+          </div>
+          {s.ticketId ? (
+            <div>
+              <p className="text-xs font-mono-data uppercase tracking-widest text-muted-foreground/70 mb-1">Ticket</p>
+              <p className="text-sm font-mono-data">{s.ticketId}</p>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      {media.length > 0 && (
+        <div className="mt-4 flex items-center gap-3 rounded-xl border border-border/60 bg-background/40 px-4 py-3">
+          <span className="text-xs font-mono-data text-muted-foreground">Evidence</span>
+          <Badge variant="secondary" className="text-xs px-2.5 py-1">{media.length} media</Badge>
+          <Button asChild variant="ghost" size="sm" className="ml-auto h-8 px-3 text-xs">
+            <Link to={`/review-queue?siteCode=${encodeURIComponent(s.siteCode)}&q=${encodeURIComponent(String(s.sessionId))}`}>
+              Review Queue
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Link>
+          </Button>
+        </div>
+      )}
+    </CollapsibleSection>
+  )
+}
+
+function DetailSkeleton() {
+  return (
+    <div className="rounded-2xl border border-border/70 bg-card/80 p-6 space-y-4 animate-pulse">
+      <div className="flex gap-2">
+        <div className="h-6 w-16 rounded-full bg-muted" />
+        <div className="h-6 w-20 rounded-full bg-muted" />
+        <div className="h-6 w-18 rounded-full bg-muted" />
+      </div>
+      <div className="space-y-3">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="flex justify-between gap-4">
+            <div className="h-4 w-24 rounded bg-muted" />
+            <div className="h-4 w-32 rounded bg-muted" />
+          </div>
+        ))}
+      </div>
+      <div className="h-10 w-full rounded-xl bg-muted" />
+      <div className="h-10 w-full rounded-xl bg-muted" />
     </div>
   )
 }
 
-function ActionButton({
-  action,
-  role,
-  busy,
-  allowedActions,
-  liveSessionStatus,
-  onRun,
-}: {
-  action: SessionAllowedAction
-  role: OperatorRole
-  busy: string
-  allowedActions: SessionAllowedAction[]
-  liveSessionStatus: string
-  onRun: (action: SessionAllowedAction) => Promise<void>
-}) {
-  const lockReason = getSessionActionLockReason(role, action, allowedActions, liveSessionStatus)
-  const disabled = Boolean(lockReason) || Boolean(busy)
-
-  const props = {
-    disabled,
-    title: lockReason || undefined,
-    onClick: () => void onRun(action),
-  }
-
-  if (action === 'APPROVE') {
-    return <Button variant="secondary" size="sm" {...props}>{busy === action ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}Approve</Button>
-  }
-  if (action === 'REQUIRE_PAYMENT') {
-    return <Button variant="outline" size="sm" {...props}>{busy === action ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardList className="h-4 w-4" />}Payment hold</Button>
-  }
-  if (action === 'DENY') {
-    return <Button variant="destructive" size="sm" {...props}>{busy === action ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}Deny</Button>
-  }
-  if (action === 'CONFIRM_PASS') {
-    return <Button variant="entry" size="sm" {...props}>{busy === action ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}Confirm pass</Button>
-  }
-  return <Button variant="ghost" size="sm" {...props}>{busy === action ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldAlert className="h-4 w-4" />}Cancel</Button>
-}
-
-function DetailActionBar({
-  detail,
-  role,
-  onUpdated,
-}: {
-  detail: SessionDetail
-  role: OperatorRole
-  onUpdated: () => Promise<boolean | void>
-}) {
-  const [busy, setBusy] = useState('')
-  const [error, setError] = useState<AppErrorDisplay | null>(null)
-  const actions = detail.session.allowedActions ?? []
-  const terminal = isSessionTerminal(detail.session.status)
-
-  async function run(action: SessionAllowedAction) {
-    try {
-      setBusy(action)
-      setError(null)
-
-      const sessionId = String(detail.session.sessionId)
-
-      if (action === 'APPROVE') {
-        await resolveSession({
-          requestId: rid(),
-          idempotencyKey: rid(),
-          sessionId,
-          approved: true,
-          reasonCode: 'MANUAL_APPROVE',
-          reasonDetail: 'Action from Session History',
-        })
-      } else if (action === 'REQUIRE_PAYMENT') {
-        await resolveSession({
-          requestId: rid(),
-          idempotencyKey: rid(),
-          sessionId,
-          paymentRequired: true,
-          reasonCode: 'PAYMENT_REQUIRED_UI',
-          reasonDetail: 'Hold barrier from Session History',
-        })
-      } else if (action === 'DENY') {
-        await resolveSession({
-          requestId: rid(),
-          idempotencyKey: rid(),
-          sessionId,
-          denied: true,
-          reasonCode: 'MANUAL_DENY',
-          reasonDetail: 'Manual reject from Session History',
-        })
-      } else if (action === 'CONFIRM_PASS') {
-        await confirmPass(sessionId, {
-          requestId: rid(),
-          idempotencyKey: rid(),
-          occurredAt: new Date().toISOString(),
-          reasonCode: 'UI_CONFIRM_PASS',
-        })
-      } else {
-        await cancelSession(sessionId, {
-          requestId: rid(),
-          idempotencyKey: rid(),
-          occurredAt: new Date().toISOString(),
-          reasonCode: 'UI_CANCEL',
-          note: 'Cancel from Session History',
-        })
-      }
-
-      await onUpdated()
-    } catch (actionError) {
-      setError(toAppErrorDisplay(actionError, 'Session action rejected'))
-    } finally {
-      setBusy('')
-    }
-  }
-
+function EmptyDetail({ rows, filtersActive }: { rows: number; filtersActive: boolean }) {
   return (
-    <div className="space-y-3">
-      {terminal ? (
-        <div className="flex items-start gap-2 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-4 text-sm text-destructive">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <div>
-            <p className="font-semibold">Session is {detail.session.status} — actions locked</p>
-            <p className="mt-1 text-destructive/80">The backend has already moved this session to a terminal state. Refresh is still safe, mutate actions are not.</p>
-          </div>
-        </div>
-      ) : null}
-
-      <div className="flex flex-wrap gap-2">
-        <Badge variant="muted">role {role || '—'}</Badge>
-        {(['APPROVE', 'REQUIRE_PAYMENT', 'DENY', 'CONFIRM_PASS', 'CANCEL'] as SessionAllowedAction[]).map((action) => (
-          <ActionButton
-            key={action}
-            action={action}
-            role={role}
-            busy={busy}
-            allowedActions={actions}
-            liveSessionStatus={detail.session.status}
-            onRun={run}
-          />
-        ))}
-        {actions.length === 0 ? <Badge variant="muted">No allowed actions</Badge> : null}
-      </div>
-
-      {actions.filter((action) => canRunSessionAction(role, action)).length === 0 && actions.length > 0 ? (
-        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
-          The backend still exposes actions for this session, but your current role cannot perform any of them.
-        </div>
-      ) : null}
-
-      {error ? (
-        <div className="space-y-2 rounded-2xl border border-destructive/25 bg-destructive/10 px-4 py-4 text-sm text-destructive">
-          <div className="flex items-start gap-2">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-            <div className="min-w-0">
-              <p className="font-semibold">{error.title}</p>
-              <p className="mt-1 break-all text-destructive/90">{error.message}</p>
-            </div>
-          </div>
-          {error.nextAction ? <p className="text-xs text-destructive/85">Next: {error.nextAction}</p> : null}
-        </div>
-      ) : null}
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-muted/20 py-20 text-center">
+      <ClipboardList className="h-12 w-12 text-muted-foreground/40" />
+      <p className="mt-4 text-base font-semibold text-foreground">No session selected</p>
+      <p className="mt-2 text-sm text-muted-foreground/80 max-w-[280px]">
+        {filtersActive
+          ? `${rows} session${rows !== 1 ? 's' : ''} match current filters — pick one to inspect`
+          : 'Select a session from the list to view its details and run actions'}
+      </p>
     </div>
   )
 }
@@ -227,7 +159,7 @@ export function SessionsPage() {
   const [search, setSearch] = useState('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
-  const [role, setRole] = useState<OperatorRole>('')
+  const [role, setRole] = useState<string>('')
 
   const [rows, setRows] = useState<SessionSummary[]>([])
   const [selectedId, setSelectedId] = useState('')
@@ -236,14 +168,12 @@ export function SessionsPage() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [error, setError] = useState('')
   const [detailError, setDetailError] = useState('')
-  const [staleWarning, setStaleWarning] = useState('')
   const detailRequestSeq = useRef(0)
   const refreshRequestSeq = useRef(0)
   const debouncedSearch = useDebouncedValue(search, 180)
 
   useEffect(() => {
     let active = true
-
     async function bootstrap() {
       try {
         const [siteRes, me] = await Promise.all([getSites(), getMe()])
@@ -251,43 +181,31 @@ export function SessionsPage() {
         setSites(siteRes.rows)
         setSiteCode(siteRes.rows[0]?.siteCode || '')
         setRole(me.role)
-      } catch (bootstrapError) {
+      } catch (e) {
         if (!active) return
-        setError(bootstrapError instanceof Error ? bootstrapError.message : String(bootstrapError))
+        setError(e instanceof Error ? e.message : String(e))
       }
     }
-
     void bootstrap()
-    return () => {
-      active = false
-    }
+    return () => { active = false }
   }, [])
 
   useEffect(() => {
     let active = true
-
     async function loadLanes() {
-      if (!siteCode) {
-        setLanes([])
-        return
-      }
+      if (!siteCode) { setLanes([]); return }
       try {
         const laneRes = await getLanes(siteCode)
         if (!active) return
         setLanes(laneRes.rows)
-        if (laneCode && !laneRes.rows.some((lane) => lane.laneCode === laneCode)) {
-          setLaneCode('')
-        }
+        if (laneCode && !laneRes.rows.some((l) => l.laneCode === laneCode)) setLaneCode('')
       } catch {
         if (!active) return
         setLanes([])
       }
     }
-
     void loadLanes()
-    return () => {
-      active = false
-    }
+    return () => { active = false }
   }, [siteCode, laneCode])
 
   async function loadDetail(sessionId: string) {
@@ -299,9 +217,9 @@ export function SessionsPage() {
       if (requestSeq !== detailRequestSeq.current) return false
       setDetail(nextDetail)
       return true
-    } catch (detailLoadError) {
+    } catch (e) {
       if (requestSeq !== detailRequestSeq.current) return false
-      setDetailError(detailLoadError instanceof Error ? detailLoadError.message : String(detailLoadError))
+      setDetailError(e instanceof Error ? e.message : String(e))
       setDetail(null)
       return false
     } finally {
@@ -314,7 +232,6 @@ export function SessionsPage() {
     try {
       setLoading(true)
       setError('')
-
       const data = await measureAsync('sessions-refresh', () => getSessions({
         siteCode: siteCode || undefined,
         laneCode: laneCode || undefined,
@@ -331,33 +248,23 @@ export function SessionsPage() {
       const nextSelectedId =
         preferredId && data.rows.some((row) => String(row.sessionId) === String(preferredId))
           ? String(preferredId)
-          : data.rows[0]
-            ? String(data.rows[0].sessionId)
-            : ''
+          : data.rows[0] ? String(data.rows[0].sessionId) : ''
 
       setSelectedId(nextSelectedId)
 
       if (nextSelectedId) {
         const detailOk = await loadDetail(nextSelectedId)
         if (requestSeq !== refreshRequestSeq.current) return false
-        if (detailOk) {
-          setStaleWarning('')
-        } else {
-          setStaleWarning('Session detail could not be refreshed after the latest list sync. State may be stale until you reload detail again.')
-        }
         return detailOk
       }
-
       setDetail(null)
       setDetailError('')
-      setStaleWarning('')
       return true
-    } catch (loadError) {
+    } catch (e) {
       if (requestSeq !== refreshRequestSeq.current) return false
-      setError(loadError instanceof Error ? loadError.message : String(loadError))
+      setError(e instanceof Error ? e.message : String(e))
       setRows([])
       setDetail(null)
-      setStaleWarning('Session list refresh failed. Any previously visible state may now be stale.')
       return false
     } finally {
       if (requestSeq === refreshRequestSeq.current) setLoading(false)
@@ -372,7 +279,6 @@ export function SessionsPage() {
   const filteredRows = useMemo(() => {
     const keyword = debouncedSearch.trim().toLowerCase()
     if (!keyword) return rows
-
     return rows.filter((row) => {
       const haystack = [
         row.sessionId,
@@ -381,15 +287,13 @@ export function SessionsPage() {
         row.laneCode,
         row.plateCompact || '',
         row.status,
-      ]
-        .join(' ')
-        .toLowerCase()
-
+      ].join(' ').toLowerCase()
       return haystack.includes(keyword)
     })
   }, [debouncedSearch, rows])
 
   const activeDetail = detail && String(detail.session.sessionId) === String(selectedId) ? detail : null
+  const filtersActive = Boolean(siteCode || laneCode || status || direction || debouncedSearch || from || to)
 
   function resetFilters() {
     setLaneCode('')
@@ -405,14 +309,9 @@ export function SessionsPage() {
       <PageHeader
         eyebrow="Operations"
         title="Session History"
-        description="Look up a session, review the timeline, and run permitted actions without leaving this screen."
-        badges={[
-          { label: 'history', variant: 'secondary' },
-          { label: role ? `role ${role}` : 'role —', variant: 'muted' },
-        ]}
         actions={
-          <Button variant="outline" onClick={() => void refresh(selectedId || undefined)} disabled={loading}>
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+          <Button variant="outline" size="lg" onClick={() => void refresh(selectedId || undefined)} disabled={loading} className="h-11 px-5 gap-2">
+            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <RefreshCw className="h-5 w-5" />}
             Refresh
           </Button>
         }
@@ -440,102 +339,151 @@ export function SessionsPage() {
         onReset={resetFilters}
       />
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(360px,0.9fr)_minmax(0,1.1fr)]">
-        <SessionTable
-          rows={filteredRows}
-          selectedId={selectedId}
-          loading={loading}
-          error={error}
-          onSelect={(sessionId) => {
-            setSelectedId(sessionId)
-            setStaleWarning('')
-            void loadDetail(sessionId).then((ok) => {
-              if (!ok) {
-                setStaleWarning('Session detail could not be refreshed for the selected row. State may be stale until you retry refresh.')
-              }
-            })
-          }}
-        />
+      {/* Error banner */}
+      {error ? (
+        <div className="flex items-start gap-3 rounded-2xl border border-destructive/25 bg-destructive/10 px-5 py-4 text-sm text-destructive">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+          <span className="break-all">{error}</span>
+        </div>
+      ) : null}
 
-        <div className="space-y-5 xl:sticky xl:top-20 xl:self-start">
-          <Card className="border-border/80 bg-card/95 shadow-[0_18px_60px_rgba(0,0,0,0.12)]">
-            <CardHeader>
-              <CardTitle>Session detail</CardTitle>
-              <CardDescription>Session detail — review context, check permitted actions, and track processing state.</CardDescription>
-            </CardHeader>
+      <div className="grid gap-6 xl:grid-cols-[400px_1fr] xl:items-start">
+        {/* Left: Session list */}
+        <div className="rounded-2xl border border-border/70 bg-card/95 shadow-[0_8px_32px_rgba(0,0,0,0.10)] overflow-hidden">
+          <div className="flex items-center justify-between border-b border-border/70 px-5 py-4 bg-gradient-to-r from-primary/5 via-transparent to-transparent">
+            <div>
+              <p className="text-base font-bold">Sessions</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {filteredRows.length} result{filteredRows.length !== 1 ? 's' : ''}
+                {filtersActive ? ' · filtered' : ''}
+              </p>
+            </div>
+            {filtersActive && (
+              <Badge variant="amber" className="text-xs px-2.5 py-1 shrink-0">filtered</Badge>
+            )}
+          </div>
+          <SessionTableRows
+            rows={filteredRows}
+            selectedId={selectedId}
+            loading={loading}
+            error={error}
+            onSelect={(sessionId) => {
+              setSelectedId(sessionId)
+              void loadDetail(sessionId)
+            }}
+          />
+        </div>
 
-            <CardContent className="space-y-4">
-              {staleWarning ? (
-                <div className="flex items-start gap-2 rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-4 text-sm text-amber-700 dark:text-amber-300">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                  <div>
-                    <p className="font-semibold">State may be stale</p>
-                    <p className="mt-1">{staleWarning}</p>
-                  </div>
+        {/* Right: Detail panel */}
+        <div className="xl:sticky xl:top-20 xl:self-start xl:space-y-0">
+          {/* Stale warning */}
+          {detailError ? (
+            <div className="mb-4 flex items-start gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 px-5 py-4 text-sm text-amber-700 dark:text-amber-300">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+              <span className="break-all">{detailError}</span>
+            </div>
+          ) : null}
+
+          {detailLoading ? (
+            <DetailSkeleton />
+          ) : !activeDetail ? (
+            <EmptyDetail rows={filteredRows.length} filtersActive={filtersActive} />
+          ) : (
+            <div className="space-y-0">
+              <QuickSummaryCard detail={activeDetail} />
+              <SessionDetailConsole
+                detail={activeDetail}
+                role={role as never}
+                onUpdated={() => refresh(String(activeDetail.session.sessionId))}
+              />
+              <SessionTimeline detail={activeDetail} />
+              {collectSessionMedia(activeDetail).length > 0 ? (
+                <div className="mt-4">
+                  <SessionMediaStrip detail={activeDetail} />
                 </div>
               ) : null}
-
-              {detailLoading ? (
-                <div className="flex items-center gap-2 rounded-2xl border border-dashed border-border/80 bg-background/40 px-4 py-8 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Loading session detail...
-                </div>
-              ) : !activeDetail ? (
-                <div className="rounded-2xl border border-dashed border-border/80 bg-background/40 px-4 py-10 text-center text-sm text-muted-foreground">
-                  Select a session to view detail.
-                </div>
-              ) : (
-                <>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="secondary">{activeDetail.session.siteCode}</Badge>
-                    <Badge variant="outline">{activeDetail.session.gateCode}</Badge>
-                    <Badge variant={activeDetail.session.direction === 'ENTRY' ? 'entry' : 'exit'}>{activeDetail.session.laneCode}</Badge>
-                    <Badge variant={sessionVariant(activeDetail.session.status)}>{activeDetail.session.status}</Badge>
-                    {activeDetail.session.reviewRequired ? <Badge variant="amber">review required</Badge> : null}
-                  </div>
-
-                  {detailError ? (
-                    <div className="flex items-start gap-2 rounded-2xl border border-primary/25 bg-primary/10 px-4 py-4 text-sm text-primary">
-                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                      <span className="break-all">Live detail could not be refreshed for this session. {detailError}</span>
-                    </div>
-                  ) : null}
-
-                  {isSessionTerminal(activeDetail.session.status) ? (
-                    <div className="flex items-start gap-2 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-4 text-sm text-destructive">
-                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                      <div>
-                        <p className="font-semibold">Session is {activeDetail.session.status} — no further actions should be run</p>
-                        <p className="mt-1 text-destructive/80">The page remains readable, but mutate controls are locked by the live session state and backend allowedActions.</p>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  <div className="rounded-3xl border border-border/80 bg-muted/25 p-4">
-                    <SummaryRow label="Session" value={String(activeDetail.session.sessionId)} />
-                    <SummaryRow label="Plate" value={activeDetail.session.plateCompact || '—'} />
-                    <SummaryRow label="Opened at" value={new Date(activeDetail.session.openedAt).toLocaleString('vi-VN')} />
-                    <SummaryRow label="Resolved at" value={activeDetail.session.resolvedAt ? new Date(activeDetail.session.resolvedAt).toLocaleString('vi-VN') : '—'} />
-                    <SummaryRow label="RFID UID" value={activeDetail.session.rfidUid || '—'} />
-                    <SummaryRow label="Allowed actions" value={activeDetail.session.allowedActions.length > 0 ? activeDetail.session.allowedActions.join(', ') : 'none'} />
-                    <SummaryRow label="Counts" value={`${activeDetail.session.readCount} reads · ${activeDetail.session.decisionCount} decisions · ${activeDetail.session.barrierCommandCount} barriers`} />
-                  </div>
-
-                  <DetailActionBar
-                    detail={activeDetail}
-                    role={role}
-                    onUpdated={() => refresh(String(activeDetail.session.sessionId))}
-                  />
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          {activeDetail ? <SessionManualBarrierOverrideCard detail={activeDetail} role={role} onUpdated={() => refresh(String(activeDetail.session.sessionId))} /> : null}
-          {activeDetail ? <SessionTimeline detail={activeDetail} /> : null}
-          {activeDetail ? <SessionDetailConsole detail={activeDetail} /> : null}
+            </div>
+          )}
         </div>
       </div>
+    </div>
+  )
+}
+
+function SessionTableRows({
+  rows,
+  selectedId,
+  loading,
+  error,
+  onSelect,
+}: {
+  rows: SessionSummary[]
+  selectedId: string
+  loading: boolean
+  error: string
+  onSelect: (sessionId: string) => void
+}) {
+  return (
+    <div className="p-4">
+      {loading ? (
+        <div className="flex items-center gap-3 rounded-2xl border border-dashed border-border/80 px-5 py-12 text-sm text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          Loading…
+        </div>
+      ) : error ? (
+        <div className="flex items-start gap-3 rounded-2xl border border-destructive/25 bg-destructive/10 px-5 py-4 text-sm text-destructive">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+          <span className="break-all">{error}</span>
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-muted/20 px-5 py-16 text-center">
+          <ClipboardList className="h-10 w-10 text-muted-foreground/40" />
+          <p className="mt-4 text-base font-semibold text-foreground">No sessions</p>
+          <p className="mt-2 text-sm text-muted-foreground/70">Try widening the time range or removing filters.</p>
+        </div>
+      ) : (
+        <div className="space-y-3 max-h-[720px] overflow-y-auto pr-2 -mr-2">
+          {rows.map((row) => (
+            <button
+              key={String(row.sessionId)}
+              onClick={() => onSelect(String(row.sessionId))}
+              className={cn(
+                'w-full rounded-2xl border-2 px-4 py-4 text-left transition-all duration-200',
+                String(row.sessionId) === selectedId
+                  ? 'border-primary/50 bg-primary/10 shadow-lg shadow-primary/10'
+                  : 'border-border/70 bg-background/40 hover:bg-muted/50 hover:border-primary/30 hover:shadow-md',
+              )}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
+                    <Badge variant={row.direction === 'ENTRY' ? 'entry' : 'exit'} className="text-xs px-2 py-0.5">
+                      {row.direction}
+                    </Badge>
+                    <Badge variant={sessionVariant(row.status)} className="text-xs px-2 py-0.5">{row.status}</Badge>
+                    {row.reviewRequired ? <Badge variant="amber" className="text-xs px-2 py-0.5">review</Badge> : null}
+                  </div>
+                  <p className="mb-1.5 font-mono-data text-sm font-bold">
+                    {row.siteCode} / {row.gateCode} / {row.laneCode}
+                  </p>
+                  <p className="mb-1 text-xs text-muted-foreground font-mono-data">
+                    {String(row.sessionId)}
+                    {row.plateCompact ? ` · ${row.plateCompact}` : ''}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-xs font-mono-data text-muted-foreground font-medium">
+                    {new Date(row.openedAt).toLocaleString('vi-VN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                  <p className="mt-1 text-xs font-mono-data text-muted-foreground/70">
+                    {row.readCount}r · {row.decisionCount}d
+                  </p>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

@@ -20,7 +20,7 @@ export function SubscriptionsPage() {
   })
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <PageHeader
         eyebrow="Operations"
         title="Subscriptions"
@@ -40,8 +40,8 @@ export function SubscriptionsPage() {
               error={mutations.state.action.toLowerCase().includes('create subscription') ? mutations.state.error : ''}
               onCreate={mutations.createSubscription}
             />
-            <Button variant="outline" onClick={() => void workspace.reloadList()} disabled={workspace.list.loading || mutations.state.busy}>
-              {workspace.list.loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            <Button variant="outline" size="lg" onClick={() => void workspace.reloadList()} disabled={workspace.list.loading || mutations.state.busy} className="h-11 px-5 gap-2">
+              {workspace.list.loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <RefreshCw className="h-5 w-5" />}
               Refresh
             </Button>
           </div>
@@ -74,7 +74,7 @@ export function SubscriptionsPage() {
         onRefresh={() => void workspace.reloadList()}
       />
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(360px,0.9fr)_minmax(0,1.1fr)]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(400px,0.9fr)_minmax(0,1.1fr)]">
         <SubscriptionsListPane
           rows={workspace.list.rows}
           selectedId={workspace.query.selectedId}

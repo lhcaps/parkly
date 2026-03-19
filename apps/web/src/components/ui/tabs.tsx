@@ -15,7 +15,7 @@ export function Tabs({ defaultValue, value, onValueChange, children, className }
 }
 
 export function TabsList({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div role="tablist" className={cn('flex items-center gap-0.5 rounded-lg bg-muted p-1 border border-border', className)}>{children}</div>
+  return <div role="tablist" className={cn('flex items-center gap-1 rounded-2xl border border-border bg-muted/50 p-1.5', className)}>{children}</div>
 }
 
 export function TabsTrigger({ value, children, className }: { value: string; children: React.ReactNode; className?: string }) {
@@ -23,8 +23,8 @@ export function TabsTrigger({ value, children, className }: { value: string; chi
   const isActive = active === value
   return (
     <button role="tab" aria-selected={isActive} onClick={() => setActive(value)}
-      className={cn('inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        isActive ? 'bg-card text-foreground shadow-sm border border-border' : 'text-muted-foreground hover:text-foreground hover:bg-accent', className)}>
+      className={cn('inline-flex items-center gap-2 whitespace-nowrap rounded-xl px-5 py-3 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+        isActive ? 'bg-card text-foreground shadow-lg border border-border' : 'text-muted-foreground hover:text-foreground hover:bg-accent/70', className)}>
       {children}
     </button>
   )
@@ -33,5 +33,5 @@ export function TabsTrigger({ value, children, className }: { value: string; chi
 export function TabsContent({ value, children, className }: { value: string; children: React.ReactNode; className?: string }) {
   const { active } = React.useContext(TabsContext)
   if (active !== value) return null
-  return <div role="tabpanel" className={cn('animate-fade-in', className)}>{children}</div>
+  return <div role="tabpanel" className={cn('animate-fade-in mt-2', className)}>{children}</div>
 }

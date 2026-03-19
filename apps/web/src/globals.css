@@ -5,36 +5,70 @@
 @tailwind utilities;
 
 @layer base {
+  /* Chế độ sáng (mặc định khi không có lớp .dark trên <html>) */
   :root {
-    --background:  222 18% 6.5%;
-    --foreground:  220 15% 92%;
+    --background: 210 25% 98%;
+    --foreground: 224 71% 4%;
 
-    --card:        222 16% 9.5%;
+    --card: 0 0% 100%;
+    --card-foreground: 224 71% 4%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 71% 4%;
+
+    --primary: 38 92% 48%;
+    --primary-foreground: 26 100% 12%;
+
+    --secondary: 210 20% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 210 20% 96%;
+    --muted-foreground: 215 16% 40%;
+
+    --accent: 210 24% 94%;
+    --accent-foreground: 222 47% 11%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 32% 88%;
+    --input: 214 32% 88%;
+    --ring: 38 92% 48%;
+
+    --radius: 0.625rem;
+
+    --success: 158 64% 36%;
+    --success-foreground: 158 100% 98%;
+  }
+
+  .dark {
+    --background: 222 18% 6.5%;
+    --foreground: 220 15% 92%;
+
+    --card: 222 16% 9.5%;
     --card-foreground: 220 15% 92%;
 
-    --popover:     222 16% 10%;
+    --popover: 222 16% 10%;
     --popover-foreground: 220 15% 92%;
 
-    --primary:     38 96% 56%;
+    --primary: 38 96% 56%;
     --primary-foreground: 38 100% 6%;
 
-    --secondary:   222 14% 13%;
+    --secondary: 222 14% 13%;
     --secondary-foreground: 220 12% 65%;
 
-    --muted:       222 14% 12%;
+    --muted: 222 14% 12%;
     --muted-foreground: 220 10% 44%;
 
-    --accent:      222 14% 14%;
+    --accent: 222 14% 14%;
     --accent-foreground: 220 15% 92%;
 
     --destructive: 0 72% 52%;
     --destructive-foreground: 0 0% 98%;
 
     --border: 222 14% 15%;
-    --input:  222 14% 13%;
-    --ring:   38 95% 56%;
-
-    --radius: 0.625rem;
+    --input: 222 14% 13%;
+    --ring: 38 95% 56%;
 
     --success: 158 64% 40%;
     --success-foreground: 158 100% 6%;

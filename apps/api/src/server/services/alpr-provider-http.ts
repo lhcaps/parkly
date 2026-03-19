@@ -148,7 +148,11 @@ async function appendUploadFileIfNeeded(form: FormData, imagePath: string | null
   const absolutePath = String(imagePath ?? '').trim()
   if (!absolutePath) return false
 
+  const MAX_PROVIDER_UPLOAD_BYTES = 10 * 1024 * 1024 // 10 MB cap for provider uploads
   const content = await readFile(absolutePath)
+  if (content.length > MAX_PROVIDER_UPLOAD_BYTES) {
+    return false
+  }
   const filename = path.basename(absolutePath) || 'upload.jpg'
   const blob = new Blob([content])
   for (const fieldName of fieldNames) form.set(fieldName, blob, filename)
@@ -181,9 +185,20 @@ export async function callAlprHttpProvider(args: CallAlprHttpProviderArgs): Prom
 
     const latencyMs = Date.now() - startedAt
     const contentType = String(response.headers.get('content-type') ?? '').toLowerCase()
-    const payload = contentType.includes('application/json')
-      ? await response.json()
-      : { rawText: await response.text() }
+    let payload: unknown
+    if (contentType.includes('application/json')) {
+      try {
+        payload = await response.json()
+      } catch {
+        payload = { rawText: await response.text().catch(() => '') }
+      }
+    } else {
+      try {
+        payload = { rawText: await response.text() }
+      } catch {
+        payload = {}
+      }
+    }
 
     if (!response.ok) {
       return {

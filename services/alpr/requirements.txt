@@ -15,15 +15,21 @@ ultralytics==8.3.52
 # PaddlePaddle: use GPU build if you have CUDA, otherwise CPU fallback.
 #   GPU: pip install paddlepaddle-gpu  (or paddlepaddle-gpu==3.3.0)
 #   CPU: pip install paddlepaddle==3.3.0
-paddlepaddle==3.3.0
+paddlepaddle==2.5.2
 
-# PaddleOCR — works with paddlepaddle 3.x
-paddleocr==3.4.0
+# PaddleOCR 2.10.0 — Windows CPU compatible (works with paddlepaddle 2.5.x)
+paddleocr==2.10.0
 
 # ── Utilities ────────────────────────────────────────────────────────────────
 numpy==1.26.4
 Pillow==10.4.0
 opencv-python-headless==4.10.0.84   # headless = no GUI dep, works in server env
+
+# Fallback OCR if PaddleOCR fails on Windows CPU (oneDNN/PIR errors)
+# Requires Tesseract OCR to be installed on the system.
+# Windows: Download from https://github.com/UB-Mannheim/tesseract/wiki
+# Then set TESSERACT_CMD env var to the tesseract executable path if not in PATH
+pytesseract==0.3.10
 
 # ── HTTP client (for image URL fetching) ─────────────────────────────────────
 httpx==0.27.2

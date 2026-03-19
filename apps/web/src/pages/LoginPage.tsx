@@ -1,7 +1,9 @@
 import { useEffect, useRef, type CSSProperties } from 'react'
+import { useTranslation } from 'react-i18next'
 import { LoginPanel } from '@/features/auth/components/LoginPanel'
 
 export function LoginPage() {
+  const { t } = useTranslation()
   const rootRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -41,27 +43,27 @@ export function LoginPage() {
             </div>
             <div>
               <p className="font-mono-data text-[11px] uppercase tracking-[0.22em] text-muted-foreground/70">
-                Parkly Console
+                {t('loginPage.brand')}
               </p>
               <p className="mt-1 text-[11px] text-muted-foreground/55">
-                Authenticated role decides the workspace.
+                {t('loginPage.subtitle')}
               </p>
             </div>
           </div>
           <span className="font-mono-data text-[10px] uppercase tracking-[0.18em] text-muted-foreground/40">
-            Sign in
+            {t('loginPage.signInMark')}
           </span>
         </div>
 
-        <div className="flex flex-1 items-center justify-center px-4 py-8 sm:px-6 lg:px-8">
-          <div className="w-full max-w-5xl">
+        <div className="flex flex-1 flex-col items-center justify-center px-4 py-6 sm:px-6 sm:py-10">
+          <div className="w-full max-w-[min(100%,26rem)] shrink-0">
             <LoginPanel />
           </div>
         </div>
 
         <div className="px-8 py-4 text-center">
           <p className="font-mono-data text-[10px] uppercase tracking-[0.16em] text-muted-foreground/30">
-            Secure operations console · Role policy is enforced after authentication
+            {t('loginPage.footer')}
           </p>
         </div>
       </div>
