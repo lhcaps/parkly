@@ -1,0 +1,57 @@
+groups:
+  - name: parkly-platform
+    rules:
+      - alert: ParklyRedisDown
+        expr: redis_up == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: redis
+        annotations:
+          summary: Redis is unavailable
+          description: Parkly API is reporting redis_up == 0 for more than 30 seconds.
+
+      - alert: ParklyOutboxBacklogHigh
+        expr: sum(gate_outbox_backlog_size) > 100
+        for: 5m
+        labels:
+          severity: critical
+          service: outbox
+        annotations:
+          summary: Outbox backlog is growing
+          description: Combined gate_outbox_backlog_size has exceeded 100 for 5 minutes.
+
+      - alert: ParklyDeviceOffline
+        expr: sum(gate_device_offline_count) > 0
+        for: 5m
+        labels:
+          severity: critical
+          service: topology
+        annotations:
+          summary: One or more devices are offline
+          description: gate_device_offline_count indicates at least one offline device for 5 minutes.
+
+      - alert: ParklyReviewQueueGrowing
+        expr: sum(gate_review_queue_size) > 20
+        for: 10m
+        labels:
+          severity: warning
+          service: review-queue
+        annotations:
+          summary: Review queue is growing
+          description: Combined gate_review_queue_size has stayed above 20 for 10 minutes.
+
+      - alert: ParklyOperationalErrorRateHigh
+        expr: |
+          (
+            sum(rate(parkly_operational_requests_total{outcome="ERROR"}[5m]))
+            /
+            clamp_min(sum(rate(parkly_operational_requests_total[5m])), 1)
+          ) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          service: api
+        annotations:
+          summary: Operational error rate is above 5%
+          description: parkly_operational_requests_total is reporting an error ratio above 5 percent for 10 minutes.

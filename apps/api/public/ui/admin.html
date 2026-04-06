@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Admin — Parkly</title>
+    <link rel="stylesheet" href="/ui/styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="topbar">
+        <div class="brand">
+          <div class="logo"></div>
+          <div>
+            <div style="font-weight:700">Admin</div>
+            <div class="muted" style="font-size:12px">Tariffs/Quote • Reports • Shift close • Outbox monitor</div>
+          </div>
+        </div>
+        <div class="nav">
+          <a href="/ui/">Home</a>
+          <a href="/ui/simulator.html">Gate Simulator</a>
+          <a href="/ui/dashboard.html">Dashboard</a>
+          <a href="/docs" target="_blank" rel="noreferrer">Swagger</a>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h2>Quick actions</h2>
+          <div class="row">
+            <div>
+              <label>siteCode</label>
+              <input id="siteCode" value="SITE_HCM_01" />
+            </div>
+            <div>
+              <label>vehicleType</label>
+              <select id="vehicleType">
+                <option value="CAR">CAR</option>
+                <option value="MOTORBIKE">MOTORBIKE</option>
+              </select>
+            </div>
+          </div>
+          <div class="btns">
+            <button class="primary" id="loadTariffs">Load tariffs</button>
+            <button id="runReport">Reports summary</button>
+            <button id="listOutbox">List outbox</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Auth bar</h2>
+          <div class="row">
+            <div>
+              <label>Role</label>
+              <select id="demoRole">
+                <option selected>ADMIN</option>
+                <option>OPS</option>
+                <option>GUARD</option>
+                <option>CASHIER</option>
+                <option>WORKER</option>
+              </select>
+            </div>
+            <div>
+              <label>Bearer token</label>
+              <input id="demoToken" placeholder="VD: admin_dev_token_change_me" />
+            </div>
+          </div>
+          <div class="btns">
+            <button class="primary" id="saveAuth">Save</button>
+            <button class="danger" id="clearAuth">Clear</button>
+          </div>
+          <div class="muted" style="margin-top:10px">Tariff/Shift cần profile <b>MVP</b> (PARKLY_APP_PROFILE=MVP + pnpm db:grant:app).</div>
+        </div>
+      </div>
+
+      <div class="two" style="margin-top:16px">
+        <div class="card">
+          <h2>Tariff quote (demo)</h2>
+          <div class="row">
+            <div>
+              <label>entryTime</label>
+              <input id="entryTime" />
+            </div>
+            <div>
+              <label>exitTime</label>
+              <input id="exitTime" />
+            </div>
+          </div>
+          <div class="btns">
+            <button class="primary" id="quote">Quote</button>
+          </div>
+          <div class="muted" style="margin-top:10px">Tip: để trống thì UI tự set entry=now-90m, exit=now.</div>
+        </div>
+
+        <div class="card">
+          <h2>Shift close (idempotent)</h2>
+          <div class="row">
+            <div>
+              <label>shiftCode</label>
+              <input id="shiftCode" value="SHIFT_DEMO_01" />
+            </div>
+            <div>
+              <label>idempotencyKey</label>
+              <input id="shiftIdem" placeholder="auto" />
+            </div>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <div>
+              <label>startTime</label>
+              <input id="shiftStart" />
+            </div>
+            <div>
+              <label>endTime</label>
+              <input id="shiftEnd" />
+            </div>
+          </div>
+          <div class="btns">
+            <button id="seedShift">Demo-seed</button>
+            <button class="primary" id="closeShift">Close shift</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <h2>Output</h2>
+        <div class="log" id="log"></div>
+      </div>
+
+    </div>
+
+    <script type="module">
+      import { apiFetch, bindAuthBar, uuid, appendLog, fmtJson, $, setText } from '/ui/common.js';
+      bindAuthBar();
+
+      function log(x) {
+        appendLog('log', typeof x === 'string' ? x : fmtJson(x));
+      }
+
+      function iso(dt) {
+        return new Date(dt).toISOString();
+      }
+
+      $('shiftIdem').value = `idem_${uuid().slice(0, 18)}`;
+
+      const now = new Date();
+      $('entryTime').value = new Date(now.getTime() - 90 * 60 * 1000).toISOString();
+      $('exitTime').value = now.toISOString();
+      $('shiftStart').value = new Date(now.getTime() - 4 * 60 * 60 * 1000).toISOString();
+      $('shiftEnd').value = now.toISOString();
+
+      $('loadTariffs').addEventListener('click', async () => {
+        try {
+          const siteCode = $('siteCode').value || 'SITE_HCM_01';
+          const res = await apiFetch(`/tariffs?siteCode=${encodeURIComponent(siteCode)}&limit=50`);
+          log({ tariffs: res });
+        } catch (e) {
+          log(`[ERR] tariffs: ${e.message}`);
+          if (e.payload) log(e.payload);
+        }
+      });
+
+      $('quote').addEventListener('click', async () => {
+        try {
+          const siteCode = $('siteCode').value || 'SITE_HCM_01';
+          const vehicleType = $('vehicleType').value || 'CAR';
+          const entryTime = $('entryTime').value ? $('entryTime').value : new Date(Date.now() - 90 * 60 * 1000).toISOString();
+          const exitTime = $('exitTime').value ? $('exitTime').value : new Date().toISOString();
+
+          const res = await apiFetch('/tariffs/quote', {
+            method: 'POST',
+            body: JSON.stringify({ siteCode, vehicleType, entryTime, exitTime }),
+          });
+          log({ quote: res });
+        } catch (e) {
+          log(`[ERR] quote: ${e.message}`);
+          if (e.payload) log(e.payload);
+        }
+      });
+
+      $('runReport').addEventListener('click', async () => {
+        try {
+          const siteCode = $('siteCode').value || 'SITE_HCM_01';
+          const res = await apiFetch(`/reports/summary?siteCode=${encodeURIComponent(siteCode)}`);
+          log({ reports: res });
+        } catch (e) {
+          log(`[ERR] reports: ${e.message}`);
+        }
+      });
+
+      $('listOutbox').addEventListener('click', async () => {
+        try {
+          const siteCode = $('siteCode').value || 'SITE_HCM_01';
+          const res = await apiFetch(`/outbox?siteCode=${encodeURIComponent(siteCode)}&limit=30`);
+          log({ outbox: res });
+        } catch (e) {
+          log(`[ERR] outbox: ${e.message}`);
+        }
+      });
+
+      $('seedShift').addEventListener('click', async () => {
+        try {
+          const siteCode = $('siteCode').value || 'SITE_HCM_01';
+          const res = await apiFetch('/shift/demo-seed', { method: 'POST', body: JSON.stringify({ siteCode }) });
+          log({ shift_demo_seed: res });
+        } catch (e) {
+          log(`[ERR] shift demo-seed: ${e.message}`);
+          if (e.payload) log(e.payload);
+        }
+      });
+
+      $('closeShift').addEventListener('click', async () => {
+        try {
+          const siteCode = $('siteCode').value || 'SITE_HCM_01';
+          const shiftCode = $('shiftCode').value || 'SHIFT_DEMO_01';
+          const startTime = $('shiftStart').value || new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
+          const endTime = $('shiftEnd').value || new Date().toISOString();
+          const idempotencyKey = $('shiftIdem').value || `idem_${uuid().slice(0, 18)}`;
+          $('shiftIdem').value = idempotencyKey;
+
+          const res = await apiFetch('/shift/close', {
+            method: 'POST',
+            body: JSON.stringify({ siteCode, shiftCode, startTime, endTime, idempotencyKey }),
+          });
+          log({ shift_close: res });
+        } catch (e) {
+          log(`[ERR] shift close: ${e.message}`);
+          if (e.payload) log(e.payload);
+        }
+      });
+    </script>
+  </body>
+</html>

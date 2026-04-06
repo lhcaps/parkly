@@ -1,0 +1,16 @@
+-- PR09 - extend gate decision codes for subscription/VIP decision paths
+
+ALTER TABLE gate_decisions
+  MODIFY COLUMN decision_code ENUM(
+    'AUTO_APPROVED',
+    'REVIEW_REQUIRED',
+    'AUTO_DENIED',
+    'PAYMENT_REQUIRED',
+    'TICKET_NOT_FOUND',
+    'PLATE_RFID_MISMATCH',
+    'ANTI_PASSBACK_BLOCKED',
+    'DEVICE_DEGRADED',
+    'SUBSCRIPTION_AUTO_APPROVED',
+    'SUBSCRIPTION_EXIT_BYPASS_PAYMENT',
+    'SUBSCRIPTION_REVIEW_REQUIRED'
+  ) NOT NULL;

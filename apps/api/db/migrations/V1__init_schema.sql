@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS parking_sites (
+  site_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  site_code VARCHAR(32) NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  timezone VARCHAR(64) NOT NULL DEFAULT 'Asia/Ho_Chi_Minh',
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_site_code (site_code)
+) ENGINE=InnoDB;

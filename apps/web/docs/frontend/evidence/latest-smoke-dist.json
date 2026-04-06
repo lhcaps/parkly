@@ -1,0 +1,112 @@
+{
+  "startedAt": "2026-04-01T08:26:51.852Z",
+  "mode": "dist",
+  "baseUrl": "http://127.0.0.1:4174",
+  "api": {
+    "skipped": true,
+    "ok": true,
+    "message": "Bỏ qua API health vì chưa truyền --apiUrl hoặc SMOKE_API_URL."
+  },
+  "routes": [
+    {
+      "name": "login",
+      "path": "/login",
+      "status": 200,
+      "ok": true,
+      "durationMs": 13,
+      "bodyHint": "<!doctype html> <html lang=\"vi\" class=\"dark\"> <head> <meta charset=\"UTF-8\" /> <meta name=\"viewport\" content=\"w"
+    },
+    {
+      "name": "overview",
+      "path": "/overview",
+      "status": 200,
+      "ok": true,
+      "durationMs": 3,
+      "bodyHint": "<!doctype html> <html lang=\"vi\" class=\"dark\"> <head> <meta charset=\"UTF-8\" /> <meta name=\"viewport\" content=\"w"
+    },
+    {
+      "name": "run-lane",
+      "path": "/run-lane?siteCode=SITE_HCM_01&gateCode=GATE_01&laneCode=GATE_01_ENTRY",
+      "status": 200,
+      "ok": true,
+      "durationMs": 1,
+      "bodyHint": "<!doctype html> <html lang=\"vi\" class=\"dark\"> <head> <meta charset=\"UTF-8\" /> <meta name=\"viewport\" content=\"w"
+    },
+    {
+      "name": "review-queue",
+      "path": "/review-queue?siteCode=SITE_HCM_01&status=OPEN&q=43A&reviewId=RV-1001",
+      "status": 200,
+      "ok": true,
+      "durationMs": 2,
+      "bodyHint": "<!doctype html> <html lang=\"vi\" class=\"dark\"> <head> <meta charset=\"UTF-8\" /> <meta name=\"viewport\" content=\"w"
+    },
+    {
+      "name": "session-history",
+      "path": "/session-history?siteCode=SITE_HCM_01&status=OPEN&q=43A&sessionId=GS-1001",
+      "status": 200,
+      "ok": true,
+      "durationMs": 1,
+      "bodyHint": "<!doctype html> <html lang=\"vi\" class=\"dark\"> <head> <meta charset=\"UTF-8\" /> <meta name=\"viewport\" content=\"w"
+    },
+    {
+      "name": "sync-outbox",
+      "path": "/sync-outbox?siteCode=SITE_HCM_01&status=FAILED&quick=failed&outboxId=OB-1001",
+      "status": 200,
+      "ok": true,
+      "durationMs": 2,
+      "bodyHint": "<!doctype html> <html lang=\"vi\" class=\"dark\"> <head> <meta charset=\"UTF-8\" /> <meta name=\"viewport\" content=\"w"
+    },
+    {
+      "name": "reports",
+      "path": "/reports?siteCode=SITE_HCM_01&days=7",
+      "status": 200,
+      "ok": true,
+      "durationMs": 1,
+      "bodyHint": "<!doctype html> <html lang=\"vi\" class=\"dark\"> <head> <meta charset=\"UTF-8\" /> <meta name=\"viewport\" content=\"w"
+    },
+    {
+      "name": "subscriptions",
+      "path": "/subscriptions?siteCode=SITE_HCM_01&id=sub_demo_01&tab=vehicles",
+      "status": 200,
+      "ok": true,
+      "durationMs": 1,
+      "bodyHint": "<!doctype html> <html lang=\"vi\" class=\"dark\"> <head> <meta charset=\"UTF-8\" /> <meta name=\"viewport\" content=\"w"
+    },
+    {
+      "name": "parking-live",
+      "path": "/parking-live?siteCode=SITE_HCM_01&floor=F1&density=compact",
+      "status": 200,
+      "ok": true,
+      "durationMs": 3,
+      "bodyHint": "<!doctype html> <html lang=\"vi\" class=\"dark\"> <head> <meta charset=\"UTF-8\" /> <meta name=\"viewport\" content=\"w"
+    },
+    {
+      "name": "mobile-camera-pair",
+      "path": "/mobile-camera-pair",
+      "status": 200,
+      "ok": true,
+      "durationMs": 1,
+      "bodyHint": "<!doctype html> <html lang=\"vi\" class=\"dark\"> <head> <meta charset=\"UTF-8\" /> <meta name=\"viewport\" content=\"w"
+    },
+    {
+      "name": "mobile-capture",
+      "path": "/mobile-capture?siteCode=SITE_HCM_01&laneCode=GATE_01_ENTRY",
+      "status": 200,
+      "ok": true,
+      "durationMs": 1,
+      "bodyHint": "<!doctype html> <html lang=\"vi\" class=\"dark\"> <head> <meta charset=\"UTF-8\" /> <meta name=\"viewport\" content=\"w"
+    }
+  ],
+  "passCount": 11,
+  "failCount": 0,
+  "preconditions": [
+    "desktop và iPhone cùng subnet",
+    "web bind 0.0.0.0 hoặc origin LAN đúng",
+    "API reachable từ mobile device",
+    "device secret đúng"
+  ],
+  "notes": [
+    "Smoke script này chỉ chứng minh shell route + health availability. Nó không thay thế operator flow pair -> heartbeat -> capture -> review.",
+    "Evidence thủ công phải lưu thêm screenshot QR origin, mobile context summary, requestId của heartbeat/capture và terminal lock banner nếu có."
+  ]
+}

@@ -1,0 +1,1965 @@
+{
+  "navGroup": {
+    "Operations": "Vận hành",
+    "Monitoring": "Giám sát",
+    "Capture": "Capture",
+    "System": "Hệ thống"
+  },
+  "route": {
+    "overview": {
+      "label": "Tổng quan",
+      "shortLabel": "Tổng quan",
+      "description": "Trang tiêu điểm ca shift: trạng thái hàng đợi, cảnh báo lane và sức khỏe hệ thống."
+    },
+    "runLane": {
+      "label": "Vận hành lane",
+      "shortLabel": "Vận hành lane",
+      "description": "Xử lý phương tiện qua lane — từ capture đến quyết định và điều khiển barrier."
+    },
+    "reviewQueue": {
+      "label": "Hàng đợi kiểm tra",
+      "shortLabel": "Kiểm tra",
+      "description": "Tiến hành và giải quyết các trường hợp cần xác nhận thủ công."
+    },
+    "sessionHistory": {
+      "label": "Lịch sử phiên",
+      "shortLabel": "Phiên",
+      "description": "Tìm kiếm phiên, quyết định, sự kiện barrier và chứng cứ theo thời gian."
+    },
+    "laneMonitor": {
+      "label": "Giám sát lane",
+      "shortLabel": "Giám sát lane",
+      "description": "Sức khỏe lane trực tiếp, trạng thái barrier và phiên mới nhất theo trang."
+    },
+    "deviceHealth": {
+      "label": "Sức khỏe thiết bị",
+      "shortLabel": "Thiết bị",
+      "description": "Heartbeat và sự suy giảm của thiết bị theo trang và lane."
+    },
+    "syncOutbox": {
+      "label": "Đồng bộ outbox",
+      "shortLabel": "Outbox",
+      "description": "Hàng đợi đồng bộ — retry, lỗi và trạng thái chuyển phát."
+    },
+    "reports": {
+      "label": "Báo cáo",
+      "shortLabel": "Báo cáo",
+      "description": "Tổng hợp vận hành theo trang và khung thời gian."
+    },
+    "mobileCameraPair": {
+      "label": "Ghép điện thoại",
+      "shortLabel": "Ghép điện thoại",
+      "description": "Ghép một thiết bị điện thoại vào lane để capture và heartbeat."
+    },
+    "captureDebug": {
+      "label": "Debug capture",
+      "shortLabel": "Capture",
+      "description": "Giám sát nguồn capture và kết quả ALPR cho việc chẩn đoán."
+    },
+    "subscriptions": {
+      "label": "Phiếu gửi",
+      "shortLabel": "Phiếu gửi",
+      "description": "Quản lý phiếu gửi xe — phương tiện, chỗ để xe và trạng thái.",
+      "newSubscription": "Phiếu gửi mới",
+      "createTitle": "Tạo phiếu gửi",
+      "createDescription": "Tạo một phiếu gửi mới cho trang, khách hàng, gói và thời hạn hiệu lực.",
+      "createButton": "Tạo phiếu gửi",
+      "createFooter": "Việc chọn khách hàng là thủ công ở giai đoạn này vì giao diện hiện tại chưa có endpoint tra cứu khách hàng.",
+      "site": "Trang",
+      "selectSite": "Chọn trang",
+      "allSites": "Tất cả trang",
+      "customerId": "Mã khách hàng",
+      "customerPlaceholder": "Nhập mã khách hàng",
+      "planType": "Loại gói",
+      "selectPlan": "Chọn loại gói",
+      "startDate": "Ngày bắt đầu",
+      "endDate": "Ngày kết thúc",
+      "validation": {
+        "siteRequired": "Vui lòng chọn trang.",
+        "customerRequired": "Vui lòng nhập mã khách hàng.",
+        "datesRequired": "Vui lòng chọn ngày bắt đầu và ngày kết thúc.",
+        "startBeforeEnd": "Ngày bắt đầu phải trước hoặc cùng ngày kết thúc."
+      }
+    },
+    "parkingLive": {
+      "label": "Bãi đỗ trực tiếp",
+      "shortLabel": "Bãi đỗ",
+      "description": "Tỷ lệ đỗ xe trực tiếp — bản đồ tầng, trạng thái chỗ để và chi tiết."
+    },
+    "settings": {
+      "label": "Cài đặt",
+      "shortLabel": "Cài đặt",
+      "description": "Mặc định, xác thực và chẩn đoán runtime."
+    },
+    "mobileCapture": {
+      "label": "Capture di động",
+      "shortLabel": "Di động",
+      "description": "Giao diện di động để capture và gửi ảnh."
+    },
+    "accountNav": {
+      "label": "Tài khoản",
+      "shortLabel": "Tài khoản",
+      "description": "Quản lý tài khoản người dùng, hồ sơ và vai trò."
+    },
+    "accounts": {
+      "label": "Tài khoản",
+      "shortLabel": "Tài khoản",
+      "description": "Quản lý tài khoản người dùng, hồ sơ và vai trò."
+    }
+  },
+  "role": {
+    "anonymous": {
+      "label": "Chưa đăng nhập",
+      "focusLabel": "Không có phiên hoạt động",
+      "forbiddenCopy": "Bạn cần phiên đã xác thực trước khi mở màn hình này.",
+      "badgeLabel": "CHƯA_ĐĂNG_NHẬP"
+    },
+    "ADMIN": {
+      "label": "Quản trị viên",
+      "focusLabel": "Giám sát hệ thống",
+      "forbiddenCopy": "Tuyến đường này nằm ngoài phạm vi phiên quản trị viên đang hoạt động.",
+      "badgeLabel": "ADMIN"
+    },
+    "SUPER_ADMIN": {
+      "label": "Super admin",
+      "focusLabel": "Điều khiển hệ thống toàn cục",
+      "forbiddenCopy": "Tuyến đường này nằm ngoài bề mặt kiểm soát super-admin.",
+      "badgeLabel": "SUPER_ADMIN"
+    },
+    "SITE_ADMIN": {
+      "label": "Quản trị trang",
+      "focusLabel": "Quản trị trang",
+      "forbiddenCopy": "Tuyến đường này nằm ngoài không gian làm việc quản trị trang hiện tại.",
+      "badgeLabel": "SITE_ADMIN"
+    },
+    "OPS": {
+      "label": "Vận hành",
+      "focusLabel": "Điều khiển vận hành",
+      "forbiddenCopy": "Tuyến đường này không thuộc chính sách không gian làm việc vận hành của bạn.",
+      "badgeLabel": "OPS"
+    },
+    "MANAGER": {
+      "label": "Quản lý",
+      "focusLabel": "Giám sát vận hành",
+      "forbiddenCopy": "Tuyến đường này nằm ngoài không gian làm việc xem xét và lập kế hoạch của quản lý.",
+      "badgeLabel": "MANAGER"
+    },
+    "OPERATOR": {
+      "label": "Điều hành",
+      "focusLabel": "Vận hành lane và hàng đợi",
+      "forbiddenCopy": "Tuyến đường này nằm ngoài không gian thực thi vận hành.",
+      "badgeLabel": "OPERATOR"
+    },
+    "GUARD": {
+      "label": "Bảo vệ",
+      "focusLabel": "Quyết định lane",
+      "forbiddenCopy": "Tuyến đường này nằm ngoài luồng công việc lane và chốt kiểm tra của bảo vệ.",
+      "badgeLabel": "GUARD"
+    },
+    "CASHIER": {
+      "label": "Thu ngân",
+      "focusLabel": "Theo dõi thanh toán",
+      "forbiddenCopy": "Tuyến đường này nằm ngoài báo cáo thu ngân và theo dõi thanh toán.",
+      "badgeLabel": "CASHIER"
+    },
+    "WORKER": {
+      "label": "Công nhân",
+      "focusLabel": "Giám sát theo dõi",
+      "forbiddenCopy": "Tuyến đường này nằm ngoài phạm vi giám sát và nền của công nhân.",
+      "badgeLabel": "WORKER"
+    },
+    "VIEWER": {
+      "label": "Người xem",
+      "focusLabel": "Giám sát chỉ đọc",
+      "forbiddenCopy": "Tuyến đường này nằm ngoài không gian làm việc chỉ đọc của người xem.",
+      "badgeLabel": "VIEWER"
+    }
+  },
+  "sidebar": {
+    "brandTitle": "Parkly Console",
+    "brandSubtitleOps": "Vận hành · Xem xét · Đồng bộ · Kiểm toán",
+    "brandSubtitleRole": "{{role}} · không gian chuẩn",
+    "closeNav": "Đóng menu",
+    "mainNavAria": "Điều hướng chính"
+  },
+  "topbar": {
+    "openMenu": "Mở menu",
+    "settings": "Cài đặt",
+    "signOut": "Đăng xuất",
+    "brandCrumb": "Parkly",
+    "consoleFallback": "Console",
+    "initialising": "Đang khởi tạo…",
+    "signedOut": "Đã đăng xuất",
+    "signingOut": "Đang đăng xuất…"
+  },
+  "auth": {
+    "bootingTitle": "Đang tải không gian làm việc bảo mật",
+    "bootingDesc": "Đang xác thực phiên, principal và tuyến đường đích hiện tại.",
+    "bootstrapFailedTitle": "Bootstrap phiên thất bại",
+    "bootstrapFallbackDesc": "Shell không thể xác minh ngữ cảnh người dùng cần thiết để mở không gian làm việc này.",
+    "bootstrapRetry": "Thử lại bootstrap",
+    "backSignIn": "Quay lại đăng nhập",
+    "forbiddenTitle": "Truy cập bị từ chối",
+    "forbiddenHint": "Thử lại bootstrap trước. Nếu vấn đề vẫn tiếp diễn, hãy đăng nhập lại và kiểm tra kết nối API.",
+    "routeBlockedTitle": "Tuyến đường bị chặn",
+    "requestedRoute": "Tuyến đường được yêu cầu",
+    "suggestedFallback": "Phương án dự phòng được đề xuất",
+    "requiredRoles": "Vai trò được phép",
+    "workspaceHome": "Trang chủ không gian làm việc",
+    "openFallback": "Mở phương án dự phòng",
+    "openHome": "Đi đến trang chủ",
+    "principal": "Tài khoản",
+    "siteScope": "Phạm vi trang",
+    "allSites": "Tất cả trang có thể truy cập",
+    "session": "Phiên",
+    "accessContext": "Ngữ cảnh truy cập",
+    "sessionState": "Trạng thái phiên",
+    "actor": "Actor",
+    "anonymousActor": "ẩn danh",
+    "allowedRolesLabel": "Vai trò được phép",
+    "unrestrictedRoles": "Không giới hạn",
+    "goAllowedRoute": "Đi đến tuyến được phép",
+    "goRoleHome": "Đi đến trang chủ vai trò",
+    "openSettings": "Mở Cài đặt"
+  },
+  "common": {
+    "loadingRoute": "Đang tải {{route}}…",
+    "loadingScreen": "Đang tải màn hình…",
+    "dash": "—",
+    "reloadApp": "Tải lại ứng dụng",
+    "backOverview": "Quay lại tổng quan",
+    "routeErrorTitle": "Không thể tải màn hình này",
+    "routeErrorDesc": "Đã xảy ra lỗi ở cấp tuyến đường. Quay lại trang chủ hoặc mở Cài đặt để kiểm tra phiên và API.",
+    "unknownError": "Lỗi tuyến đường không xác định",
+    "locale": "vi-VN",
+    "skipToMainContent": "Chuyển đến nội dung chính",
+    "dismissNotice": "Đóng thông báo",
+    "retry": "Thử lại",
+    "requestId": "requestId",
+    "hint": "gợi ý",
+    "refresh": "Làm mới"
+  },
+  "login": {
+    "title": "Đăng nhập Parkly Console",
+    "subtitle": "Vai trò của bạn sau khi đăng nhập quyết định không gian làm việc.",
+    "username": "Tên đăng nhập",
+    "password": "Mật khẩu",
+    "signIn": "Đăng nhập",
+    "signingIn": "Đang đăng nhập…",
+    "sessionDest": "Đích phiên",
+    "compatRole": "Vai trò tương thích (tùy chọn)",
+    "apiBase": "API",
+    "roleAuto": "Do backend gán",
+    "roleAutoDesc": "Luồng mặc định. Phiên đã xác thực của bạn quyết định không gian làm việc.",
+    "compatDemoDesc": "Ghi đè tương thích cho tài khoản demo {{role}}.",
+    "roleCompat": "Tương thích demo",
+    "policyShell": "Shell bootstrap gọi `/api/auth/me`.",
+    "policyAccess": "Sau khi đăng nhập hoặc đăng xuất, chuyển hướng theo chính sách vai trò và tuyến đường.",
+    "envHint": "Để trống `VITE_API_BASE_URL` để sử dụng Vite proxy trong phát triển cục bộ.",
+    "subtitleLong": "Quyền truy cập đến từ principal backend đã xác thực. Biểu mẫu đăng nhập không tự cấp quyền.",
+    "authBadge": "Xác thực",
+    "advancedOptions": "Tùy chọn tương thích nâng cao",
+    "demoRoleOverride": "Ghi đè vai trò demo",
+    "demoRoleHint": "Chỉ sử dụng khi API đăng nhập backend vẫn chạy ở chế độ tương thích demo. Sản xuất nên giữ vai trò do backend gán.",
+    "requestedRouteLabel": "Tuyến đường được yêu cầu",
+    "destRoleHome": "Trang chủ vai trò từ phiên đã xác thực.",
+    "destIfAllowed": "{{href}} nếu vai trò đã xác thực của bạn cho phép; nếu không thì mặc định vai trò.",
+    "destCompatPath": "Điều hướng đến {{path}} theo ghi đè tương thích.",
+    "mobileCapture": "Capture di động",
+    "bootstrapApiUsing": "API đang sử dụng:",
+    "bootstrapTimeoutBody": "Nếu bạn thấy timeout: khởi động API (cổng 3000), bind 0.0.0.0, hoặc để trống VITE_API_BASE_URL để sử dụng Vite proxy."
+  },
+  "loginPage": {
+    "brand": "Parkly Console",
+    "subtitle": "Vai trò của bạn sau khi đăng nhập quyết định không gian làm việc.",
+    "signInMark": "Đăng nhập",
+    "footer": "Console vận hành bảo mật · Chính sách vai trò được thực thi sau khi xác thực"
+  },
+  "laneContext": {
+    "title": "Bảng điều khiển ngữ cảnh lane",
+    "description": "Đăng ký topology. Nhà cung cấp cung cấp một scoped store không có tiêm trạng thái React chéo.",
+    "reload": "Tải lại",
+    "loading": "Đang tải",
+    "site": "Trang",
+    "gate": "Cổng",
+    "lane": "Lane",
+    "direction": "Hướng",
+    "primaryCamera": "Camera chính",
+    "loopSensor": "Cảm biến vòng",
+    "scopedStore": "scoped store",
+    "topologyError": "Lỗi tải topology",
+    "placeholderLoadingSite": "Đang tải trang…",
+    "placeholderSelectSite": "Chọn trang",
+    "placeholderSelectGateFirst": "Chọn trang trước",
+    "placeholderNoGate": "Không có cổng",
+    "placeholderSelectGate": "Chọn cổng",
+    "placeholderSelectLaneFirst": "Chọn cổng trước",
+    "placeholderNoLane": "Không có lane",
+    "placeholderSelectLane": "Chọn lane",
+    "unresolved": "Chưa giải quyết",
+    "scopeFooter": "Phạm vi này được giải phóng khi rời /run-lane — trạng thái không được chia sẻ với các màn hình khác.",
+    "scopeCreated": "đã tạo",
+    "statusIdle": "nhàn rỗi",
+    "statusLoading": "đang tải",
+    "statusReady": "sẵn sàng",
+    "statusError": "lỗi",
+    "chooseContext": "Chọn ngữ cảnh",
+    "laneDetails": "Chi tiết lane",
+    "devicesTitle": "Thiết bị",
+    "devicesCount": "Thiết bị",
+    "devicesCountValue": "{{count}} thiết bị",
+    "scopeTitle": "Phạm vi",
+    "scopeId": "ID Phạm vi",
+    "unassigned": "Chưa gán"
+  },
+  "direction": {
+    "ENTRY": "Vào",
+    "EXIT": "Ra"
+  },
+  "settingsPage": {
+    "eyebrow": "Hệ thống",
+    "title": "Cài đặt",
+    "description": "Chẩn đoán shell xác thực, token runtime và ngữ cảnh trình duyệt mặc định.",
+    "tabOperator": "Thiết lập điều hành",
+    "tabDeveloper": "Nhà phát triển / debug",
+    "tabAppearance": "Ngoại hình & ngôn ngữ",
+    "savedContext": "Ngữ cảnh mặc định đã được lưu.",
+    "resetContext": "Ngữ cảnh mặc định đã được đặt lại.",
+    "cacheCleared": "Bộ nhớ cache cục bộ ứng dụng đã được xóa cho trình duyệt này."
+  },
+  "appearance": {
+    "title": "Ngoại hình & ngôn ngữ",
+    "description": "Chế độ sáng/tối và ngôn ngữ UI. Tùy chọn được lưu trong trình duyệt này.",
+    "themeLabel": "Chế độ màu",
+    "themeDark": "Tối",
+    "themeLight": "Sáng",
+    "themeSystem": "Hệ thống",
+    "themeSystemDesc": "Tự động tối khi OS ưu tiên tối",
+    "themeLightDesc": "Chế độ sáng, dễ nhìn trong ánh sáng chói",
+    "themeDarkDesc": "Chế độ tối, giảm mỏi mắt vào ban đêm",
+    "themeHint": "Hệ thống theo tùy chọn tối/sáng của OS.",
+    "languageLabel": "Ngôn ngữ",
+    "languageVi": "Tiếng Việt",
+    "languageEn": "English",
+    "languageHint": "Tiếng Việt là mặc định; English cho đối tác quốc tế.",
+    "languageViDesc": "Giao diện tiếng Việt cho vận hành hàng ngày tại chỗ.",
+    "languageEnDesc": "Giao diện tiếng Anh cho vận hành đa nhóm và đối tác."
+  },
+  "apiHealth": {
+    "badge": "Tình trạng API",
+    "verified": "đã xác minh",
+    "failed": "thất bại",
+    "title": "Kiểm tra kết nối API",
+    "description": "Xác minh shell phiên qua /api/health và /api/auth/me.",
+    "apiBase": "API cơ sở",
+    "verify": "Kiểm tra kết nối",
+    "verifying": "Đang kiểm tra…",
+    "role": "Vai trò",
+    "healthTime": "Dấu thời gian sức khỏe",
+    "successMsg": "Kết nối API và phiên hiện tại đều hợp lệ.",
+    "detectedRole": "Vai trò được phát hiện",
+    "notVerifiedYet": "Chưa được xác minh",
+    "lastHealthTs": "Lần kiểm tra sức khỏe cuối",
+    "verifySessionApi": "Xác minh phiên + API"
+  },
+  "operator": {
+    "badgeAccess": "truy cập",
+    "badgeSession": "shell phiên",
+    "currentSessionTitle": "Phiên hiện tại",
+    "currentSessionDesc": "Ngữ cảnh người dùng được tải từ xác thực backend. Route guards, topbar và điều hướng theo principal này.",
+    "role": "Vai trò",
+    "principal": "Principal",
+    "siteScope": "Phạm vi trang",
+    "session": "Phiên",
+    "allScopedSites": "Tất cả trang được giới hạn",
+    "signOut": "Đăng xuất",
+    "signingOut": "Đang đăng xuất…",
+    "defaultContextTitle": "Ngữ cảnh mặc định",
+    "defaultContextDesc": "Lưu trang, lane và hướng mặc định để giảm thiểu thiết lập lặp lại trong ca.",
+    "placeholderSite": "Mã trang mặc định",
+    "placeholderLane": "Mã lane mặc định",
+    "saveDefaults": "Lưu mặc định",
+    "reset": "Đặt lại",
+    "dirEntry": "Vào",
+    "dirExit": "Ra",
+    "dirEntryDesc": "Hướng vào mặc định",
+    "dirExitDesc": "Hướng ra mặc định",
+    "badgeDefaultContext": "ngữ cảnh mặc định",
+    "badgeSiteLane": "trang & lane",
+    "sessionService": "dịch vụ"
+  },
+  "developer": {
+    "title": "Nhà phát triển / debug",
+    "description": "Thông tin build, xem trước token và khóa bộ nhớ cache cục bộ.",
+    "apiBase": "API cơ sở",
+    "tokenPreview": "Token (xem trước)",
+    "buildInfo": "Build",
+    "cacheKeys": "Khóa cache",
+    "clearCache": "Xóa cache ứng dụng",
+    "resetDefaults": "Đặt lại ngữ cảnh mặc định",
+    "localEnv": "Môi trường cục bộ",
+    "tokenNone": "Chưa được cấu hình",
+    "mode": "Chế độ",
+    "baseUrl": "URL cơ sở",
+    "unknown": "không xác định",
+    "surfaceTitle": "Tách biệt concerns",
+    "surfaceBody": "Shell xác thực người dùng sử dụng access token trình duyệt. Capture di động và device heartbeat sử dụng chứng thực được ký bởi thiết bị. Lỗi 401 thiết bị phải được debug trên bề mặt di động, không phải bằng cách đăng xuất người dùng web.",
+    "defaultContextCurrent": "Ngữ cảnh mặc định hiện tại",
+    "clearLocalTitle": "Xóa bộ nhớ cache cục bộ",
+    "clearLocalDesc": "Xóa khóa ứng dụng Parkly trong bộ nhớ trình duyệt. Không ảnh hưởng backend.",
+    "refreshHint": "Tải lại trang sau khi xóa cache nếu UI vẫn hiển thị trạng thái cũ.",
+    "none": "Không có",
+    "resetContextBtn": "Đặt lại ngữ cảnh",
+    "localKeys": "Khóa cục bộ",
+    "noLocalKeys": "Không có khóa ứng dụng trong localStorage.",
+    "troubleTitle": "Hướng dẫn xử lý sự cố",
+    "trouble1": "Vấn đề shell xác thực: /api/auth/*, bootstrap tuyến đường, guards vai trò người dùng, 401 realtime.",
+    "trouble2": "Vấn đề ký thiết bị: /api/devices/heartbeat và /api/gate-reads/* được ký bởi secret thiết bị.",
+    "trouble3": "Đừng coi lỗi chữ ký thiết bị là bằng chứng phiên người dùng web đã hết hạn."
+  },
+  "runLaneCapture": {
+    "stageIdle": "Chưa chọn ảnh",
+    "stageUploading": "Đang tải lên…",
+    "stageUploadingMsg": "Đang tải lên server…",
+    "stageRecognizing": "Đang nhận diện…",
+    "stageRecognizingMsg": "Đang nhận diện biển số (CPU)…",
+    "stageReady": "Nhận diện hoàn tất",
+    "stageError": "Lỗi nhận diện",
+    "noPreviewYet": "Chưa có xem trước. Chọn ảnh để tải lên.",
+    "selectImage": "Chọn ảnh",
+    "selectImageDesc": "Nhấp để chọn tệp hoặc dán ảnh từ clipboard (Ctrl+V)",
+    "uploadImage": "Đang tải ảnh lên server…",
+    "runAlpr": "Đang chạy nhận diện ALPR (có thể mất 30-60 giây trên CPU)…",
+    "pleaseWait": "Vui lòng đợi xử lý hoàn tất",
+    "previewSurface": "Bề mặt xem trước",
+    "noPreviewYetAlt": "Chưa có xem trước ảnh",
+    "backendPlate": "Biển số backend",
+    "effectivePlate": "Biển số hiệu quả",
+    "needsConfirm": "Cần xác nhận",
+    "ready": "Sẵn sàng",
+    "manualOverrideActive": "Ghi đè thủ công đang hoạt động",
+    "backendSuggested": "Được backend gợi ý",
+    "enterOrOverridePlate": "Nhập / Ghi đè biển số",
+    "enterPlateManually": "Nhập biển số thủ công",
+    "candidates": "Ứng viên",
+    "score": "điểm",
+    "votes": "phiếu",
+    "apply": "Áp dụng",
+    "noCandidates": "Chưa có ứng viên — tải ảnh lên để nhận diện",
+    "uploaded": "Đã tải {{filename}}. Đang chạy nhận diện (chế độ CPU — có thể mất 30-90 giây)…",
+    "processing": "Đang xử lý…",
+    "file": "Tệp:",
+    "fileSize": "{{size}} KB",
+    "imageSelected": "Đã chọn ảnh",
+    "imageNotSelected": "Chưa chọn",
+    "processingFileError": "Lỗi xử lý tệp: {{error}}",
+    "processingClipboardError": "Lỗi xử lý clipboard: {{error}}",
+    "validating": "Đang xác thực tệp?",
+    "uploading": "Đang tải lên server?",
+    "recognizing": "Đang nhận diện biển số (CPU)?",
+    "error": "Lỗi nhận diện",
+    "effectivePlateNone": "không có biển số hiệu quả",
+    "effectivePlateManual": "ghi đè thủ công",
+    "effectivePlateBackend": "xem trước backend",
+    "votesValue": "{{count}} phiếu",
+    "overridePlaceholder": "Nhập hoặc xác nhận biển số",
+    "rerun": "Chạy lại",
+    "clear": "Xóa",
+    "previewAlt": "Xem trước ảnh"
+  },
+  "runLanePage": {
+    "submitting": "Đang gửi?",
+    "submit": "Chạy luồng lane",
+    "live": "Trực tiếp",
+    "offline": "Ngoại tuyến",
+    "stale": "Lỗi thời",
+    "reconnects": "Kết nối lại: {{count}}",
+    "showDetails": "Hiện chi tiết",
+    "hideDetails": "Ẩn chi tiết"
+  },
+  "overview": {
+    "eyebrow": "Vận hành",
+    "title": "Tổng quan",
+    "description": "Bảng điều khiển ca — áp lực hàng đợi, cảnh báo và sức khỏe hệ thống nhìn thoáng qua.",
+    "allAccessibleSites": "Tất cả trang",
+    "selectSite": "Chọn trang",
+    "pageStatus": {
+      "ready": "Sẵn sàng",
+      "attention": "Cần chú ý",
+      "degraded": "Suy giảm",
+      "unavailable": "Không khả dụng"
+    },
+    "refresh": "Làm mới",
+    "refreshing": "Đang làm mới…",
+    "refreshedAt": "Cập nhật lúc {{time}}",
+    "freshness": {
+      "unknown": "Không xác định",
+      "fresh": "Tươi",
+      "stale": "Lỗi thời {{minutes}}m"
+    },
+    "filterBadge": "cửa sổ {{hours}}h · hết hạn {{days}}d",
+    "streamLane": "Luồng lane",
+    "streamDevice": "Luồng thiết bị",
+    "kpi": {
+      "incidents": {
+        "title": "Sự cố đang mở",
+        "helper": "Sự cố trong phạm vi tổng quan hiện tại.",
+        "critical": "{{count}} nghiêm trọng"
+      },
+      "laneAttention": {
+        "title": "Lane cần chú ý",
+        "helper": "{{offline}} lane ngoại tuyến — ưu tiên cao nhất."
+      },
+      "occupancy": {
+        "title": "Tỷ lệ đỗ xe",
+        "helper": "{{occupied}} trong {{total}} chỗ. Nhấn để xem trực tiếp."
+      },
+      "subscriptions": {
+        "title": "Phiếu gửi đang hoạt động",
+        "helper": "{{expiring}} sắp hết hạn. Nhấn để quản lý."
+      },
+      "activePresence": {
+        "title": "Hiện diện đang hoạt động",
+        "helper": "Phương tiện có mặt trên các lane trong phạm vi hiện tại."
+      },
+      "openSessions": {
+        "title": "Phiên đang mở",
+        "helper": "Phiên có chu kỳ chưa đóng."
+      }
+    },
+    "status": {
+      "lanePressure": {
+        "title": "Áp lực lane",
+        "offline": "{{count}} ngoại tuyến",
+        "barrierFault": "{{count}} lỗi barrier",
+        "openSessions": "{{count}} đang mở",
+        "helperLive": "Từ luồng lane trực tiếp.",
+        "helperFallback": "Luồng lane không kết nối — hiển thị snapshot."
+      },
+      "reviewQueue": {
+        "title": "Hàng đợi kiểm tra",
+        "helperHasItems": "Trường hợp cần điều hành viên nhận hoặc giải quyết.",
+        "helperEmpty": "Không có trường hợp đang mở trong hàng đợi hiện tại.",
+        "claimed": "Đã nhận",
+        "resolved": "Đã giải quyết",
+        "cancelled": "Đã hủy"
+      },
+      "outboxDelivery": {
+        "title": "Chuyển phát outbox",
+        "helperHasItems": "Các dòng thất bại cần điều tra downstream.",
+        "helperEmpty": "Không có chuyển phát thất bại trong phạm vi hiện tại.",
+        "pending": "Đang chờ",
+        "sent": "Đã gửi",
+        "sampleRows": "{{count}} dòng mẫu"
+      },
+      "deviceHealth": {
+        "title": "Sức khỏe thiết bị",
+        "helperAttention": "Thiết bị ngoại tuyến hoặc suy giảm trong snapshot trực tiếp.",
+        "helperStable": "Ổn định — không có thiết bị suy giảm hoặc ngoại tuyến.",
+        "offline": "{{count}} ngoại tuyến",
+        "degraded": "{{count}} suy giảm",
+        "online": "{{count}} trực tuyến"
+      }
+    },
+    "quickActions": {
+      "title": "Hành động nhanh",
+      "description": "Đi trực tiếp đến màn hình bạn cần làm việc.",
+      "open": "Mở",
+      "badges": {
+        "lane": "Lane",
+        "review": "Kiểm tra",
+        "live": "Trực tiếp",
+        "health": "Sức khỏe",
+        "queue": "Hàng đợi",
+        "capture": "Capture"
+      }
+    },
+    "siteOverview": {
+      "title": "Tổng quan trang",
+      "description": "So sánh tải sự cố, trạng thái lane và phiên đang mở giữa các trang.",
+      "loading": "Đang tải tóm tắt trang…",
+      "error": "Tóm tắt trang không khả dụng.",
+      "empty": "Không có trang trong phạm vi.",
+      "allSites": "Tất cả trang",
+      "occupancy": "đỗ {{rate}}%",
+      "presence": "{{count}} có mặt",
+      "stable": "Ổn định",
+      "incidents": "{{count}} sự cố",
+      "critical": "{{count}} nghiêm trọng",
+      "laneAttention": "{{count}} lane cần chú ý",
+      "offline": "{{count}} ngoại tuyến",
+      "openSessions": "{{count}} phiên đang mở",
+      "expiring": "{{count}} sắp hết hạn",
+      "searchPlaceholder": "Tìm kiếm trang…",
+      "sortPriority": "Ưu tiên",
+      "sortName": "Tên",
+      "sortOccupancy": "Đỗ xe",
+      "sortSessions": "Phiên",
+      "noMatchesTitle": "Không có trang khớp",
+      "noMatchesDescription": "Không có trang nào khớp \"{{search}}\"."
+    },
+    "liveWatchlist": {
+      "title": "Lane cần chú ý",
+      "description": "Lane có sức khỏe kém nhất từ luồng trực tiếp.",
+      "streamUnavailable": "Luồng lane không khả dụng",
+      "streamUnavailableDesc": "{{error}}",
+      "noLanes": "Không có lane cần chú ý",
+      "noLanesDesc": "Luồng đang hoạt động — không có lane ở trạng thái cần chú ý hoặc ngoại tuyến.",
+      "waiting": "Đang chờ snapshot lane",
+      "waitingDesc": "Danh sách sẽ được điền sau khi backend đẩy lane_status_snapshot.",
+      "session": "Phiên",
+      "barrier": "Barrier",
+      "direction": "Hướng",
+      "live": "Trực tiếp",
+      "offline": "Ngoại tuyến"
+    },
+    "recentSessions": {
+      "title": "Phiên gần đây",
+      "description": "Phiên mới nhất — nhanh chóng phát hiện lane cần quyết định, lỗi hoặc kiểm tra.",
+      "loading": "Đang tải phiên…",
+      "error": "Phiên không khả dụng",
+      "empty": "Không có phiên",
+      "reads": "{{count}} đọc",
+      "decisions": "{{count}} quyết định",
+      "reviewRequired": "Cần kiểm tra",
+      "openAt": "Mở lúc",
+      "viewAll": "Xem tất cả",
+      "readCount": "{{count}} đọc",
+      "decisionCount": "{{count}} quyết định"
+    },
+    "dependencyStatus": {
+      "title": "Trạng thái phụ thuộc",
+      "description": "Sẵn sàng / suy giảm / không khả dụng theo nguồn dữ liệu.",
+      "dashboardSummary": "Tóm tắt dashboard",
+      "recentSessions": "Phiên gần đây",
+      "reviewQueue": "Hàng đợi kiểm tra",
+      "outboxList": "Danh sách outbox",
+      "laneStream": "Luồng lane",
+      "deviceStream": "Luồng thiết bị",
+      "rowsLoaded": "{{count}} dòng đã tải",
+      "openClaimed": "{{open}} đang mở · {{claimed}} đã nhận",
+      "failedPending": "{{failed}} thất bại · {{pending}} đang chờ",
+      "streamActive": "luồng hoạt động"
+    },
+    "shiftPriority": {
+      "title": "Ưu tiên ca",
+      "reviewOpen": "{{count}} kiểm tra đang mở",
+      "outboxFailed": "{{count}} outbox thất bại",
+      "devicesOffline": "{{count}} thiết bị ngoại tuyến",
+      "criticalIncidents": {
+        "label": "Sự cố nghiêm trọng",
+        "summary": "{{count}} vấn đề nghiêm trọng cần leo thang trước khi luồng thường tiếp tục."
+      },
+      "offlineLanes": {
+        "label": "Lane ngoại tuyến",
+        "summary": "{{count}} lane ngoại tuyến. Khôi phục kết nối lane trước khi theo đuổi nhiễu ưu tiên thấp hơn."
+      },
+      "syncBacklog": {
+        "label": " backlog đồng bộ",
+        "summary": "{{count}} bản ghi outbox thất bại cần phân loại trước khi chuyển giao."
+      },
+      "stableShift": {
+        "label": "Ca ổn định",
+        "summary": "Không phát hiện trở ngại nghiêm trọng. Có thể tập trung vào throughput và xử lý kiểm tra thường quy."
+      }
+    },
+    "summary": {
+      "laneLive": "lane trực tiếp",
+      "laneFallback": "lane dự phòng",
+      "deviceLive": "thiết bị trực tiếp",
+      "deviceFallback": "thiết bị dự phòng",
+      "sitesInScope": "{{count}} trang trong phạm vi",
+      "lastRefresh": "Làm mới lần cuối",
+      "staleness": "Độ lỗi thời",
+      "minutesBehind": "trễ {{count}} phút",
+      "currentSnapshot": "Snapshot hiện tại",
+      "openSessions": "Phiên đang mở",
+      "activeSessions": "{{count}} đang hoạt động"
+    },
+    "topology": {
+      "title": "Topology",
+      "sites": "{{count}} trang"
+    }
+  },
+  "topologyPage": {
+    "loadingTopology": "Đang tải topology…",
+    "loadFailed": "Tải topology thất bại",
+    "loadFailedDesc": "Kiểm tra kết nối và thử tải lại trang.",
+    "devicePool": "Nhóm thiết bị",
+    "addGate": "Thêm cổng",
+    "addLane": "Thêm lane"
+  },
+  "topologyDialog": {
+    "addGate": "Thêm Cổng Mới",
+    "addLane": "Thêm Lane Mới",
+    "createGate": "Tạo Cổng",
+    "createLane": "Tạo Lane",
+    "closeCreateGate": "Đóng hộp thoại tạo cổng",
+    "closeCreateLane": "Đóng hộp thoại tạo lane",
+    "closeEditLane": "Đóng hộp thoại chỉnh sửa lane",
+    "closeDeviceDrawer": "Đóng ngăn cấu hình thiết bị",
+    "createGateFailed": "Tạo cổng thất bại. Vui lòng thử lại.",
+    "createLaneFailed": "Tạo lane thất bại. Vui lòng thử lại.",
+    "updateLaneFailed": "Cập nhật lane thất bại. Vui lòng thử lại.",
+    "newGateCode": "Mã cổng mới",
+    "gateCodePlaceholder": "VD: GATE-01",
+    "gateNeedsLane": "Cổng phải có ít nhất một lane.",
+    "firstLaneDetails": "Chi tiết lane đầu tiên",
+    "laneCode": "Mã lane",
+    "laneCodePlaceholder": "VD: L01",
+    "laneName": "Tên lane",
+    "laneNamePlaceholder": "VD: Cổng Vào 1",
+    "direction": "Hướng",
+    "cancel": "Hủy",
+    "saving": "Đang lưu…",
+    "selectGate": "Chọn cổng",
+    "name": "Tên",
+    "sortOrder": "Thứ tự sắp xếp",
+    "configureDevice": "Cấu hình Thiết bị",
+    "deviceCode": "Mã thiết bị",
+    "roleInLane": "Vai trò trong lane",
+    "isPrimary": "Là thiết bị chính",
+    "isPrimaryHint": "Đặt thiết bị này làm trình điều khiển chính của lane",
+    "isRequired": "Là bắt buộc",
+    "isRequiredHint": "Lane suy giảm nếu thiết bị ngoại tuyến",
+    "locationHint": "Gợi ý vị trí",
+    "locationPlaceholder": "VD: Cột B3",
+    "ipAddress": "Địa chỉ IP",
+    "saveChanges": "Lưu thay đổi",
+    "unlinkFromLane": "Hủy liên kết khỏi lane",
+    "editLaneTitle": "Sửa Lane ({{laneId}})",
+    "gate": "Cổng",
+    "noChange": "-- Không đổi --",
+    "status": "Trạng thái"
+  },
+  "sessionHistory": {
+    "summary": {
+      "title": "Tóm tắt phiên",
+      "reviewRequired": "kiểm tra",
+      "incidentOpen": "sự cố",
+      "session": "Phiên",
+      "plate": "Biển số",
+      "opened": "Đã mở",
+      "resolved": "Đã giải quyết",
+      "location": "Vị trí",
+      "rfid": "RFID",
+      "counts": "Số lượng",
+      "countsValue": "{{reads}}đọc · {{decisions}}quyết định · {{barriers}}barrier",
+      "ticket": "Vé",
+      "evidence": "Bằng chứng",
+      "mediaCount": "{{count}} phương tiện"
+    },
+    "empty": {
+      "title": "Chưa chọn phiên",
+      "filteredOne": "1 phiên khớp bộ lọc hiện tại · chọn để xem xét.",
+      "filteredOther": "{{count}} phiên khớp bộ lọc hiện tại · chọn để xem xét.",
+      "description": "Chọn một phiên từ danh sách để xem chi tiết và thực hiện hành động."
+    },
+    "list": {
+      "title": "Phiên",
+      "results": "{{count}} kết quả",
+      "filtered": "đã lọc",
+      "loading": "Đang tải?",
+      "emptyTitle": "Không có phiên",
+      "emptyDescription": "Thử mở rộng khung thời gian hoặc xóa bộ lọc.",
+      "counts": "{{reads}}đọc · {{decisions}}quyết định"
+    },
+    "filters": {
+      "title": "Bộ lọc",
+      "description": "Lọc theo trang, lane, hướng và trạng thái để tìm phiên cần xem xét.",
+      "reset": "Đặt lại bộ lọc",
+      "allSites": "Tất cả trang",
+      "allSitesDescription": "Tất cả trang đã cấu hình",
+      "activeBadge": "hoạt động",
+      "offBadge": "tắt",
+      "allLanes": "Tất cả lane",
+      "allLanesDescription": "Tất cả lane trong phạm vi hiện tại",
+      "allStatuses": "Tất cả trạng thái",
+      "allStatusesDescription": "Không áp dụng bộ lọc trạng thái",
+      "allDirections": "Tất cả hướng",
+      "allDirectionsDescription": "Không lọc hướng",
+      "inbound": "Vào",
+      "outbound": "Ra",
+      "inBadge": "vào",
+      "outBadge": "ra",
+      "selectSite": "Chọn trang",
+      "selectLane": "Chọn lane",
+      "selectStatus": "Chọn trạng thái",
+      "selectDirection": "Chọn hướng",
+      "searchPlaceholder": "ID phiên, biển số, lane hoặc trạng thái?",
+      "searchAriaLabel": "Tìm kiếm phiên theo ID, biển số hoặc trạng thái",
+      "from": "Từ ngày/giờ",
+      "to": "Đến ngày/giờ",
+      "fromAriaLabel": "Từ ngày",
+      "toAriaLabel": "Đến ngày",
+      "statusDescriptions": {
+        "OPEN": "Phiên mở",
+        "WAITING_READ": "Đang chờ đọc",
+        "WAITING_DECISION": "Đang chờ quyết định",
+        "APPROVED": "Đã chấp thuận",
+        "WAITING_PAYMENT": "Đang chờ thanh toán",
+        "DENIED": "Đã từ chối",
+        "PASSED": "Đã qua barrier",
+        "TIMEOUT": "Đã hết thời gian",
+        "CANCELLED": "Đã hủy",
+        "ERROR": "Trạng thái lỗi"
+      },
+      "statusBadges": {
+        "ok": "ok",
+        "risk": "rủi ro",
+        "flow": "luồng"
+      }
+    },
+    "detail": {
+      "metadata": {
+        "title": "Siêu dữ liệu",
+        "description": "Các trường cốt lõi",
+        "reads": "Lần đọc",
+        "decisions": "Quyết định",
+        "barriers": "Barrier",
+        "allowedActions": "Hành động được phép"
+      },
+      "latestDecision": {
+        "title": "Quyết định mới nhất"
+      },
+      "actions": {
+        "title": "Hành động",
+        "description": "Thực hiện các hành động được phép trên phiên",
+        "approve": "Chấp thuận",
+        "paymentHold": "Giữ thanh toán",
+        "reject": "Từ chối",
+        "confirmPass": "Xác nhận qua",
+        "cancel": "Hủy",
+        "none": "Không có hành động được phép",
+        "rejected": "Hành động phiên bị từ chối",
+        "terminalLocked": "Trạng thái cuối · hành động bị khóa"
+      },
+      "barrier": {
+        "title": "Ghi đè barrier",
+        "description": "Mở thủ công (shell điều hành/quản trị)",
+        "defaultNote": "Mở barrier thủ công từ Lịch sử Phiên.",
+        "fallbackNote": "Mở barrier thủ công.",
+        "failed": "Mở barrier thủ công thất bại",
+        "success": "Ghi đè đã được ghi nhận.",
+        "successWithReview": "Ghi đè đã được ghi nhận · reviewId={{reviewId}}",
+        "terminalUnavailable": "Trạng thái cuối · ghi đè barrier không khả dụng",
+        "roleBadge": "vai trò {{role}}",
+        "sessionBadge": "phiên {{sessionId}}",
+        "reviewRequired": "cần kiểm tra",
+        "reviewCleared": "kiểm tra đã xóa",
+        "reasonCode": "Mã lý do",
+        "operatorNote": "Ghi chú điều hành",
+        "lockPrefix": "Khóa:",
+        "confirmTitle": "Mở barrier thủ công?",
+        "confirmDescription": "Ghi nhận một bài kiểm tra thủ công, quyết định, lệnh barrier và sự cố. Chỉ chạy sau khi xác nhận tại chỗ.",
+        "confirmButton": "Mở barrier",
+        "openButton": "Mở barrier thủ công"
+      },
+      "reads": {
+        "title": "Lần đọc",
+        "count": "{{count}} sự kiện",
+        "empty": "Không có sự kiện đọc.",
+        "ocr": "ocr {{value}}",
+        "rfid": "rfid={{value}}",
+        "sensor": "sensor={{value}}",
+        "device": "thiết bị {{value}}",
+        "media": "phương tiện {{value}}"
+      },
+      "decisions": {
+        "title": "Quyết định",
+        "count": "{{count}} quyết định",
+        "empty": "Chưa có quyết định · phiên có thể vẫn đang chờ."
+      },
+      "barrierCommands": {
+        "title": "Lệnh barrier",
+        "count": "{{count}} lệnh",
+        "empty": "Không có lệnh barrier.",
+        "acknowledged": "ack ·",
+        "pendingAck": "chờ ack ·"
+      },
+      "reviews": {
+        "title": "Kiểm tra thủ công",
+        "count": "{{count}} bài kiểm tra",
+        "empty": "Không có bài kiểm tra thủ công.",
+        "claimAndResolve": "claim={{claim}} · resolve={{resolve}}"
+      },
+      "incidents": {
+        "title": "Sự cố",
+        "count": "{{count}} sự cố",
+        "empty": "Không có sự cố.",
+        "severity": "mức độ={{value}}"
+      }
+    },
+    "timeline": {
+      "title": "Dòng thời gian phiên",
+      "events": "{{count}} sự kiện",
+      "empty": "Không có sự kiện trong dòng thời gian.",
+      "collapseAll": "Thu gọn tất cả",
+      "expandAll": "Mở rộng tất cả",
+      "readEvent": "Sự kiện đọc",
+      "decisionEvent": "Sự kiện quyết định",
+      "barrierEvent": "Sự kiện barrier",
+      "reviewEvent": "Sự kiện kiểm tra",
+      "incidentEvent": "Sự kiện sự cố",
+      "sessionEvent": "Sự kiện phiên",
+      "item": "Mục dòng thời gian"
+    },
+    "media": {
+      "title": "Dải phương tiện",
+      "description": "Nhóm bằng chứng ảnh theo sự kiện đọc. Phiên không có phương tiện vẫn hiển thị gọn gàng.",
+      "emptyTitle": "Không có bằng chứng phương tiện",
+      "emptyDescription": "Phiên chỉ RFID hoặc thiếu ảnh upstream được mong đợi và được tóm tắt gọn gàng ở đây.",
+      "alt": "phương tiện phiên {{id}}",
+      "ocr": "ocr {{value}}",
+      "readId": "đọc={{id}}",
+      "capturedAt": "đã chụp {{value}}",
+      "plateAndMedia": "biển={{plate}} / phương tiện={{media}}",
+      "sourceAndSize": "nguồn {{source}} / kích thước {{size}}",
+      "open": "Mở phương tiện"
+    }
+  },
+  "reviewQueuePage": {
+    "badges": {
+      "manualReview": "kiểm tra thủ công",
+      "pending": "Đang chờ",
+      "done": "Hoàn tất",
+      "caseCount": "{{count}} trường hợp"
+    },
+    "needsAction": "Cần hành động",
+    "done": "Hoàn tất",
+    "autoRefreshTitle": "Tự động {{seconds}}s",
+    "manualRefreshTitle": "Thủ công",
+    "auto": "Tự động",
+    "manual": "Thủ công",
+    "lastRefreshAgo": "{{seconds}}s trước",
+    "doneEmptyHint": "Không có trường hợp ĐÃ GIẢI QUYẾT hoặc ĐÃ HỦY khớp bộ lọc này. Thử trang hoặc khung thời gian khác.",
+    "activeEmptyHint": "Thử điều chỉnh bộ lọc hoặc mở rộng khung thời gian.",
+    "actions": {
+      "claim": "Nhận việc",
+      "approve": "Chấp thuận",
+      "reject": "Từ chối",
+      "openBarrier": "Mở barrier"
+    },
+    "detail": {
+      "title": "Chi tiết kiểm tra",
+      "description": "Xác minh ngữ cảnh phiên, xác nhận lý do và áp dụng hành động được phép cho trường hợp này.",
+      "empty": "Chọn một trường hợp từ danh sách để xem chi tiết.",
+      "sessionBadge": "phiên {{status}}",
+      "reviewRequired": "cần kiểm tra",
+      "terminalTitle": "Phiên {{status}} · không có hành động khả dụng",
+      "terminalDescription": "Phiên này đã đạt trạng thái cuối.",
+      "loadingLiveState": "Đang xác minh trạng thái phiên trực tiếp · tất cả hành động bị khóa cho đến khi chi tiết ủy quyền trả về.",
+      "liveStateFailed": "Không thể xác minh trạng thái phiên trực tiếp. {{error}}",
+      "staleTitle": "Trạng thái có thể lỗi thời",
+      "reviewId": "ID Kiểm tra",
+      "queueReason": "Lý do vào hàng đợi",
+      "location": "Trang / Cổng / Lane",
+      "sessionStatus": "Trạng thái phiên",
+      "allowedActions": "Hành động trực tiếp được phép",
+      "none": "không có",
+      "reasonCode": "Mã lý do",
+      "note": "Ghi chú",
+      "historyOnlyTitle": "Chỉ lịch sử",
+      "historyOnlyDescription": "Những trường hợp này đã được giải quyết hoặc hủy. Chuyển sang Cần hành động để nhận hoặc kiểm tra trường hợp trực tiếp.",
+      "claimHint": "Nhận việc (1)",
+      "approveHint": "Chấp thuận (2)",
+      "rejectHint": "Từ chối (3)",
+      "openBarrierHint": "Mở barrier (4)",
+      "shortcuts": "Phím tắt: Lên/Xuống chọn trường hợp, 1-4 hành động, Ctrl+R làm mới",
+      "nextAction": "Tiếp theo: {{value}}"
+    }
+  },
+  "subscriptionsPage": {
+    "badges": {
+      "canonical": "chuẩn",
+      "mutable": "thay đổi được",
+      "readOnly": "chỉ đọc"
+    },
+    "createFailed": "Tạo phiếu gửi thất bại"
+  },
+  "parkingLivePage": {
+    "badges": {
+      "realtime": "thời gian thực + poll",
+      "snapshotFallback": "dự phòng snapshot",
+      "resilience": "chế độ khả năng phục hồi",
+      "noSite": "không có trang"
+    }
+  },
+  "outboxPage": {
+    "badges": {
+      "role": "Vai trò {{role}}",
+      "failed": "thất bại {{count}}"
+    }
+  },
+  "mobilePairPage": {
+    "badges": {
+      "desktopPair": "ghép desktop",
+      "qrAndLink": "QR + liên kết",
+      "active": "hoạt động {{count}}",
+      "noPair": "chưa ghép"
+    },
+    "form": {
+      "title": "Ngữ cảnh ghép thiết bị",
+      "description": "Chọn trang, lane và thiết bị nguồn trước khi tạo liên kết ghép, sao chép liên kết hoặc chuyển QR cho thiết bị di động.",
+      "selectSite": "Chọn trang",
+      "selectSiteDescription": "Trang để gán cho liên kết ghép",
+      "activeBadge": "hoạt động",
+      "offBadge": "tắt",
+      "selectLane": "Chọn lane",
+      "selectLaneDescription": "Lane sẽ nhận capture từ thiết bị di động",
+      "inbound": "Vào",
+      "outbound": "Ra",
+      "inBadge": "vào",
+      "outBadge": "ra",
+      "selectDevice": "Chọn thiết bị",
+      "selectDeviceDescription": "Thiết bị sẽ ký request từ bề mặt di động",
+      "primaryBadge": "chính",
+      "requiredBadge": "bắt buộc",
+      "deviceSecretPlaceholder": "Secret thiết bị (tùy chọn cho Tạo ghép)",
+      "deviceSecretHint": "Tùy chọn khi dùng Tạo ghép · server cấp pair token.",
+      "pairTokenPlaceholder": "Pair token",
+      "generateToken": "Tạo token",
+      "clear": "Xóa biểu mẫu"
+    },
+    "activePairs": {
+      "title": "Các ghép đang hoạt động",
+      "description": "Được lưu trong registry cục bộ trình duyệt để mở lại nhanh hoặc sao chép liên kết ghép.",
+      "empty": "Không có ghép được lưu trên trình duyệt này.",
+      "origin": "origin {{value}}",
+      "registry": "registry v{{version}}",
+      "migrated": "đã di chuyển {{value}}",
+      "createdAndOpened": "đã tạo {{created}} · lần mở cuối {{opened}}",
+      "copy": "Sao chép",
+      "open": "Mở",
+      "removeTitle": "Xóa ghép khỏi danh sách?",
+      "removeDescription": "Điều này chỉ xóa mục khỏi registry cục bộ trình duyệt. Pair token trên server không bị thu hồi; bạn vẫn có thể sử dụng liên kết cho đến khi hết hạn.",
+      "remove": "Xóa"
+    }
+  },
+  "auditViewerPage": {
+    "title": "Trình xem Kiểm toán",
+    "description": "Theo dõi chuỗi request, thay đổi actor và snapshot entity mà không mất ngữ cảnh vận hành.",
+    "badges": {
+      "rows": "{{count}} dòng",
+      "requestLinked": "{{count}} request được liên kết",
+      "correlationLinked": "{{count}} correlation được liên kết",
+      "manual": "{{count}} thủ công"
+    },
+    "cards": {
+      "correlationLookup": {
+        "title": "Tra cứu correlation",
+        "description": "Lọc theo request ID hoặc correlation ID để theo dõi chuỗi qua các hành động lane và hệ thống downstream."
+      },
+      "beforeAfter": {
+        "title": "Snapshot trước / sau",
+        "description": "Bảng chi tiết làm nổi bật actor, entity, trường thay đổi và snapshot để xem xét nhanh hơn."
+      },
+      "handoff": {
+        "title": "Chuyển giao cross-surface",
+        "description": "Nhảy từ bản ghi kiểm toán sang outbox hoặc lịch sử phiên sử dụng cùng mã định danh."
+      }
+    },
+    "list": {
+      "title": "Danh sách kiểm toán",
+      "description": "Quét hành động, actor, entity và correlation. Tìm kiếm từ khóa phía client chỉ áp dụng cho cửa sổ hiện tại.",
+      "window": "cửa sổ={{count}}",
+      "visible": "hiển thị={{count}}",
+      "loading": "Đang tải bản ghi kiểm toán",
+      "emptyTitle": "Không có bản ghi kiểm toán khớp",
+      "emptyDescription": "Thử mở rộng bộ lọc hoặc tìm kiếm theo request ID hoặc correlation ID."
+    },
+    "pagination": {
+      "previous": "Trước",
+      "next": "Tiếp",
+      "root": "gốc",
+      "window": "Cửa sổ cursor: {{value}}"
+    }
+  },
+  "auditViewer": {
+    "filters": {
+      "title": "Bộ lọc kiểm toán",
+      "description": "Giữ request, correlation, entity và trạng thái actor ổn định trong khi theo dõi chuỗi sự kiện.",
+      "reset": "Đặt lại",
+      "apply": "Áp dụng",
+      "badges": {
+        "all": "tất cả",
+        "manual": "thủ công",
+        "session": "phiên",
+        "barrier": "barrier",
+        "any": "bất kỳ",
+        "open": "mở",
+        "resolve": "giải quyết",
+        "active": "hoạt động",
+        "off": "tắt"
+      },
+      "site": {
+        "all": {
+          "label": "Tất cả trang",
+          "description": "Không có trang cụ thể"
+        }
+      },
+      "quick": {
+        "all": {
+          "label": "Tất cả bản ghi",
+          "description": "Không áp dụng bộ lọc nhanh"
+        },
+        "request": {
+          "label": "Request được liên kết",
+          "description": "Bản ghi bao gồm request ID"
+        },
+        "correlation": {
+          "label": "Correlation được liên kết",
+          "description": "Bản ghi bao gồm correlation ID"
+        },
+        "manual": {
+          "label": "Ghi đè thủ công",
+          "description": "Hành động kiểm tra hoặc ghi đè thủ công"
+        },
+        "gateSession": {
+          "label": "Phiên cổng",
+          "description": "Hành động phiên, kiểm tra và giải quyết"
+        },
+        "barrier": {
+          "label": "Hành động barrier",
+          "description": "Mở barrier, timeout hoặc hành động liên quan"
+        }
+      },
+      "actions": {
+        "all": {
+          "label": "Tất cả hành động",
+          "description": "Không lọc hành động cụ thể"
+        },
+        "sessionOpen": "Phiên đã mở",
+        "sessionResolve": "Phiên đã giải quyết",
+        "manualApprove": "Chấp thuận thủ công",
+        "manualReject": "Từ chối thủ công",
+        "manualOpenBarrier": "Mở barrier thủ công",
+        "barrierOpen": "Hành động barrier"
+      },
+      "placeholders": {
+        "keyword": "Kiểm toán, hành động, entity hoặc actor?",
+        "correlationId": "Correlation ID",
+        "requestId": "Request ID",
+        "entityTable": "entityTable",
+        "entityId": "entityId",
+        "actorUserId": "actorUserId"
+      },
+      "aria": {
+        "keyword": "Tìm kiếm bản ghi kiểm toán"
+      }
+    },
+    "table": {
+      "audit": "Kiểm toán",
+      "action": "Hành động",
+      "actor": "Actor",
+      "entity": "Entity",
+      "correlation": "Correlation",
+      "occurred": "Đã xảy ra",
+      "open": "Mở",
+      "opened": "Đã mở",
+      "changedPrefix": "Đã thay đổi: {{value}}",
+      "noDiffKeys": "Không có khóa diff.",
+      "beforeAfter": "trước {{before}} / sau {{after}}"
+    },
+    "detail": {
+      "title": "Chi tiết kiểm toán",
+      "description": "Kiểm tra actor, entity, chuỗi request và snapshot trước khi đọc raw JSON.",
+      "emptyDescription": "Chọn một bản ghi để xem ngữ cảnh request, actor và snapshot trước/sau.",
+      "emptyHint": "Bảng chi tiết sẽ hiển thị correlation, request, actor và tóm tắt diff ở đây.",
+      "siteBadge": "trang {{value}}",
+      "auditBadge": "kiểm toán {{value}}",
+      "actor": "Actor",
+      "entity": "Entity",
+      "request": "Request",
+      "correlation": "Correlation",
+      "occurred": "Đã xảy ra",
+      "created": "Đã tạo",
+      "changedKeysBadge": "khóa đã thay đổi {{count}}",
+      "beforeBadge": "trước {{count}}",
+      "afterBadge": "sau {{count}}",
+      "familyBadge": "họ {{value}}",
+      "changedFields": "Trường đã thay đổi: {{value}}.",
+      "noDiff": "Không suy ra được khóa diff rõ ràng từ snapshot hiện tại.",
+      "openOutbox": "Mở outbox theo correlation",
+      "openSessions": "Mở lịch sử phiên",
+      "tabs": {
+        "diff": "Diff",
+        "before": "Trước",
+        "after": "Sau",
+        "actor": "Actor"
+      }
+    }
+  },
+  "deviceHealthPage": {
+    "title": "Sức khỏe Thiết bị",
+    "description": "Giám sát tuổi heartbeat, độ trễ và thiết bị suy giảm theo trang và lane.",
+    "badges": {
+      "devices": "thiết bị",
+      "heartbeat": "heartbeat"
+    },
+    "links": {
+      "captureDebug": {
+        "title": "Debug Capture",
+        "description": "Điều tra nguồn ảnh và đầu ra ALPR khi xem trước hoặc capture bất thường."
+      },
+      "laneMonitor": {
+        "title": "Giám sát Lane",
+        "description": "So sánh lỗi thiết bị với các lane bị ảnh hưởng."
+      },
+      "syncOutbox": {
+        "title": "Đồng bộ Outbox",
+        "description": "So sánh lỗi thiết bị với backlog chuyển phát downstream."
+      }
+    },
+    "howToRead": {
+      "title": "Cách đọc màn hình này",
+      "body": "Bắt đầu với số thiết bị ngoại tuyến hoặc suy giảm, sau đó kiểm tra tuổi heartbeat và độ trễ để quyết định ưu tiên xử lý trước."
+    }
+  },
+  "deviceHealth": {
+    "title": "Sức khỏe Thiết bị",
+    "titleCompact": "Sức khỏe thiết bị",
+    "description": "Sức khỏe phái sinh phản ánh tuổi heartbeat, trạng thái capture và phép lane hiện tại.",
+    "streamLabel": "Luồng thiết bị",
+    "stale": "Lỗi thời",
+    "live": "Trực tiếp",
+    "resync": "Đồng bộ lại",
+    "manualResync": "Đồng bộ lại thủ công",
+    "unavailableTitle": "Luồng thiết bị không khả dụng",
+    "noSnapshotTitle": "Chưa có snapshot thiết bị",
+    "waitingTitle": "Đang chờ luồng thiết bị",
+    "noSnapshotDescription": "Sức khỏe thiết bị xuất hiện sau khi backend công bố snapshot. Đồng bộ lại để mở lại luồng nếu thiếu dữ liệu.",
+    "noHeartbeat": "Không có heartbeat",
+    "required": "Bắt buộc",
+    "primary": "Chính",
+    "heartbeatAge": "{{count}}s trước",
+    "latency": "{{count}}ms",
+    "metrics": {
+      "total": "{{count}} tổng",
+      "online": "{{count}} trực tuyến",
+      "degraded": "{{count}} suy giảm",
+      "offline": "{{count}} ngoại tuyến"
+    }
+  },
+  "runLaneLive": {
+    "streamConnected": "Luồng đã kết nối",
+    "streamOffline": "Luồng ngoại tuyến",
+    "stale": "Lỗi thời",
+    "unauthorized": "Không được ủy quyền",
+    "laneMissing": "Thiếu lane",
+    "close": "Đóng",
+    "lastSnapshot": "Snapshot {{value}}",
+    "lastEvent": "Sự kiện {{value}}",
+    "reconnects": "{{count}} kết nối lại",
+    "noLaneTitle": "Chưa chọn lane",
+    "noLaneDescription": "Chọn trang và lane để xem trạng thái thời gian thực.",
+    "loadingTitle": "Đang tải snapshot trực tiếp",
+    "loadingDescription": "Đang lấy HTTP snapshot mới nhất cho lane này.",
+    "snapshotErrorTitle": "Tải snapshot thất bại",
+    "retry": "Thử lại",
+    "lostContextTitle": "Thiếu lane khỏi snapshot",
+    "lostContextDescription": "Kiểm tra phạm vi trang hoặc phép lane backend trước khi tiếp tục.",
+    "resync": "Đồng bộ lại",
+    "healthyAttention": "Sức khỏe lane ổn định và sẵn sàng xử lý bình thường.",
+    "laneHealth": "Sức khỏe lane",
+    "barrierSession": "Barrier / phiên",
+    "devicePressure": "Áp lực thiết bị",
+    "noRequiredDevices": "Không có thiết bị bắt buộc",
+    "presence": "Hiện diện",
+    "presenceValue": "{{count}} hoạt động / {{direction}}",
+    "perRoleHealth": "Sức khỏe theo vai trò",
+    "attention": "Cần chú ý",
+    "noLiveRowTitle": "Không có dòng trực tiếp cho lane này",
+    "noLiveRowDescription": "Snapshot đã tải nhưng không tìm thấy lane. Làm mới để đồng bộ lại."
+  },
+  "submitResult": {
+    "none": "Không có",
+    "effectivePlate": "Biển số hiệu quả",
+    "status": {
+      "success": "Thành công",
+      "error": "Lỗi",
+      "submitting": "Đang gửi?",
+      "ready": "Sẵn sàng"
+    },
+    "decision": {
+      "title": "Quyết định",
+      "code": "Mã quyết định",
+      "action": "Hành động",
+      "reason": "Lý do",
+      "reviewRequired": "Cần kiểm tra trước khi tiếp tục",
+      "reviewNotRequired": "Không cần kiểm tra thêm",
+      "empty": "Chưa có quyết định. Chạy luồng lane để nhận quyết định."
+    },
+    "session": {
+      "title": "Phiên",
+      "sessionId": "ID Phiên",
+      "plate": "Biển số",
+      "openedAt": "Đã mở lúc",
+      "counts": "Đọc / quyết định",
+      "countsValue": "{{reads}} / {{decisions}}",
+      "allowedActions": "Hành động được phép",
+      "empty": "Chưa có phiên. Chạy luồng lane để tạo."
+    },
+    "event": {
+      "title": "Sự kiện cổng",
+      "changed": "Đã thay đổi",
+      "unchanged": "Không đổi",
+      "eventId": "ID Sự kiện",
+      "time": "Thời gian",
+      "outboxId": "ID Outbox",
+      "device": "Thiết bị",
+      "empty": "Chưa có sự kiện cổng."
+    },
+    "actions": {
+      "title": "Hành động",
+      "submit": "Gửi luồng",
+      "refresh": "Làm mới chi tiết",
+      "confirmPass": "Xác nhận qua",
+      "cancel": "Hủy",
+      "reset": "Đặt lại kết quả",
+      "resetNotice": "Kết quả đã được đặt lại. Xem trước và ghi đè được giữ."
+    }
+  },
+  "laneMonitorPage": {
+    "title": "Giám sát lane",
+    "description": "Sức khỏe lane trực tiếp, trạng thái barrier và trạng thái phiên mới nhất. Đây là màn hình giám sát chỉ đọc, không phải màn hình hành động.",
+    "badges": {
+      "realtime": "lane trực tiếp"
+    },
+    "links": {
+      "runLane": {
+        "title": "Vận hành Lane",
+        "description": "Chuyển sang màn hình vận hành khi lane cần quyết định."
+      },
+      "reviewQueue": {
+        "title": "Hàng đợi Kiểm tra",
+        "description": "Đến hàng đợi khi lane đang chờ xác nhận thủ công."
+      },
+      "sessionHistory": {
+        "title": "Lịch sử Phiên",
+        "description": "Mở Lịch sử Phiên để xem dòng thời gian và bằng chứng cho phiên gần đây."
+      }
+    },
+    "readingPriority": {
+      "title": "Ưu tiên đọc",
+      "description": "Kiểm tra sức khỏe tổng hợp trước, sau đó xem xét trạng thái phiên và barrier mới nhất để xác định lane cần hành động ngay."
+    },
+    "screenRole": {
+      "title": "Vai trò màn hình",
+      "description": "Giám sát Lane dành cho quan sát và cô lập lỗi. Hành động quyết định nên thực hiện ở Vận hành Lane hoặc Hàng đợi Kiểm tra."
+    }
+  },
+  "captureDebugPage": {
+    "eyebrow": "Capture",
+    "title": "Debug Capture",
+    "description": "Giám sát xem trước OCR, luồng capture và tóm tắt ánh xạ để xác định lỗi ingest hoặc không khớp camera.",
+    "badges": {
+      "capture": "capture",
+      "debugOnly": "chỉ debug"
+    },
+    "links": {
+      "mobilePair": {
+        "title": "Ghép Camera Di động",
+        "description": "Tạo mã QR và liên kết ghép cho thiết bị di động từ desktop."
+      },
+      "mobileCapture": {
+        "title": "Capture Di động",
+        "description": "Mở bề mặt di động để gửi ảnh, xem trước và heartbeat."
+      },
+      "runLane": {
+        "title": "Vận hành Lane",
+        "description": "Chuyển sang màn hình vận hành chính cho quyết định và hành động barrier."
+      }
+    },
+    "summary": {
+      "title": "Tóm tắt ánh xạ sự kiện",
+      "empty": "Chọn một dòng trong luồng capture để xem ánh xạ ngữ cảnh.",
+      "siteCode": "Mã trang",
+      "laneCode": "Mã lane",
+      "deviceCode": "Mã thiết bị",
+      "eventId": "ID Sự kiện",
+      "outboxId": "ID Outbox",
+      "direction": "Hướng",
+      "plate": "Biển số",
+      "reviewRequired": "Cần kiểm tra",
+      "yes": "Có",
+      "no": "Không"
+    },
+    "footnote": "Debug Capture chỉ để đọc tín hiệu đầu vào và xem trước OCR. Quyết định kinh doanh nên được thực hiện ở Vận hành Lane hoặc Hàng đợi Kiểm tra."
+  },
+  "dashboardPage": {
+    "eyebrow": "Vận hành",
+    "title": "Bảng điều khiển Vận hành",
+    "description": "Chế độ xem chuyển giao hợp nhất cho sức khỏe lane, hàng đợi kiểm tra, sức khỏe thiết bị và áp lực outbox.",
+    "badges": {
+      "laneCards": "thẻ lane",
+      "reviewQueue": "hàng đợi kiểm tra",
+      "timeline": "dòng thời gian",
+      "deviceHealth": "sức khỏe thiết bị",
+      "outbox": "outbox"
+    },
+    "cards": {
+      "laneMonitor": {
+        "title": "Giám sát lane",
+        "description": "Đọc sức khỏe barrier, phiên và áp lực trực tiếp trước khi hành động."
+      },
+      "reviewQueue": {
+        "title": "Hàng đợi kiểm tra",
+        "description": "Theo dõi quyết định thủ công cần xác nhận hoặc phân công."
+      },
+      "deviceHealth": {
+        "title": "Sức khỏe thiết bị",
+        "description": "Kiểm tra drift heartbeat, thiết bị suy giảm và phụ thuộc capture."
+      },
+      "outbox": {
+        "title": "Phân loại outbox",
+        "description": "Kiểm tra chuyển phát thất bại trước khi chuyển giao hoặc leo thang điều hành."
+      }
+    },
+    "sessionDetail": {
+      "title": "Chuyển giao phiên",
+      "description": "Sử dụng Lịch sử Phiên khi điều hành viên cần xem lại từ cảnh báo trực tiếp thành bằng chứng và dòng thời gian."
+    }
+  },
+  "devicesPage": {
+    "title": "Thiết bị",
+    "description": "Kiểm tra topology trực tiếp, trạng thái heartbeat và ánh xạ thiết bị trước khi khắc phục sự cố phần cứng tại chỗ.",
+    "refresh": "Làm mới",
+    "unavailable": "Không khả dụng",
+    "metrics": {
+      "sites": "Trang",
+      "gates": "Cổng",
+      "lanes": "Lane",
+      "devices": "Thiết bị",
+      "heartbeats": "Heartbeat"
+    },
+    "topology": {
+      "title": "Topology trực tiếp",
+      "description": "Kho thiết bị trang, cổng, lane và thiết bị được ánh xạ với trạng thái heartbeat mới nhất.",
+      "loading": "Đang tải topology…",
+      "empty": "Không có topology trong phạm vi hiện tại.",
+      "noMappedDevices": "Không có thiết bị được ánh xạ trên lane này.",
+      "unassigned": "Chưa gán",
+      "noHeartbeat": "Không có heartbeat",
+      "age_one": "{{count}} giây",
+      "age_other": "{{count}} giây",
+      "latency_one": "{{count}} ms",
+      "latency_other": "{{count}} ms"
+    },
+    "realityCheck": {
+      "title": "Kiểm tra thực tế",
+      "description": "Sử dụng bảng này để xác nhận vấn đề đến từ topology, luồng heartbeat hay tổng hợp backend.",
+      "health": {
+        "title": "Endpoint sức khỏe",
+        "description": "Dấu thời gian sức khỏe backend mới nhất: {{value}}."
+      },
+      "api": {
+        "title": "Topology API",
+        "description": "Topology được xây từ cùng API trang, cổng, lane và thiết bị dùng bởi bề mặt quản trị."
+      },
+      "heartbeat": {
+        "title": "Phạm vi heartbeat",
+        "description": "Thiết bị không có dữ liệu heartbeat vẫn có thể tồn tại trong topology, nhưng nên được coi là không xác định cho đến báo cáo được ký tiếp theo."
+      },
+      "aggregate": {
+        "title": "Khoảng trống tổng hợp",
+        "description": "So sánh số thiết bị, vai trò được ánh xạ và tuổi heartbeat để phát hiện drift đấu dây hoặc cung cấp."
+      },
+      "links": {
+        "title": "Liên kết đối chiếu",
+        "description": "Sử dụng Sức khỏe Thiết bị, Debug Capture và Vận hành Lane cùng nhau khi bạn cần chứng minh lỗi là phía cảm biến hay luồng công việc."
+      }
+    }
+  },
+  "gatePage": {
+    "badges": {
+      "legacy": "legacy",
+      "deprecated": "deprecated"
+    },
+    "title": "Tuyến đường cổng đã di chuyển",
+    "description": "Bề mặt cổng cũ giờ chuyển hướng đến tuyến rõ ràng hơn theo vai trò để vận hành và chẩn đoán được tách biệt.",
+    "links": {
+      "runLane": "Mở Vận hành Lane",
+      "captureDebug": "Mở Debug Capture"
+    },
+    "cleanup": {
+      "title": "Ghi chú dọn dẹp",
+      "description": "Giữ tuyến đường này đủ lâu để tránh import chết và bookmark bị hỏng, sau đó xóa khi mọi điểm vào đã di chuyển."
+    }
+  },
+  "gateEventsPage": {
+    "badges": {
+      "legacy": "legacy",
+      "deprecated": "deprecated",
+      "splitComplete": "đã tách hoàn tất"
+    },
+    "title": "Giám sát Sự kiện Cổng đã được thay thế",
+    "description": "Bề mặt hỗn hợp cũ đã được tách thành các tuyến tập trung cho onboarding thiết bị và chẩn đoán capture.",
+    "links": {
+      "captureDebug": "Mở Debug Capture",
+      "mobilePair": "Mở Ghép Camera Di động"
+    },
+    "whySplit": {
+      "title": "Tại sao tách",
+      "description": "QR ghép xử lý onboarding thiết bị. Debug Capture xử lý quan sát ingest và OCR. Giữ chúng cùng nhau làm QA và vận hành khó kiểm soát hơn."
+    }
+  },
+  "reportsPage": {
+    "eyebrow": "Giám sát",
+    "title": "Báo cáo",
+    "description": "Tóm tắt được giữ trong phạm vi theo trang và khung thời gian để bookmark, làm mới và chuyển giao điều hành ổn định.",
+    "siteOptions": {
+      "active": "hoạt động",
+      "off": "tắt"
+    },
+    "days": {
+      "label_one": "{{count}} ngày",
+      "label_other": "{{count}} ngày",
+      "description_one": "{{count}} ngày gần nhất trong cửa sổ tổng hợp",
+      "description_other": "{{count}} ngày gần nhất trong cửa sổ tổng hợp",
+      "badge_one": "{{count}}d",
+      "badge_other": "{{count}}d"
+    },
+    "badges": {
+      "site": "trang {{value}}",
+      "sitePending": "trang {{value}}",
+      "window_one": "cửa sổ {{count}}d",
+      "window_other": "cửa sổ {{count}}d"
+    },
+    "states": {
+      "ready": "sẵn sàng",
+      "loading": "đang tải",
+      "degraded": "suy giảm",
+      "empty": "trống",
+      "summaryReady": "tóm tắt sẵn sàng",
+      "awaitingLoad": "đang chờ tải"
+    },
+    "actions": {
+      "refresh": "Làm mới",
+      "load": "Tải"
+    },
+    "operatorNote": {
+      "title": "Ghi chú điều hành",
+      "description": "So sánh tóm tắt này với hàng đợi, giám sát lane và phiếu gửi trước khi chuyển giao bất thường."
+    },
+    "empty": {
+      "title": "Không có tóm tắt khả dụng",
+      "description": "Chọn trang hợp lệ và tải tóm tắt. Không có dữ liệu cho đến khi backend trả về kết quả cho trang đó."
+    },
+    "metrics": {
+      "site": {
+        "label": "Trang",
+        "helper": "Mã trang"
+      },
+      "window": {
+        "label": "Khung thời gian",
+        "helper": "Cửa sổ tổng hợp"
+      },
+      "total": {
+        "label": "Tổng",
+        "helper": "Tổng sự kiện cổng"
+      },
+      "entryExit": {
+        "label": "Vào vs Ra",
+        "helper": "Phân tách vào và ra"
+      }
+    },
+    "panels": {
+      "incidents": {
+        "title": "Sự cố",
+        "open": "mở",
+        "critical_one": "{{count}} nghiêm trọng",
+        "critical_other": "{{count}} nghiêm trọng",
+        "link": "Xem trong Hàng đợi Kiểm tra"
+      },
+      "lanes": {
+        "title": "Lane",
+        "total": "tổng",
+        "attention_one": "{{count}} cần chú ý",
+        "attention_other": "{{count}} cần chú ý",
+        "offline_one": "{{count}} ngoại tuyến",
+        "offline_other": "{{count}} ngoại tuyến",
+        "link": "Xem Giám sát Lane"
+      },
+      "subscriptions": {
+        "title": "Phiếu gửi",
+        "active": "hoạt động",
+        "expiringSoon_one": "{{count}} sắp hết hạn",
+        "expiringSoon_other": "{{count}} sắp hết hạn",
+        "link": "Xem Phiếu gửi"
+      }
+    },
+    "breakdown": {
+      "title": "Phân tích tóm tắt",
+      "description": "Hiển thị dữ liệu chính xác như backend trả về.",
+      "entry": {
+        "title": "VÀO",
+        "description": "Xe vào trong cửa sổ báo cáo."
+      },
+      "exit": {
+        "title": "RA",
+        "description": "Xe ra trong cửa sổ báo cáo."
+      }
+    },
+    "notes": {
+      "title": "Ghi chú dữ liệu",
+      "items": {
+        "groupByDirection": "Backend nhóm sự kiện cổng theo hướng qua cửa sổ thời gian đã chọn.",
+        "noGateLaneBreakdown": "Endpoint hiện tại không phân tích dữ liệu theo cổng hoặc lane.",
+        "dependencyVsEmpty": "Lỗi phụ thuộc và dữ liệu trống được tách biệt để điều hành viên phân biệt được."
+      }
+    },
+    "quickFacts": {
+      "title": "Sự thật nhanh",
+      "description": "Trực tiếp từ tóm tắt hiện tại.",
+      "site": "Trang hiện đang được tóm tắt.",
+      "window": "Khung thời gian được sử dụng bởi truy vấn báo cáo.",
+      "analytics": "Hai số này đại diện cho tất cả analytics hiện do API công khai."
+    }
+  },
+  "mobileCapturePage": {
+    "validationTitle": "Kiểm tra đầu vào capture di động",
+    "detailsShow": "Hiện chi tiết",
+    "detailsHide": "Ẩn chi tiết",
+    "codeLabel": "mã",
+    "devContext": "dev: ngữ cảnh ký hiệu quả",
+    "diagnostics": {
+      "missingLabel": "{{field}} thiếu",
+      "missingSecretDetail": "Secret thiết bị được yêu cầu cho request được ký thiết bị khi không có pair token hoạt động.",
+      "missingFieldDetail": "{{field}} phải có trong biểu mẫu trực tiếp trước khi heartbeat hoặc capture có thể được ký.",
+      "manualOverrideLabel": "Ghi đè biểu mẫu trực tiếp áp dụng seed query",
+      "manualOverrideDetail": "Điều này được mong đợi sau khi chỉnh sửa trường thiết bị hoặc lane. Biểu mẫu trực tiếp hiện tại thắng cho hành động được ký trong tab này.",
+      "pairTokenMissingLabel": "Pair token thiếu",
+      "pairTokenMissingDetail": "Request vẫn sử dụng ngữ cảnh thiết bị trực tiếp, nhưng khả năng truy vết ngược đến phiên ghép yếu hơn.",
+      "queryPrefillLabel": "Query prefill được áp dụng một lần",
+      "queryPrefillDetail": "Tham số URL chỉ được đọc tại mount. Các chỉnh sửa sau trong tab này không bị ghi đè bởi giá trị query cũ."
+    },
+    "validation": {
+      "missingSecret": "Secret thiết bị được yêu cầu khi không có pair token hoạt động.",
+      "missingField": "{{field}} được yêu cầu cho request được ký thiết bị."
+    },
+    "errors": {
+      "noImageTitle": "Chưa chọn ảnh",
+      "noImageMessage": "Chọn ảnh trước khi xem trước.",
+      "contextIncompleteTitle": "Ngữ cảnh chưa đầy đủ",
+      "contextIncompleteMessage": "Thiếu: {{fields}}",
+      "nothingToSendTitle": "Không có gì để gửi",
+      "nothingToSendMessage": "Cần ít nhất một ảnh hoặc gợi ý biển số.",
+      "previewFailed": "Xem trước thất bại",
+      "heartbeatFailed": "Heartbeat thất bại",
+      "captureFailed": "Capture thất bại",
+      "deviceSignatureInvalidTitle": "Chữ ký thiết bị không hợp lệ",
+      "deviceAuthenticationFailedTitle": "Xác thực thiết bị thất bại",
+      "deviceSignatureInvalidMessage": "Backend từ chối request đã ký. Secret thiết bị hoặc mã thiết bị hiện tại không khớp thiết bị đã đăng ký.",
+      "deviceAuthenticationFailedMessage": "Backend từ chối request thiết bị đã ký. Kiểm tra lại mã thiết bị và secret thiết bị trong biểu mẫu.",
+      "deviceAuthHint": "Mở thẻ ngữ cảnh thiết bị hiệu quả, so sánh trạng thái biểu mẫu trực tiếp với thiết bị đã đăng ký, sau đó thử lại heartbeat hoặc capture trong cùng tab.",
+      "serviceUnavailableTitle": "{{dependency}} không khả dụng",
+      "serviceUnavailableMessageWithHint": "{{message}} {{hint}}",
+      "serviceUnavailableMessageFallback": "{{message}} Kiểm tra {{dependency}} đang chạy.",
+      "serviceUnavailableHint": "errorCode: DEP_UNAVAILABLE | dependency: {{dependency}}",
+      "strictPlateMessage": "Biển số được phát hiện không khớp định dạng biển số Việt Nam được hỗ trợ.",
+      "strictPlateReason": "Lý do: {{reason}}",
+      "strictPlateSuggestion": "Thử dùng plateHint hoặc chụp lại ảnh với biển số rõ ràng hơn.",
+      "imageHintMessage": "Thêm ảnh hoặc gợi ý biển số để hệ thống có thể nhận diện phương tiện.",
+      "pairTokenInvalidMessage": "Pair token đã hết hạn hoặc không hợp lệ. Quét mã QR mới từ Ghép Camera Di động."
+    },
+    "badges": {
+      "mobileSurface": "bề mặt di động",
+      "pairTokenActive": "pair token hoạt động",
+      "ready": "sẵn sàng",
+      "contextIncomplete": "ngữ cảnh chưa đầy đủ"
+    },
+    "title": "Capture di động",
+    "descriptionPairToken": "Pair token hoạt động, không cần secret thiết bị. Chọn ảnh và tùy chọn nhập gợi ý biển số.",
+    "descriptionNoPairToken": "Tham số query chỉ prefill một lần. Biểu mẫu bên dưới là nguồn thực cho heartbeat và capture.",
+    "captureCardTitle": "Bề mặt capture",
+    "captureCardDescription": "Chọn ảnh và tùy chọn nhập gợi ý biển số. Gợi ý biển số ưu tiên hơn OCR. Dùng pair token cho capture và heartbeat khi khả dụng.",
+    "chooseImage": "Chọn hoặc capture ảnh…",
+    "clearSelectedFile": "Xóa tệp đã chọn",
+    "plateHintLabel": "Gợi ý biển số",
+    "plateHintPlaceholder": "VD: 20AA56789 hoặc 51A-12345",
+    "plateOverrideLabel": "Xác nhận / ghi đè biển số",
+    "plateOverridePlaceholder": "Nhập biển số đã xác nhận",
+    "localPreviewAlt": "Xem trước cục bộ",
+    "processing": "Đang xử lý…",
+    "preview": "Xem trước",
+    "sending": "Đang gửi…",
+    "sendCapture": "Gửi capture",
+    "sendingHeartbeat": "Đang gửi heartbeat…",
+    "heartbeatOnline": "Heartbeat TRỰC TUYẾN",
+    "contextSectionTitle": "Cài đặt và ngữ cảnh thiết bị",
+    "deviceContextTitle": "Ngữ cảnh thiết bị",
+    "deviceContextDescription": "Chỉnh sửa các giá trị được heartbeat và capture sử dụng trong bảng này.",
+    "fields": {
+      "site": "Trang",
+      "lane": "Lane",
+      "direction": "Hướng",
+      "entry": "Vào",
+      "exit": "Ra",
+      "deviceCode": "Mã thiết bị",
+      "deviceSecret": "Secret thiết bị"
+    },
+    "placeholders": {
+      "siteCode": "siteCode",
+      "laneCode": "laneCode",
+      "deviceCode": "deviceCode",
+      "deviceSecret": "deviceSecret",
+      "deviceSecretPair": "Không cần khi dùng pair token"
+    },
+    "deviceSecretHintPair": "Khi trang được mở từ liên kết ghép hoặc mã QR, heartbeat và capture sử dụng pair token và không cần secret thiết bị.",
+    "deviceSecretHintLocal": "Chỉ cần khi không dùng pair token. Cấu hình API với DEVICE_CAPTURE_DEFAULT_SECRET hoặc DEVICE_CAPTURE_SECRET_<deviceCode> trong .env.",
+    "previewCardTitle": "Xem trước",
+    "previewConfirmNeeded": "cần xác nhận",
+    "previewReady": "sẵn sàng",
+    "previewPlate": "Biển số",
+    "previewConfidence": "Độ tự tin",
+    "previewWinner": "Người thắng",
+    "applyTopResult": "Áp dụng kết quả hàng đầu",
+    "captureAcceptedTitle": "Capture được chấp thuận",
+    "captureSession": "Phiên",
+    "capturePlate": "Biển số",
+    "captureLane": "Lane",
+    "captureDirection": "Hướng",
+    "openSessionHistory": "Lịch sử phiên",
+    "openRunLane": "Vận hành lane",
+    "footnote": "Bề mặt camera edge được ký bởi ngữ cảnh thiết bị trực tiếp. Query prefill chỉ là seed và không thay đổi tab này sau mount.",
+    "status": {
+      "previewReady": "Xem trước sẵn sàng · {{status}}",
+      "heartbeatSent": "Heartbeat đã gửi · TRỰC TUYẾN",
+      "heartbeatHintPair": "Heartbeat này dùng pair token hoạt động và ngữ cảnh trực tiếp hiện tại.",
+      "heartbeatHintLocal": "Heartbeat này dùng cùng trạng thái biểu mẫu trực tiếp trong thẻ ngữ cảnh thiết bị hiệu quả.",
+      "captureAccepted": "Capture được chấp thuận · {{status}}",
+      "captureHintPair": "Capture này dùng pair token hoạt động và ngữ cảnh trực tiếp hiện tại.",
+      "captureHintLocal": "Capture này dùng cùng ngữ cảnh thiết bị trực tiếp với heartbeat."
+    },
+    "journal": {
+      "previewReadySummary": "Xem trước sẵn sàng · {{status}}",
+      "previewFailedSummary": "Xem trước thất bại · {{title}}",
+      "heartbeatSentSummary": "Heartbeat đã gửi · TRỰC TUYẾN",
+      "heartbeatFailedSummary": "Heartbeat thất bại · {{title}}",
+      "captureAcceptedSummary": "Capture được chấp thuận · {{status}}",
+      "captureFailedSummary": "Capture thất bại · {{title}}"
+    }
+  },
+  "mobileCaptureContext": {
+    "ready": "sẵn sàng",
+    "attention": "cần chú ý",
+    "blocked": "bị chặn",
+    "title": "Ngữ cảnh thiết bị hiệu quả",
+    "description": "Heartbeat và capture sử dụng biểu mẫu trực tiếp được hiển thị ở đây thay vì query param cũ.",
+    "effectiveSigningContext": "Ngữ cảnh ký hiệu quả",
+    "initialSeed": "Seed ban đầu / prefill ghép",
+    "transportTraceability": "Transport / khả năng truy vết",
+    "pairToken": "pair token",
+    "manualOverrideActive": "ghi đè thủ công hoạt động",
+    "noSite": "không-trang",
+    "noLane": "không-lane",
+    "noDevice": "không-thiết bị",
+    "localOnly": "chỉ-cục-bộ",
+    "seedLabel": "seed={{value}}",
+    "prefillLabel": "prefill={{value}}",
+    "pairLabel": "pair={{value}}",
+    "lastHeartbeatLabel": "lastHB={{value}}",
+    "heartbeatRequestLabel": "hbReq={{value}}",
+    "captureRequestLabel": "captureReq={{value}}",
+    "secretLabel": "secret {{value}}",
+    "consistent": "Ngữ cảnh trực tiếp hiện tại nhất quán nội bộ.",
+    "consistentDescription": "Heartbeat và capture sẽ ký với cùng phạm vi thiết bị."
+  },
+  "mobileCaptureJournal": {
+    "title": "Nhật ký vận hành",
+    "description": "Xem trước, heartbeat và log capture từ các hành động mới nhất.",
+    "clear": "Xóa",
+    "empty": "Chưa có hoạt động.",
+    "collapse": "Thu gọn",
+    "showMore": "Hiện thêm"
+  },
+  "mobileCaptureReceipt": {
+    "title": "Biên nhận Capture",
+    "description": "Phản hồi ủy quyền từ backend sau khi ALPR capture được ký được chấp thuận.",
+    "changed": "đã thay đổi",
+    "idempotent": "idempotent",
+    "session": "Phiên",
+    "plate": "Biển số",
+    "readEvent": "readEvent={{value}}",
+    "confidenceOccurred": "độ_tự_tin={{confidence}} · xảy ra={{occurred}}",
+    "openEvidence": "Mở bằng chứng",
+    "openSessionHistory": "Mở lịch sử phiên",
+    "openRunLane": "Mở vận hành lane",
+    "evidenceAlt": "bằng chứng capture"
+  },
+  "accountPage": {
+    "pageTitle": "Tài khoản",
+    "pageDesc": "Quản lý hồ sơ nhân sự, khách hàng và thông tin đăng nhập.",
+    "tabs": {
+      "myProfile": "Hồ sơ của tôi",
+      "admin": "Quản lý nhân sự",
+      "customers": "Quản lý khách hàng"
+    },
+    "profile": {
+      "changePassword": "Đổi mật khẩu",
+      "changePasswordDesc": "Cập nhật mật khẩu tài khoản. Tối thiểu 8 ký tự.",
+      "newPassword": "Mật khẩu mới",
+      "newPasswordPlaceholder": "Nhập mật khẩu mới",
+      "confirmPassword": "Xác nhận mật khẩu",
+      "confirmPasswordPlaceholder": "Nhập lại mật khẩu",
+      "savePassword": "Lưu mật khẩu",
+      "passwordUpdated": "Mật khẩu đã được cập nhật",
+      "passwordRequired": "Vui lòng nhập mật khẩu mới",
+      "passwordMinLength": "Mật khẩu phải có ít nhất 8 ký tự",
+      "passwordMismatch": "Mật khẩu xác nhận không khớp"
+    },
+    "admin": {
+      "newUser": "Tạo người dùng",
+      "searchPlaceholder": "Tìm kiếm theo tên đăng nhập…",
+      "allStatuses": "Tất cả trạng thái",
+      "allRoles": "Tất cả vai trò",
+      "statusActive": "Hoạt động",
+      "statusDisabled": "Đã vô hiệu hóa",
+      "refresh": "Làm mới",
+      "clearFilters": "Xóa bộ lọc",
+      "loading": "Đang tải…",
+      "results": "{{count}} người dùng",
+      "previous": "Trước",
+      "next": "Tiếp",
+      "page": "Trang {{page}}",
+      "editUser": "Sửa người dùng",
+      "editUserDesc": "Cập nhật tên đăng nhập, vai trò hoặc đặt lại mật khẩu cho {{username}}.",
+      "setSiteScopes": "Phạm vi trang",
+      "setSiteScopesDesc": "Gán hoặc xóa phạm vi truy cập trang cho {{username}}.",
+      "setSiteScopesUpdated": "Đã cập nhật phạm vi trang cho {{username}}",
+      "disable": "Vô hiệu hóa",
+      "enable": "Kích hoạt",
+      "userDisabled": "{{username}} đã bị vô hiệu hóa",
+      "userEnabled": "{{username}} đã được kích hoạt",
+      "revokeSessions": "Thu hồi phiên",
+      "sessionsRevoked": "{{count}} phiên hoạt động đã bị thu hồi",
+      "userUpdated": "Đã cập nhật: {{username}}",
+      "userCreated": "Đã tạo: {{username}}",
+      "noUsers": "Không tìm thấy người dùng",
+      "noUsersDesc": "Thử thay đổi bộ lọc hoặc tạo người dùng mới.",
+      "noSitesAvailable": "Không có trang nào khả dụng",
+      "username": "Tên đăng nhập",
+      "usernamePlaceholder": "VD: nguyen.van.a",
+      "usernameMinLength": "Tên đăng nhập phải có ít nhất 3 ký tự",
+      "usernameInvalid": "Tên đăng nhập chỉ gồm chữ cái, số, dấu gạch ngang hoặc gạch dưới",
+      "role": "Vai trò",
+      "newPasswordOptional": "Mật khẩu mới (tùy chọn)",
+      "newPasswordPlaceholder": "Để trống nếu không đổi mật khẩu",
+      "passwordLeaveBlank": "Để trống để giữ nguyên mật khẩu hiện tại",
+      "password": "Mật khẩu",
+      "passwordPlaceholder": "Tối thiểu 8 ký tự",
+      "confirmPassword": "Xác nhận mật khẩu",
+      "confirmPasswordPlaceholder": "Nhập lại mật khẩu",
+      "passwordMinLength": "Mật khẩu phải có ít nhất 8 ký tự",
+      "passwordMismatch": "Mật khẩu xác nhận không khớp",
+      "createUser": "Tạo người dùng",
+      "createUserDesc": "Tạo tài khoản mới với vai trò và phạm vi trang tùy chọn."
+    },
+    "dialog": {
+      "cancel": "Hủy",
+      "save": "Lưu thay đổi"
+    },
+    "customers": {
+      "pageTitle": "Quản lý khách hàng",
+      "pageDesc": "Xem, thêm, sửa và xóa thông tin khách hàng cùng phương tiện, thẻ RFID và gói đăng ký.",
+      "newCustomer": "Thêm khách hàng",
+      "searchPlaceholder": "Tìm kiếm theo tên, SĐT, email…",
+      "allStatuses": "Tất cả trạng thái",
+      "statusActive": "Hoạt động",
+      "statusSuspended": "Đã tạm ngưng",
+      "allVehicleTypes": "Tất cả loại xe",
+      "vehicleTypeCar": "Ô tô",
+      "vehicleTypeMotorbike": "Xe máy",
+      "refresh": "Làm mới",
+      "clearFilters": "Xóa bộ lọc",
+      "loading": "Đang tải…",
+      "results": "{{count}} khách hàng",
+      "previous": "Trước",
+      "next": "Tiếp",
+      "page": "Trang {{page}}",
+      "noCustomers": "Không tìm thấy khách hàng",
+      "noCustomersDesc": "Thử thay đổi bộ lọc hoặc thêm khách hàng mới.",
+      "noSitesAvailable": "Không có trang nào khả dụng",
+      "vehicleCount": "{{count}} xe",
+      "subscriptionCount": "{{count}} gói",
+      "credentialCount": "{{count}} thẻ RFID",
+      "viewDetail": "Xem chi tiết",
+      "editCustomer": "Sửa khách hàng",
+      "deleteCustomer": "Xóa khách hàng",
+      "confirmDelete": "Xác nhận xóa",
+      "confirmDeleteDesc": "Bạn có chắc muốn xóa khách hàng \"{{name}}\"? Hành động này không thể hoàn tác.",
+      "customerDeleted": "Đã xóa khách hàng",
+      "customerCreated": "Đã tạo khách hàng: {{name}}",
+      "customerUpdated": "Đã cập nhật khách hàng: {{name}}",
+      "customerSuspended": "Đã tạm ngưng: {{name}}",
+      "customerActivated": "Đã kích hoạt: {{name}}",
+      "form": {
+        "fullName": "Họ và tên",
+        "fullNamePlaceholder": "VD: Nguyễn Văn A",
+        "fullNameRequired": "Vui lòng nhập họ và tên (tối thiểu 2 ký tự)",
+        "phone": "Số điện thoại",
+        "phonePlaceholder": "VD: 0901234567",
+        "email": "Email",
+        "emailPlaceholder": "VD: nguyen@email.com",
+        "status": "Trạng thái"
+      },
+      "detail": {
+        "title": "Chi tiết khách hàng",
+        "customerId": "Mã khách hàng",
+        "fullName": "Họ và tên",
+        "phone": "SĐT",
+        "email": "Email",
+        "status": "Trạng thái",
+        "createdAt": "Ngày tạo",
+        "summary": "Tổng quan",
+        "vehicles": "Phương tiện",
+        "credentials": "Thẻ RFID",
+        "subscriptions": "Gói đăng ký",
+        "noVehicles": "Chưa có phương tiện nào",
+        "noCredentials": "Chưa có thẻ RFID nào",
+        "noSubscriptions": "Chưa có gói đăng ký nào",
+        "vehiclePlate": "Biển số",
+        "vehicleType": "Loại xe",
+        "credentialRfid": "UID RFID",
+        "credentialStatus": "Trạng thái",
+        "credentialDirection": "Hướng",
+        "credentialLastEvent": "Sự kiện cuối",
+        "subscriptionId": "Mã gói",
+        "subscriptionSite": "Trang",
+        "subscriptionPlan": "Loại gói",
+        "subscriptionStart": "Bắt đầu",
+        "subscriptionEnd": "Kết thúc",
+        "subscriptionStatus": "Trạng thái",
+        "never": "Chưa có"
+      },
+      "status": {
+        "ACTIVE": "Hoạt động",
+        "SUSPENDED": "Tạm ngưng"
+      },
+      "vehicleType": {
+        "CAR": "Ô tô",
+        "MOTORBIKE": "Xe máy"
+      },
+      "credentialStatus": {
+        "ACTIVE": "Hoạt động",
+        "BLOCKED": "Bị khóa",
+        "LOST": "Mất"
+      },
+      "subscriptionStatus": {
+        "ACTIVE": "Hoạt động",
+        "EXPIRED": "Hết hạn",
+        "CANCELLED": "Đã hủy",
+        "SUSPENDED": "Tạm ngưng"
+      },
+      "planType": {
+        "VIP_PLATINUM": "VIP Platinum",
+        "VIP_GOLD": "VIP Gold",
+        "VIP_SILVER": "VIP Silver",
+        "MONTHLY": "Hàng tháng",
+        "DAILY": "Hàng ngày",
+        "ADHOC": "Ad-hoc"
+      }
+    }
+  }
+}

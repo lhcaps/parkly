@@ -1,0 +1,160 @@
+name: Parkly Quality Gate
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: parkly-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '22'
+  PNPM_VERSION: '10'
+
+jobs:
+  quality:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: i18n locales (validate, parity, schema)
+        run: |
+          python scripts/i18n-safe-edit.py validate apps/web/src/i18n/locales/en.json
+          python scripts/i18n-safe-edit.py validate apps/web/src/i18n/locales/vi.json
+          python scripts/i18n-safe-edit.py parity apps/web/src/i18n/locales/en.json apps/web/src/i18n/locales/vi.json
+          python scripts/i18n-safe-edit.py schema-validate apps/web/src/i18n/locales/en.json apps/web/src/i18n/locales/i18n.locale.schema.json
+          python scripts/i18n-safe-edit.py schema-validate apps/web/src/i18n/locales/vi.json apps/web/src/i18n/locales/i18n.locale.schema.json
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browser runtime
+        run: pnpm --dir apps/web playwright:runtime:install
+
+      - name: Run monorepo quality gate
+        run: pnpm test:full
+
+      - name: Upload coverage and test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-artifacts
+          path: |
+            apps/api/coverage/vitest
+            apps/web/coverage/unit
+            apps/web/playwright-report
+            apps/web/test-results
+            apps/web/dist
+          retention-days: 7
+
+  migrations:
+    name: Migration Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: test_root_password
+          MYSQL_DATABASE: parking_mgmt
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -ptest_root_password --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Flyway
+        run: |
+          wget -qO- https://download.red-gate.com/maven/release/com/redgate/flyway/flyway-commandline/12.0.2/flyway-commandline-12.0.2-linux-x64.tar.gz | tar xz
+          echo "$PWD/flyway-12.0.2" >> $GITHUB_PATH
+
+      - name: Run migrations
+        working-directory: apps/api
+        run: |
+          flyway -url="jdbc:mysql://127.0.0.1:3306/parking_mgmt?useSSL=false&allowPublicKeyRetrieval=true" \
+                 -user=root -password=test_root_password \
+                 -locations="filesystem:db/migrations" \
+                 migrate
+
+      - name: Validate migrations
+        working-directory: apps/api
+        run: |
+          flyway -url="jdbc:mysql://127.0.0.1:3306/parking_mgmt?useSSL=false&allowPublicKeyRetrieval=true" \
+                 -user=root -password=test_root_password \
+                 -locations="filesystem:db/migrations" \
+                 validate
+
+  security:
+    name: Security Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependency review
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Capture dependency audit report
+        id: audit
+        continue-on-error: true
+        run: pnpm audit --audit-level=high --json > audit-report.json
+
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-audit-report
+          path: audit-report.json
+          retention-days: 7

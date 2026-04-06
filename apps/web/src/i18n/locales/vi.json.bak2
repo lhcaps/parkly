@@ -1,0 +1,1863 @@
+{
+  "navGroup": {
+    "Operations": "Operations",
+    "Monitoring": "Monitoring",
+    "Capture": "Capture",
+    "System": "System"
+  },
+  "route": {
+    "overview": {
+      "label": "Tổng quan",
+      "shortLabel": "Tổng quan",
+      "description": "Trang tiêu điểm ca shift: trạng thái hàng đợi, cảnh báo lane và sức khỏe hệ thống."
+    },
+    "runLane": {
+      "label": "Vận hành lane",
+      "shortLabel": "Vận hành lane",
+      "description": "Xử lý phương tiện qua lane — từ capture đến quyết định và điều khiển barrier."
+    },
+    "reviewQueue": {
+      "label": "Hàng đợi kiểm tra",
+      "shortLabel": "Kiểm tra",
+      "description": "Tiến hành và giải quyết các trường hợp cần xác nhận thủ công."
+    },
+    "sessionHistory": {
+      "label": "Lịch sử phiên",
+      "shortLabel": "Phiên",
+      "description": "Tìm kiếm phiên, quyết định, sự kiện barrier và chứng cứ theo thời gian."
+    },
+    "laneMonitor": {
+      "label": "Giám sát lane",
+      "shortLabel": "Giám sát lane",
+      "description": "Sức khỏe lane trực tiếp, trạng thái barrier và phiên mới nhất theo trang."
+    },
+    "deviceHealth": {
+      "label": "Sức khỏe thiết bị",
+      "shortLabel": "Thiết bị",
+      "description": "Heartbeat và sự suy giảm của thiết bị theo trang và lane."
+    },
+    "syncOutbox": {
+      "label": "Đồng bộ outbox",
+      "shortLabel": "Outbox",
+      "description": "Hàng đợi đồng bộ — retry, lỗi và trạng thái chuyển phát."
+    },
+    "reports": {
+      "label": "Báo cáo",
+      "shortLabel": "Báo cáo",
+      "description": "Tổng hợp vận hành theo trang và khung thời gian."
+    },
+    "mobileCameraPair": {
+      "label": "Ghép điện thoại",
+      "shortLabel": "Ghép điện thoại",
+      "description": "Ghép một thiết bị điện thoại vào lane để capture và heartbeat."
+    },
+    "captureDebug": {
+      "label": "Debug capture",
+      "shortLabel": "Capture",
+      "description": "Giám sát nguồn capture và kết quả ALPR cho việc chẩn đoán."
+    },
+    "subscriptions": {
+      "label": "Phiếu gửi",
+      "shortLabel": "Phiếu gửi",
+      "description": "Quản lý phiếu gửi xe — phương tiện, chỗ để xe và trạng thái.",
+      "newSubscription": "Phiếu gửi mới",
+      "createTitle": "Tạo phiếu gửi",
+      "createDescription": "Tạo một phiếu gửi mới cho trang, khách hàng, gói và thời hạn hiệu lực.",
+      "createButton": "Tạo phiếu gửi",
+      "createFooter": "Việc chọn khách hàng là thủ công ở giai đoạn này vì giao diện hiện tại chưa có endpoint tra cứu khách hàng.",
+      "site": "Trang",
+      "selectSite": "Chọn trang",
+      "allSites": "Tất cả trang",
+      "customerId": "Mã khách hàng",
+      "customerPlaceholder": "Nhập mã khách hàng",
+      "planType": "Loại gói",
+      "selectPlan": "Chọn loại gói",
+      "startDate": "Ngày bắt đầu",
+      "endDate": "Ngày kết thúc",
+      "validation": {
+        "siteRequired": "Vui lòng chọn trang.",
+        "customerRequired": "Vui lòng nhập mã khách hàng.",
+        "datesRequired": "Vui lòng chọn ngày bắt đầu và ngày kết thúc.",
+        "startBeforeEnd": "Ngày bắt đầu phải trước hoặc cùng ngày kết thúc."
+      }
+    },
+    "parkingLive": {
+      "label": "Bãi đỗ trực tiếp",
+      "shortLabel": "Bãi đỗ",
+      "description": "Tỷ lệ đỗ xe trực tiếp — bản đồ tầng, trạng thái chỗ để và chi tiết."
+    },
+    "settings": {
+      "label": "Cài đặt",
+      "shortLabel": "Cài đặt",
+      "description": "Mặc định, xác thực và chẩn đoán runtime."
+    },
+    "mobileCapture": {
+      "label": "Capture di động",
+      "shortLabel": "Di động",
+      "description": "Giao diện di động để capture và gửi ảnh."
+    },
+    "accountNav": {
+      "label": "Tài khoản",
+      "shortLabel": "Tài khoản",
+      "description": "Quản lý tài khoản người dùng, hồ sơ và vai trò."
+    },
+    "accounts": {
+      "label": "Tài khoản",
+      "shortLabel": "Tài khoản",
+      "description": "Quản lý tài khoản người dùng, hồ sơ và vai trò."
+    }
+  },
+  "role": {
+    "anonymous": {
+      "label": "Not signed in",
+      "focusLabel": "No active session",
+      "forbiddenCopy": "You need an authenticated session before this screen can open.",
+      "badgeLabel": "SIGNED-OUT"
+    },
+    "ADMIN": {
+      "label": "Administrator",
+      "focusLabel": "System oversight",
+      "forbiddenCopy": "This route is outside the active administrator session scope.",
+      "badgeLabel": "ADMIN"
+    },
+    "SUPER_ADMIN": {
+      "label": "Super admin",
+      "focusLabel": "Global system control",
+      "forbiddenCopy": "This route is outside the super-admin control surface.",
+      "badgeLabel": "SUPER_ADMIN"
+    },
+    "SITE_ADMIN": {
+      "label": "Site admin",
+      "focusLabel": "Site administration",
+      "forbiddenCopy": "This route is outside the current site-admin workspace.",
+      "badgeLabel": "SITE_ADMIN"
+    },
+    "OPS": {
+      "label": "Operations",
+      "focusLabel": "Operations control",
+      "forbiddenCopy": "This route is not part of your operations workspace policy.",
+      "badgeLabel": "OPS"
+    },
+    "MANAGER": {
+      "label": "Manager",
+      "focusLabel": "Operations oversight",
+      "forbiddenCopy": "This route is outside the manager review and planning workspace.",
+      "badgeLabel": "MANAGER"
+    },
+    "OPERATOR": {
+      "label": "Operator",
+      "focusLabel": "Lane and queue operations",
+      "forbiddenCopy": "This route is outside the operator execution workspace.",
+      "badgeLabel": "OPERATOR"
+    },
+    "GUARD": {
+      "label": "Guard",
+      "focusLabel": "Lane decisions",
+      "forbiddenCopy": "This route is outside the guard lane and checkpoint workflow.",
+      "badgeLabel": "GUARD"
+    },
+    "CASHIER": {
+      "label": "Cashier",
+      "focusLabel": "Payment follow-up",
+      "forbiddenCopy": "This route is outside cashier reporting and payment follow-up.",
+      "badgeLabel": "CASHIER"
+    },
+    "WORKER": {
+      "label": "Worker",
+      "focusLabel": "Monitoring watch",
+      "forbiddenCopy": "This route is outside the worker monitoring and background scope.",
+      "badgeLabel": "WORKER"
+    },
+    "VIEWER": {
+      "label": "Viewer",
+      "focusLabel": "Read-only monitoring",
+      "forbiddenCopy": "This route is outside the viewer read-only workspace.",
+      "badgeLabel": "VIEWER"
+    }
+  },
+  "sidebar": {
+    "brandTitle": "Parkly Console",
+    "brandSubtitleOps": "Operations · Review · Sync · Audit",
+    "brandSubtitleRole": "{{role}} · canonical workspace",
+    "closeNav": "Close menu",
+    "mainNavAria": "Main navigation"
+  },
+  "topbar": {
+    "openMenu": "Open menu",
+    "settings": "Settings",
+    "signOut": "Sign out",
+    "brandCrumb": "Parkly",
+    "consoleFallback": "Console",
+    "initialising": "Initialising…",
+    "signedOut": "Signed out",
+    "signingOut": "Signing out…"
+  },
+  "auth": {
+    "bootingTitle": "Loading secure workspace",
+    "bootingDesc": "Validating the current session, principal, and landing route.",
+    "bootstrapFailedTitle": "Session bootstrap failed",
+    "bootstrapFallbackDesc": "The shell could not verify the user context required to open this workspace.",
+    "bootstrapRetry": "Retry bootstrap",
+    "backSignIn": "Back to sign in",
+    "forbiddenTitle": "Access denied",
+    "forbiddenHint": "Retry bootstrap first. If it keeps happening, sign in again and check API connectivity.",
+    "routeBlockedTitle": "Route blocked",
+    "requestedRoute": "Requested route",
+    "suggestedFallback": "Suggested fallback",
+    "requiredRoles": "Allowed roles",
+    "workspaceHome": "Workspace home",
+    "openFallback": "Open fallback",
+    "openHome": "Go to home",
+    "principal": "Account",
+    "siteScope": "Site scope",
+    "allSites": "All accessible sites",
+    "session": "Session",
+    "accessContext": "Access context",
+    "sessionState": "Session state",
+    "actor": "Actor",
+    "anonymousActor": "anonymous",
+    "allowedRolesLabel": "Allowed roles",
+    "unrestrictedRoles": "Unrestricted",
+    "goAllowedRoute": "Go to allowed route",
+    "goRoleHome": "Go to role home",
+    "openSettings": "Open Settings"
+  },
+  "common": {
+    "loadingRoute": "Loading {{route}}…",
+    "loadingScreen": "Loading screen…",
+    "dash": "—",
+    "reloadApp": "Reload app",
+    "backOverview": "Back to overview",
+    "routeErrorTitle": "Unable to load this screen",
+    "routeErrorDesc": "A route-level error occurred. Go back home or open Settings to check your session and API.",
+    "unknownError": "Unknown route error",
+    "locale": "en-GB",
+    "skipToMainContent": "Skip to main content",
+    "dismissNotice": "Dismiss notice",
+    "retry": "Retry",
+    "requestId": "requestId",
+    "hint": "hint",
+    "refresh": "Refresh"
+  },
+  "login": {
+    "title": "Sign in to Parkly Console",
+    "subtitle": "Your role after sign-in decides the workspace.",
+    "username": "Username",
+    "password": "Password",
+    "signIn": "Sign in",
+    "signingIn": "Signing in…",
+    "sessionDest": "Session destination",
+    "compatRole": "Compatibility role (optional)",
+    "apiBase": "API",
+    "roleAuto": "Backend-assigned",
+    "roleAutoDesc": "Default flow. Your authenticated session decides the workspace.",
+    "compatDemoDesc": "Compatibility override for demo {{role}} accounts only.",
+    "roleCompat": "Demo compatibility",
+    "policyShell": "Shell bootstrap calls `/api/auth/me`.",
+    "policyAccess": "After sign-in or sign-out, redirects follow role and route policy.",
+    "envHint": "Leave `VITE_API_BASE_URL` empty for local dev to use the Vite API proxy.",
+    "subtitleLong": "Access comes from the authenticated backend principal. The login form does not grant permissions on its own.",
+    "authBadge": "Auth",
+    "advancedOptions": "Advanced compatibility options",
+    "demoRoleOverride": "Demo role override",
+    "demoRoleHint": "Only use when the backend login API still runs in demo compatibility mode. Production should stay on backend-assigned role.",
+    "requestedRouteLabel": "Requested route",
+    "destRoleHome": "Role home from the authenticated session.",
+    "destIfAllowed": "{{href}} if your authenticated role allows it; otherwise the role's default workspace.",
+    "destCompatPath": "Navigate to {{path}} per compatibility override.",
+    "mobileCapture": "Mobile capture",
+    "bootstrapApiUsing": "API in use:",
+    "bootstrapTimeoutBody": "If you see timeouts: start the API (port 3000), bind 0.0.0.0, or leave VITE_API_BASE_URL empty to use the Vite proxy."
+  },
+  "loginPage": {
+    "brand": "Parkly Console",
+    "subtitle": "Your role after sign-in decides the workspace.",
+    "signInMark": "Sign in",
+    "footer": "Secure operations console · Role policy is enforced after authentication"
+  },
+  "laneContext": {
+    "title": "Lane context panel",
+    "description": "Subscribes to topology only. The provider supplies a scoped store with no cross-table React state injection.",
+    "reload": "Reload",
+    "loading": "Loading",
+    "site": "Site",
+    "gate": "Gate",
+    "lane": "Lane",
+    "direction": "Direction",
+    "primaryCamera": "Primary camera",
+    "loopSensor": "Loop sensor",
+    "scopedStore": "scoped store",
+    "topologyError": "Topology load error",
+    "placeholderLoadingSite": "Loading sites…",
+    "placeholderSelectSite": "Select site",
+    "placeholderSelectGateFirst": "Select site first",
+    "placeholderNoGate": "No gate",
+    "placeholderSelectGate": "Select gate",
+    "placeholderSelectLaneFirst": "Select gate first",
+    "placeholderNoLane": "No lane",
+    "placeholderSelectLane": "Select lane",
+    "unresolved": "Unresolved",
+    "scopeFooter": "This scope is released when leaving /run-lane — state is not shared with other screens.",
+    "scopeCreated": "created",
+    "statusIdle": "idle",
+    "statusLoading": "loading",
+    "statusReady": "ready",
+    "statusError": "error",
+    "chooseContext": "Choose context",
+    "laneDetails": "Lane details",
+    "devicesTitle": "Devices",
+    "devicesCount": "Devices",
+    "devicesCountValue": "{{count}} devices",
+    "scopeTitle": "Scope",
+    "scopeId": "Scope ID",
+    "unassigned": "Unassigned"
+  },
+  "direction": {
+    "ENTRY": "Entry",
+    "EXIT": "Exit"
+  },
+  "settingsPage": {
+    "eyebrow": "System",
+    "title": "Settings",
+    "description": "Auth shell diagnostics, runtime token, and default browser context.",
+    "tabOperator": "Operator setup",
+    "tabDeveloper": "Developer / debug",
+    "tabAppearance": "Appearance & language",
+    "savedContext": "Default context saved.",
+    "resetContext": "Default context reset.",
+    "cacheCleared": "Local app cache cleared for this browser."
+  },
+  "appearance": {
+    "title": "Appearance & language",
+    "description": "Light/dark mode and UI language. Preferences are saved in this browser.",
+    "themeLabel": "Color mode",
+    "themeDark": "Dark",
+    "themeLight": "Light",
+    "themeSystem": "System",
+    "themeSystemDesc": "Auto dark mode when OS prefers dark",
+    "themeLightDesc": "Light mode, easy to see in bright light",
+    "themeDarkDesc": "Dark mode, reduces eye strain at night",
+    "themeHint": "System follows your OS light/dark preference.",
+    "languageLabel": "Language",
+    "languageVi": "Tiếng Việt",
+    "languageEn": "English",
+    "languageHint": "Vietnamese is the default; English for international partners.",
+    "languageViDesc": "Vietnamese interface for day-to-day local operations.",
+    "languageEnDesc": "English interface for cross-team and partner operations."
+  },
+  "apiHealth": {
+    "badge": "API health",
+    "verified": "verified",
+    "failed": "failed",
+    "title": "API connection check",
+    "description": "Verify the session shell via /api/health and /api/auth/me.",
+    "apiBase": "API base",
+    "verify": "Check connection",
+    "verifying": "Checking…",
+    "role": "Role",
+    "healthTime": "Health timestamp",
+    "successMsg": "API connection and current session are both valid.",
+    "detectedRole": "Detected role",
+    "notVerifiedYet": "Not verified yet",
+    "lastHealthTs": "Last health check",
+    "verifySessionApi": "Verify session + API"
+  },
+  "operator": {
+    "badgeAccess": "access",
+    "badgeSession": "session shell",
+    "currentSessionTitle": "Current session",
+    "currentSessionDesc": "User context is loaded from backend auth. Route guards, topbar, and navigation follow this principal.",
+    "role": "Role",
+    "principal": "Principal",
+    "siteScope": "Site scope",
+    "session": "Session",
+    "allScopedSites": "All scoped sites",
+    "signOut": "Sign out",
+    "signingOut": "Signing out…",
+    "defaultContextTitle": "Default context",
+    "defaultContextDesc": "Save default site, lane, and direction to reduce repeated setup during shifts.",
+    "placeholderSite": "Default site code",
+    "placeholderLane": "Default lane code",
+    "saveDefaults": "Save defaults",
+    "reset": "Reset",
+    "dirEntry": "Entry",
+    "dirExit": "Exit",
+    "dirEntryDesc": "Default inbound direction",
+    "dirExitDesc": "Default outbound direction",
+    "badgeDefaultContext": "default context",
+    "badgeSiteLane": "site & lane",
+    "sessionService": "service"
+  },
+  "developer": {
+    "title": "Developer / debug",
+    "description": "Build info, token preview, and local cache keys.",
+    "apiBase": "API base",
+    "tokenPreview": "Token (preview)",
+    "buildInfo": "Build",
+    "cacheKeys": "Cache keys",
+    "clearCache": "Clear app cache",
+    "resetDefaults": "Reset default context",
+    "localEnv": "Local environment",
+    "tokenNone": "Not configured",
+    "mode": "Mode",
+    "baseUrl": "Base URL",
+    "unknown": "unknown",
+    "surfaceTitle": "Separation of concerns",
+    "surfaceBody": "User-auth shell routes use the browser access token. Mobile capture and device heartbeat use device-signed credentials only. A device 401 must be debugged on the mobile surface, not by logging the web operator out.",
+    "defaultContextCurrent": "Current default context",
+    "clearLocalTitle": "Clear local cache",
+    "clearLocalDesc": "Clears Parkly app keys in browser storage. Does not affect the backend.",
+    "refreshHint": "Reload the page after clearing cache if the UI still shows stale state.",
+    "none": "None",
+    "resetContextBtn": "Reset context",
+    "localKeys": "Local keys",
+    "noLocalKeys": "No app keys in localStorage.",
+    "troubleTitle": "Troubleshooting guide",
+    "trouble1": "Shell auth issues: /api/auth/*, route bootstrap, user role guards, realtime 401.",
+    "trouble2": "Device-signed issues: /api/devices/heartbeat and /api/gate-reads/* signed by device secret.",
+    "trouble3": "Do not treat device signature errors as proof that the browser user session is expired."
+  },
+  "runLaneCapture": {
+    "stageIdle": "No image selected",
+    "stageUploading": "Uploading...",
+    "stageUploadingMsg": "Uploading to server...",
+    "stageRecognizing": "Recognizing...",
+    "stageRecognizingMsg": "Recognizing license plate (CPU)...",
+    "stageReady": "Recognition complete",
+    "stageError": "Recognition error",
+    "noPreviewYet": "No preview yet. Select an image to upload.",
+    "selectImage": "Select image",
+    "selectImageDesc": "Click to select a file or paste an image from clipboard (Ctrl+V)",
+    "uploadImage": "Uploading image to server...",
+    "runAlpr": "Running ALPR recognition (may take 30-60 seconds on CPU)...",
+    "pleaseWait": "Please wait for processing to complete",
+    "previewSurface": "Preview surface",
+    "noPreviewYetAlt": "No image preview yet",
+    "backendPlate": "Backend plate",
+    "effectivePlate": "Effective plate",
+    "needsConfirm": "Needs confirmation",
+    "ready": "Ready",
+    "manualOverrideActive": "Manual override is active",
+    "backendSuggested": "Backend suggested",
+    "enterOrOverridePlate": "Enter / Override plate number",
+    "enterPlateManually": "Enter plate number manually",
+    "candidates": "Candidates",
+    "score": "score",
+    "votes": "votes",
+    "apply": "Apply",
+    "noCandidates": "No candidates yet — upload an image to recognize",
+    "uploaded": "Uploaded {{filename}}. Running recognition (CPU mode — may take 30-90 seconds)…",
+    "processing": "Processing…",
+    "file": "File:",
+    "fileSize": "{{size}} KB",
+    "imageSelected": "Image selected",
+    "imageNotSelected": "Not selected",
+    "processingFileError": "Error processing file: {{error}}",
+    "processingClipboardError": "Error processing clipboard: {{error}}",
+    "validating": "Validating file?",
+    "uploading": "Uploading to server?",
+    "recognizing": "Recognizing plate (CPU)?",
+    "error": "Recognition error",
+    "effectivePlateNone": "no effective plate",
+    "effectivePlateManual": "manual override",
+    "effectivePlateBackend": "backend preview",
+    "votesValue": "{{count}} votes",
+    "overridePlaceholder": "Enter or confirm plate",
+    "rerun": "Re-run",
+    "clear": "Clear",
+    "previewAlt": "Preview image"
+  },
+  "runLanePage": {
+    "submitting": "Submitting?",
+    "submit": "Run lane flow",
+    "live": "Live",
+    "offline": "Offline",
+    "stale": "Stale",
+    "reconnects": "Reconnects: {{count}}",
+    "showDetails": "Show details",
+    "hideDetails": "Hide details"
+  },
+  "overview": {
+    "eyebrow": "Operations",
+    "title": "Overview",
+    "description": "Shift dashboard — queue pressure, alerts, and system health at a glance.",
+    "allAccessibleSites": "All sites",
+    "selectSite": "Select site",
+    "pageStatus": {
+      "ready": "Ready",
+      "attention": "Attention",
+      "degraded": "Degraded",
+      "unavailable": "Unavailable"
+    },
+    "refresh": "Refresh",
+    "refreshing": "Refreshing…",
+    "refreshedAt": "Updated at {{time}}",
+    "freshness": {
+      "unknown": "Unknown",
+      "fresh": "Fresh",
+      "stale": "{{minutes}}m stale"
+    },
+    "filterBadge": "{{hours}}h window · {{days}}d expiry",
+    "streamLane": "Lane stream",
+    "streamDevice": "Device stream",
+    "kpi": {
+      "incidents": {
+        "title": "Open incidents",
+        "helper": "Incidents within the current overview scope.",
+        "critical": "{{count}} critical"
+      },
+      "laneAttention": {
+        "title": "Lane attention",
+        "helper": "{{offline}} lanes offline — highest priority."
+      },
+      "occupancy": {
+        "title": "Occupancy rate",
+        "helper": "{{occupied}} of {{total}} spots. Click for live view."
+      },
+      "subscriptions": {
+        "title": "Active subscriptions",
+        "helper": "{{expiring}} expiring soon. Click to manage."
+      },
+      "activePresence": {
+        "title": "Active presence",
+        "helper": "Vehicles present across lanes in current scope."
+      },
+      "openSessions": {
+        "title": "Open sessions",
+        "helper": "Sessions with an unclosed lifecycle."
+      }
+    },
+    "status": {
+      "lanePressure": {
+        "title": "Lane pressure",
+        "offline": "{{count}} offline",
+        "barrierFault": "{{count}} barrier fault",
+        "openSessions": "{{count}} open",
+        "helperLive": "Sourced from live lane stream.",
+        "helperFallback": "Lane stream not connected — showing snapshot."
+      },
+      "reviewQueue": {
+        "title": "Review queue",
+        "helperHasItems": "Cases need an operator to claim or resolve.",
+        "helperEmpty": "No open cases in the current queue.",
+        "claimed": "Claimed",
+        "resolved": "Resolved",
+        "cancelled": "Cancelled"
+      },
+      "outboxDelivery": {
+        "title": "Outbox delivery",
+        "helperHasItems": "Failed rows need downstream investigation.",
+        "helperEmpty": "No delivery failures in the current scope.",
+        "pending": "Pending",
+        "sent": "Sent",
+        "sampleRows": "{{count}} sample rows"
+      },
+      "deviceHealth": {
+        "title": "Device health",
+        "helperAttention": "Offline or degraded devices in realtime snapshot.",
+        "helperStable": "Stable — no degraded or offline units.",
+        "offline": "{{count}} offline",
+        "degraded": "{{count}} degraded",
+        "online": "{{count}} online"
+      }
+    },
+    "quickActions": {
+      "title": "Quick actions",
+      "description": "Go directly to the screen you need to work on.",
+      "open": "Open",
+      "badges": {
+        "lane": "Lane",
+        "review": "Review",
+        "live": "Live",
+        "health": "Health",
+        "queue": "Queue",
+        "capture": "Capture"
+      }
+    },
+    "siteOverview": {
+      "title": "Site overview",
+      "description": "Compare incident load, lane status, and open sessions across sites.",
+      "loading": "Loading site summary…",
+      "error": "Site summary unavailable.",
+      "empty": "No sites in scope.",
+      "allSites": "All sites",
+      "occupancy": "{{rate}}% occupancy",
+      "presence": "{{count}} present",
+      "stable": "Stable",
+      "incidents": "{{count}} incidents",
+      "critical": "{{count}} critical",
+      "laneAttention": "{{count}} lane attention",
+      "offline": "{{count}} offline",
+      "openSessions": "{{count}} open sessions",
+      "expiring": "{{count}} expiring",
+      "searchPlaceholder": "Search sites…",
+      "sortPriority": "Priority",
+      "sortName": "Name",
+      "sortOccupancy": "Occupancy",
+      "sortSessions": "Sessions",
+      "noMatchesTitle": "No matching sites",
+      "noMatchesDescription": "No sites match \"{{search}}\"."
+    },
+    "liveWatchlist": {
+      "title": "Lanes needing attention",
+      "description": "Lanes with the worst health from the live stream.",
+      "streamUnavailable": "Lane stream unavailable",
+      "streamUnavailableDesc": "{{error}}",
+      "noLanes": "No lanes need attention",
+      "noLanesDesc": "Stream is active — no lanes in attention or offline state.",
+      "waiting": "Waiting for lane snapshot",
+      "waitingDesc": "The list will populate once the backend pushes lane_status_snapshot.",
+      "session": "Session",
+      "barrier": "Barrier",
+      "direction": "Direction",
+      "live": "Live",
+      "offline": "Offline"
+    },
+    "recentSessions": {
+      "title": "Recent sessions",
+      "description": "Latest sessions — quickly spot lanes needing decision, error, or review.",
+      "loading": "Loading sessions…",
+      "error": "Sessions unavailable",
+      "empty": "No sessions",
+      "reads": "{{count}} reads",
+      "decisions": "{{count}} decisions",
+      "reviewRequired": "Review required",
+      "openAt": "Opened at",
+      "viewAll": "View all",
+      "readCount": "{{count}} reads",
+      "decisionCount": "{{count}} decisions"
+    },
+    "dependencyStatus": {
+      "title": "Dependency status",
+      "description": "Ready / degraded / unavailable per data source.",
+      "dashboardSummary": "Dashboard summary",
+      "recentSessions": "Recent sessions",
+      "reviewQueue": "Review queue",
+      "outboxList": "Outbox list",
+      "laneStream": "Lane stream",
+      "deviceStream": "Device stream",
+      "rowsLoaded": "{{count}} rows loaded",
+      "openClaimed": "{{open}} open · {{claimed}} claimed",
+      "failedPending": "{{failed}} failed · {{pending}} pending",
+      "streamActive": "stream active"
+    },
+    "shiftPriority": {
+      "title": "Shift priority",
+      "reviewOpen": "{{count}} review open",
+      "outboxFailed": "{{count}} outbox failed",
+      "devicesOffline": "{{count}} devices offline",
+      "criticalIncidents": {
+        "label": "Critical incidents",
+        "summary": "{{count}} critical issues need escalation before routine flow resumes."
+      },
+      "offlineLanes": {
+        "label": "Offline lanes",
+        "summary": "{{count}} lanes offline. Restore lane connectivity before chasing lower-priority noise."
+      },
+      "syncBacklog": {
+        "label": "Sync backlog",
+        "summary": "{{count}} failed outbox records need triage before handoff."
+      },
+      "stableShift": {
+        "label": "Stable shift",
+        "summary": "No critical blockers detected. The board can stay focused on throughput and routine review handling."
+      }
+    },
+    "summary": {
+      "laneLive": "lane live",
+      "laneFallback": "lane fallback",
+      "deviceLive": "device live",
+      "deviceFallback": "device fallback",
+      "sitesInScope": "{{count}} sites in scope",
+      "lastRefresh": "Last refresh",
+      "staleness": "Staleness",
+      "minutesBehind": "{{count}} min behind",
+      "currentSnapshot": "Current snapshot",
+      "openSessions": "Open sessions",
+      "activeSessions": "{{count}} active"
+    },
+    "topology": {
+      "title": "Topology",
+      "sites": "{{count}} sites"
+    }
+  },
+  "topologyPage": {
+    "loadingTopology": "Loading topology...",
+    "loadFailed": "Failed to load topology",
+    "loadFailedDesc": "Check your connection and try refreshing the page.",
+    "devicePool": "Device pool",
+    "addGate": "Add gate",
+    "addLane": "Add lane"
+  },
+  "topologyDialog": {
+    "addGate": "Add New Gate",
+    "addLane": "Add New Lane",
+    "createGate": "Create Gate",
+    "createLane": "Create Lane",
+    "closeCreateGate": "Close create gate dialog",
+    "closeCreateLane": "Close create lane dialog",
+    "closeEditLane": "Close edit lane dialog",
+    "closeDeviceDrawer": "Close device configuration drawer",
+    "createGateFailed": "Failed to create gate. Please try again.",
+    "createLaneFailed": "Failed to create lane. Please try again.",
+    "updateLaneFailed": "Failed to update lane. Please try again.",
+    "newGateCode": "New gate code",
+    "gateCodePlaceholder": "e.g. GATE-01",
+    "gateNeedsLane": "Gates must have at least one lane.",
+    "firstLaneDetails": "First lane details",
+    "laneCode": "Lane code",
+    "laneCodePlaceholder": "e.g. L01",
+    "laneName": "Lane name",
+    "laneNamePlaceholder": "e.g. Main Entry 1",
+    "direction": "Direction",
+    "cancel": "Cancel",
+    "saving": "Saving...",
+    "selectGate": "Select gate",
+    "name": "Name",
+    "sortOrder": "Sort order",
+    "configureDevice": "Configure Device",
+    "deviceCode": "Device code",
+    "roleInLane": "Role in lane",
+    "isPrimary": "Is primary",
+    "isPrimaryHint": "Sets this device as the lane's main driver",
+    "isRequired": "Is required",
+    "isRequiredHint": "Lane degrades if offline",
+    "locationHint": "Location hint",
+    "locationPlaceholder": "e.g. Column B3",
+    "ipAddress": "IP address",
+    "saveChanges": "Save changes",
+    "unlinkFromLane": "Unlink from lane",
+    "editLaneTitle": "Edit Lane ({{laneId}})",
+    "gate": "Gate",
+    "noChange": "-- No change --",
+    "status": "Status"
+  },
+  "sessionHistory": {
+    "summary": {
+      "title": "Session summary",
+      "reviewRequired": "review",
+      "incidentOpen": "incident",
+      "session": "Session",
+      "plate": "Plate",
+      "opened": "Opened",
+      "resolved": "Resolved",
+      "location": "Location",
+      "rfid": "RFID",
+      "counts": "Counts",
+      "countsValue": "{{reads}}r ? {{decisions}}d ? {{barriers}}b",
+      "ticket": "Ticket",
+      "evidence": "Evidence",
+      "mediaCount": "{{count}} media"
+    },
+    "empty": {
+      "title": "No session selected",
+      "filteredOne": "1 session matches current filters ? pick one to inspect.",
+      "filteredOther": "{{count}} sessions match current filters ? pick one to inspect.",
+      "description": "Select a session from the list to view its details and run actions."
+    },
+    "list": {
+      "title": "Sessions",
+      "results": "{{count}} results",
+      "filtered": "filtered",
+      "loading": "Loading?",
+      "emptyTitle": "No sessions",
+      "emptyDescription": "Try widening the time range or removing filters.",
+      "counts": "{{reads}}r ? {{decisions}}d"
+    },
+    "filters": {
+      "title": "Filters",
+      "description": "Filter by site, lane, direction, and status to locate the session to investigate.",
+      "reset": "Reset filters",
+      "allSites": "All sites",
+      "allSitesDescription": "All configured sites",
+      "activeBadge": "active",
+      "offBadge": "off",
+      "allLanes": "All lanes",
+      "allLanesDescription": "All lanes in current scope",
+      "allStatuses": "All statuses",
+      "allStatusesDescription": "No status filter applied",
+      "allDirections": "All directions",
+      "allDirectionsDescription": "No direction filter",
+      "inbound": "Inbound",
+      "outbound": "Outbound",
+      "inBadge": "in",
+      "outBadge": "out",
+      "selectSite": "Select site",
+      "selectLane": "Select lane",
+      "selectStatus": "Select status",
+      "selectDirection": "Select direction",
+      "searchPlaceholder": "Session ID, plate, lane, or status?",
+      "searchAriaLabel": "Search sessions by ID, plate, or status",
+      "from": "From date/time",
+      "to": "To date/time",
+      "fromAriaLabel": "From date",
+      "toAriaLabel": "To date",
+      "statusDescriptions": {
+        "OPEN": "Open session",
+        "WAITING_READ": "Awaiting a read",
+        "WAITING_DECISION": "Awaiting decision",
+        "APPROVED": "Approved",
+        "WAITING_PAYMENT": "Waiting for payment",
+        "DENIED": "Denied",
+        "PASSED": "Passed barrier",
+        "TIMEOUT": "Timed out",
+        "CANCELLED": "Cancelled",
+        "ERROR": "Error state"
+      },
+      "statusBadges": {
+        "ok": "ok",
+        "risk": "risk",
+        "flow": "flow"
+      }
+    },
+    "detail": {
+      "metadata": {
+        "title": "Metadata",
+        "description": "Core fields",
+        "reads": "Reads",
+        "decisions": "Decisions",
+        "barriers": "Barriers",
+        "allowedActions": "Allowed actions"
+      },
+      "latestDecision": {
+        "title": "Latest decision"
+      },
+      "actions": {
+        "title": "Actions",
+        "description": "Run permitted session actions",
+        "approve": "Approve",
+        "paymentHold": "Payment hold",
+        "reject": "Reject",
+        "confirmPass": "Confirm pass",
+        "cancel": "Cancel",
+        "none": "No allowed actions",
+        "rejected": "Session action rejected",
+        "terminalLocked": "Terminal state ? actions locked"
+      },
+      "barrier": {
+        "title": "Barrier override",
+        "description": "Manual open (operator/admin shell)",
+        "defaultNote": "Manual barrier open from Session History.",
+        "fallbackNote": "Manual barrier open.",
+        "failed": "Manual barrier open failed",
+        "success": "Override recorded.",
+        "successWithReview": "Override recorded ? reviewId={{reviewId}}",
+        "terminalUnavailable": "Terminal state ? barrier override not available",
+        "roleBadge": "role {{role}}",
+        "sessionBadge": "session {{sessionId}}",
+        "reviewRequired": "review required",
+        "reviewCleared": "review cleared",
+        "reasonCode": "Reason code",
+        "operatorNote": "Operator note",
+        "lockPrefix": "Lock:",
+        "confirmTitle": "Open barrier manually?",
+        "confirmDescription": "Records a manual review, decision, barrier command, and incident. Run only after on-site confirmation.",
+        "confirmButton": "Open barrier",
+        "openButton": "Manual open barrier"
+      },
+      "reads": {
+        "title": "Reads",
+        "count": "{{count}} events",
+        "empty": "No read events.",
+        "ocr": "ocr {{value}}",
+        "rfid": "rfid={{value}}",
+        "sensor": "sensor={{value}}",
+        "device": "device {{value}}",
+        "media": "media {{value}}"
+      },
+      "decisions": {
+        "title": "Decisions",
+        "count": "{{count}} decisions",
+        "empty": "No decisions yet ? the session is likely still waiting."
+      },
+      "barrierCommands": {
+        "title": "Barrier commands",
+        "count": "{{count}} commands",
+        "empty": "No barrier commands.",
+        "acknowledged": "ack ?",
+        "pendingAck": "ack ?"
+      },
+      "reviews": {
+        "title": "Manual reviews",
+        "count": "{{count}} reviews",
+        "empty": "No manual reviews.",
+        "claimAndResolve": "claim={{claim}} ? resolve={{resolve}}"
+      },
+      "incidents": {
+        "title": "Incidents",
+        "count": "{{count}} incidents",
+        "empty": "No incidents.",
+        "severity": "severity={{value}}"
+      }
+    },
+    "timeline": {
+      "title": "Session timeline",
+      "events": "{{count}} events",
+      "empty": "No timeline events.",
+      "collapseAll": "Collapse all",
+      "expandAll": "Expand all",
+      "readEvent": "Read event",
+      "decisionEvent": "Decision event",
+      "barrierEvent": "Barrier event",
+      "reviewEvent": "Review event",
+      "incidentEvent": "Incident event",
+      "sessionEvent": "Session event",
+      "item": "Timeline item"
+    },
+    "media": {
+      "title": "Media strip",
+      "description": "Groups image evidence by read event. Sessions without media still render cleanly without breaking the panel.",
+      "emptyTitle": "No media evidence",
+      "emptyDescription": "RFID-only sessions or missing upstream images are expected and summarized cleanly here.",
+      "alt": "session media {{id}}",
+      "ocr": "ocr {{value}}",
+      "readId": "read={{id}}",
+      "capturedAt": "captured {{value}}",
+      "plateAndMedia": "plate={{plate}} / media={{media}}",
+      "sourceAndSize": "source {{source}} / size={{size}}",
+      "open": "Open media"
+    }
+  },
+  "reviewQueuePage": {
+    "badges": {
+      "manualReview": "manual review",
+      "pending": "Pending",
+      "done": "Done",
+      "caseCount": "{{count}} cases"
+    },
+    "needsAction": "Needs action",
+    "done": "Done",
+    "autoRefreshTitle": "Auto {{seconds}}s",
+    "manualRefreshTitle": "Manual",
+    "auto": "Auto",
+    "manual": "Manual",
+    "lastRefreshAgo": "{{seconds}}s ago",
+    "doneEmptyHint": "No RESOLVED or CANCELLED cases match this filter set. Try another site or time window.",
+    "activeEmptyHint": "Try adjusting filters or widening the time range.",
+    "actions": {
+      "claim": "Claim",
+      "approve": "Approve",
+      "reject": "Reject",
+      "openBarrier": "Open barrier"
+    },
+    "detail": {
+      "title": "Review detail",
+      "description": "Verify session context, confirm the reason, and apply the action permitted for this case.",
+      "empty": "Select a case from the list to view detail.",
+      "sessionBadge": "session {{status}}",
+      "reviewRequired": "review required",
+      "terminalTitle": "Session is {{status}} ? no actions available",
+      "terminalDescription": "This session has reached a terminal state.",
+      "loadingLiveState": "Verifying live session state? all actions stay locked until the authoritative detail returns.",
+      "liveStateFailed": "Could not verify live session state. {{error}}",
+      "staleTitle": "State may be stale",
+      "reviewId": "Review ID",
+      "queueReason": "Queue reason",
+      "location": "Site / Gate / Lane",
+      "sessionStatus": "Session status",
+      "allowedActions": "Live allowed actions",
+      "none": "none",
+      "reasonCode": "Reason code",
+      "note": "Note",
+      "historyOnlyTitle": "History only",
+      "historyOnlyDescription": "These cases are already resolved or cancelled. Switch to Needs action to claim or review a live case.",
+      "claimHint": "Claim (1)",
+      "approveHint": "Approve (2)",
+      "rejectHint": "Reject (3)",
+      "openBarrierHint": "Open barrier (4)",
+      "shortcuts": "Shortcuts: Up/Down select case, 1-4 actions, Ctrl+R refresh",
+      "nextAction": "Next: {{value}}"
+    }
+  },
+  "subscriptionsPage": {
+    "badges": {
+      "canonical": "canonical",
+      "mutable": "mutable",
+      "readOnly": "read-only"
+    },
+    "createFailed": "Subscription create failed"
+  },
+  "parkingLivePage": {
+    "badges": {
+      "realtime": "realtime + poll",
+      "snapshotFallback": "snapshot fallback",
+      "resilience": "resilience mode",
+      "noSite": "no site"
+    }
+  },
+  "outboxPage": {
+    "badges": {
+      "role": "Role {{role}}",
+      "failed": "failed {{count}}"
+    }
+  },
+  "mobilePairPage": {
+    "badges": {
+      "desktopPair": "desktop pair",
+      "qrAndLink": "QR + link",
+      "active": "active {{count}}",
+      "noPair": "no pair"
+    },
+    "form": {
+      "title": "Device pairing context",
+      "description": "Select site, lane, and source device before creating a pair link, link copy, or QR handoff for the mobile device.",
+      "selectSite": "Select site",
+      "selectSiteDescription": "Site to assign to the pairing link",
+      "activeBadge": "active",
+      "offBadge": "off",
+      "selectLane": "Select lane",
+      "selectLaneDescription": "Lane that will receive capture from mobile",
+      "inbound": "Inbound",
+      "outbound": "Outbound",
+      "inBadge": "in",
+      "outBadge": "out",
+      "selectDevice": "Select device",
+      "selectDeviceDescription": "Device that will sign requests from the mobile surface",
+      "primaryBadge": "primary",
+      "requiredBadge": "required",
+      "deviceSecretPlaceholder": "Device secret (optional for Create pair)",
+      "deviceSecretHint": "Optional when using Create pair ? the server issues the pair token.",
+      "pairTokenPlaceholder": "Pair token",
+      "generateToken": "Generate token",
+      "clear": "Clear form"
+    },
+    "activePairs": {
+      "title": "Active pairs",
+      "description": "Stored in the browser local registry for quick re-opening or copying of pair links.",
+      "empty": "No pairs saved on this browser.",
+      "origin": "origin {{value}}",
+      "registry": "registry v{{version}}",
+      "migrated": "migrated {{value}}",
+      "createdAndOpened": "created {{created}} ? last open {{opened}}",
+      "copy": "Copy",
+      "open": "Open",
+      "removeTitle": "Remove pair from list?",
+      "removeDescription": "This only removes the entry from this browser's local registry. The pair token on the server is not revoked; you can still use the link until it expires.",
+      "remove": "Remove"
+    }
+  },
+  "auditViewerPage": {
+    "title": "Audit Viewer",
+    "description": "Trace request chains, actor changes, and entity snapshots without losing operational context.",
+    "badges": {
+      "rows": "{{count}} rows",
+      "requestLinked": "{{count}} request linked",
+      "correlationLinked": "{{count}} correlation linked",
+      "manual": "{{count}} manual"
+    },
+    "cards": {
+      "correlationLookup": {
+        "title": "Correlation lookup",
+        "description": "Filter by request ID or correlation ID to follow a chain across lane actions and downstream systems."
+      },
+      "beforeAfter": {
+        "title": "Before / after snapshot",
+        "description": "The detail panel highlights actor, entity, changed fields, and snapshots for faster operator review."
+      },
+      "handoff": {
+        "title": "Cross-surface handoff",
+        "description": "Jump from an audit record into outbox or session history using the same investigation identifiers."
+      }
+    },
+    "list": {
+      "title": "Audit list",
+      "description": "Scan actions, actors, entities, and correlations. Client-side keyword search applies to the current window only.",
+      "window": "window={{count}}",
+      "visible": "visible={{count}}",
+      "loading": "Loading audit records",
+      "emptyTitle": "No matching audit records",
+      "emptyDescription": "Try widening filters or searching by request ID or correlation ID."
+    },
+    "pagination": {
+      "previous": "Previous",
+      "next": "Next",
+      "root": "root",
+      "window": "Cursor window: {{value}}"
+    }
+  },
+  "auditViewer": {
+    "filters": {
+      "title": "Audit filters",
+      "description": "Keep request, correlation, entity, and actor state stable while tracing the event chain.",
+      "reset": "Reset",
+      "apply": "Apply",
+      "badges": {
+        "all": "all",
+        "manual": "manual",
+        "session": "session",
+        "barrier": "barrier",
+        "any": "any",
+        "open": "open",
+        "resolve": "resolve",
+        "active": "active",
+        "off": "off"
+      },
+      "site": {
+        "all": {
+          "label": "All sites",
+          "description": "No specific site"
+        }
+      },
+      "quick": {
+        "all": {
+          "label": "All records",
+          "description": "No quick filter applied"
+        },
+        "request": {
+          "label": "Request linked",
+          "description": "Records that include a request ID"
+        },
+        "correlation": {
+          "label": "Correlation linked",
+          "description": "Records that include a correlation ID"
+        },
+        "manual": {
+          "label": "Manual override",
+          "description": "Manual review or override actions"
+        },
+        "gateSession": {
+          "label": "Gate session",
+          "description": "Session, review, and resolve actions"
+        },
+        "barrier": {
+          "label": "Barrier actions",
+          "description": "Barrier open, timeout, or related actions"
+        }
+      },
+      "actions": {
+        "all": {
+          "label": "All actions",
+          "description": "No specific action filter"
+        },
+        "sessionOpen": "Session opened",
+        "sessionResolve": "Session resolved",
+        "manualApprove": "Manual approve",
+        "manualReject": "Manual reject",
+        "manualOpenBarrier": "Manual barrier open",
+        "barrierOpen": "Barrier action"
+      },
+      "placeholders": {
+        "keyword": "Audit, action, entity, or actor?",
+        "correlationId": "Correlation ID",
+        "requestId": "Request ID",
+        "entityTable": "entityTable",
+        "entityId": "entityId",
+        "actorUserId": "actorUserId"
+      },
+      "aria": {
+        "keyword": "Search audit records"
+      }
+    },
+    "table": {
+      "audit": "Audit",
+      "action": "Action",
+      "actor": "Actor",
+      "entity": "Entity",
+      "correlation": "Correlation",
+      "occurred": "Occurred",
+      "open": "Open",
+      "opened": "Opened",
+      "changedPrefix": "Changed: {{value}}",
+      "noDiffKeys": "No diff keys.",
+      "beforeAfter": "before {{before}} / after {{after}}"
+    },
+    "detail": {
+      "title": "Audit detail",
+      "description": "Inspect actor, entity, request chain, and snapshots before reading raw JSON.",
+      "emptyDescription": "Select a record to view request context, actor, and before/after snapshot.",
+      "emptyHint": "The detail panel will show correlation, request, actor, and diff summary here.",
+      "siteBadge": "site {{value}}",
+      "auditBadge": "audit {{value}}",
+      "actor": "Actor",
+      "entity": "Entity",
+      "request": "Request",
+      "correlation": "Correlation",
+      "occurred": "Occurred",
+      "created": "Created",
+      "changedKeysBadge": "changed keys {{count}}",
+      "beforeBadge": "before {{count}}",
+      "afterBadge": "after {{count}}",
+      "familyBadge": "family {{value}}",
+      "changedFields": "Changed fields: {{value}}.",
+      "noDiff": "No clear diff keys were inferred from the current snapshot.",
+      "openOutbox": "Open outbox by correlation",
+      "openSessions": "Open session history",
+      "tabs": {
+        "diff": "Diff",
+        "before": "Before",
+        "after": "After",
+        "actor": "Actor"
+      }
+    }
+  },
+  "deviceHealthPage": {
+    "title": "Device Health",
+    "description": "Monitor heartbeat age, latency, and degraded devices by site and lane.",
+    "badges": {
+      "devices": "devices",
+      "heartbeat": "heartbeat"
+    },
+    "links": {
+      "captureDebug": {
+        "title": "Capture Debug",
+        "description": "Investigate image source and ALPR output when preview or capture is abnormal."
+      },
+      "laneMonitor": {
+        "title": "Lane Monitor",
+        "description": "Cross-reference device faults against affected lanes."
+      },
+      "syncOutbox": {
+        "title": "Sync Outbox",
+        "description": "Compare device faults with downstream delivery backlog."
+      }
+    },
+    "howToRead": {
+      "title": "How to read this screen",
+      "body": "Start with offline or degraded device counts, then check heartbeat age and latency to decide what to triage first."
+    }
+  },
+  "deviceHealth": {
+    "title": "Device Health",
+    "titleCompact": "Device health",
+    "description": "Derived health reflects heartbeat age, capture status, and current lane assignment.",
+    "streamLabel": "Device stream",
+    "stale": "Stale",
+    "live": "Live",
+    "resync": "Resync",
+    "manualResync": "Manual resync",
+    "unavailableTitle": "Device stream unavailable",
+    "noSnapshotTitle": "No device snapshot yet",
+    "waitingTitle": "Waiting for device stream",
+    "noSnapshotDescription": "Device health appears here once the backend publishes a snapshot. Resync to reopen the stream if data is missing.",
+    "noHeartbeat": "No heartbeat",
+    "required": "Required",
+    "primary": "Primary",
+    "heartbeatAge": "{{count}}s ago",
+    "latency": "{{count}}ms",
+    "metrics": {
+      "total": "{{count}} total",
+      "online": "{{count}} online",
+      "degraded": "{{count}} degraded",
+      "offline": "{{count}} offline"
+    }
+  },
+  "runLaneLive": {
+    "streamConnected": "Stream connected",
+    "streamOffline": "Stream offline",
+    "stale": "Stale",
+    "unauthorized": "Unauthorized",
+    "laneMissing": "Lane missing",
+    "close": "Close",
+    "lastSnapshot": "Snapshot {{value}}",
+    "lastEvent": "Event {{value}}",
+    "reconnects": "{{count}} reconnects",
+    "noLaneTitle": "No lane selected",
+    "noLaneDescription": "Select a site and lane to inspect realtime state.",
+    "loadingTitle": "Loading live snapshot",
+    "loadingDescription": "Fetching the latest HTTP snapshot for this lane.",
+    "snapshotErrorTitle": "Snapshot failed to load",
+    "retry": "Retry",
+    "lostContextTitle": "Lane missing from snapshot",
+    "lostContextDescription": "Check site scope or the backend lane projection before continuing.",
+    "resync": "Resync",
+    "healthyAttention": "Lane health is stable and ready for normal processing.",
+    "laneHealth": "Lane health",
+    "barrierSession": "Barrier / session",
+    "devicePressure": "Device pressure",
+    "noRequiredDevices": "No required devices",
+    "presence": "Presence",
+    "presenceValue": "{{count}} active / {{direction}}",
+    "perRoleHealth": "Per-role health",
+    "attention": "Attention",
+    "noLiveRowTitle": "No live row for this lane",
+    "noLiveRowDescription": "Snapshot loaded but the lane was not found. Refresh to resync."
+  },
+  "submitResult": {
+    "none": "None",
+    "effectivePlate": "Effective plate",
+    "status": {
+      "success": "Success",
+      "error": "Error",
+      "submitting": "Submitting?",
+      "ready": "Ready"
+    },
+    "decision": {
+      "title": "Decision",
+      "code": "Decision code",
+      "action": "Action",
+      "reason": "Reason",
+      "reviewRequired": "Review required before continuing",
+      "reviewNotRequired": "No additional review required",
+      "empty": "No decision yet. Run the lane flow to receive one."
+    },
+    "session": {
+      "title": "Session",
+      "sessionId": "Session ID",
+      "plate": "Plate",
+      "openedAt": "Opened at",
+      "counts": "Reads / decisions",
+      "countsValue": "{{reads}} / {{decisions}}",
+      "allowedActions": "Allowed actions",
+      "empty": "No session yet. Run the lane flow to create one."
+    },
+    "event": {
+      "title": "Gate event",
+      "changed": "Changed",
+      "unchanged": "Unchanged",
+      "eventId": "Event ID",
+      "time": "Time",
+      "outboxId": "Outbox ID",
+      "device": "Device",
+      "empty": "No gate event yet."
+    },
+    "actions": {
+      "title": "Actions",
+      "submit": "Submit flow",
+      "refresh": "Refresh detail",
+      "confirmPass": "Confirm pass",
+      "cancel": "Cancel",
+      "reset": "Reset result",
+      "resetNotice": "Result reset. Preview and override were kept."
+    }
+  },
+  "laneMonitorPage": {
+    "title": "Lane monitor",
+    "description": "Live lane health, barrier status, and latest session state. This is a read-only monitoring screen, not an action screen.",
+    "badges": {
+      "realtime": "lane realtime"
+    },
+    "links": {
+      "runLane": {
+        "title": "Run Lane",
+        "description": "Switch to the operations screen when a lane needs a decision."
+      },
+      "reviewQueue": {
+        "title": "Review Queue",
+        "description": "Go to the queue when a lane is waiting for manual confirmation."
+      },
+      "sessionHistory": {
+        "title": "Session History",
+        "description": "Open Session History to review the timeline and evidence for a recent session."
+      }
+    },
+    "readingPriority": {
+      "title": "Reading priority",
+      "description": "Check aggregate health first, then review the latest session state and barrier status to identify lanes that need immediate action."
+    },
+    "screenRole": {
+      "title": "Screen role",
+      "description": "Lane Monitor is for observation and fault isolation. Decision actions should be taken in Run Lane or Review Queue."
+    }
+  },
+  "captureDebugPage": {
+    "eyebrow": "Capture",
+    "title": "Capture Debug",
+    "description": "Monitor OCR preview, capture feed, and mapping summary to identify ingest errors or camera mismatches.",
+    "badges": {
+      "capture": "capture",
+      "debugOnly": "debug only"
+    },
+    "links": {
+      "mobilePair": {
+        "title": "Mobile Camera Pair",
+        "description": "Create QR codes and pair links for mobile devices from desktop."
+      },
+      "mobileCapture": {
+        "title": "Mobile Capture",
+        "description": "Open the mobile surface to submit images, preview, and heartbeat."
+      },
+      "runLane": {
+        "title": "Run Lane",
+        "description": "Switch to the main operations screen for decisions and barrier actions."
+      }
+    },
+    "summary": {
+      "title": "Event mapping summary",
+      "empty": "Select a row in the capture feed to view context mapping.",
+      "siteCode": "Site code",
+      "laneCode": "Lane code",
+      "deviceCode": "Device code",
+      "eventId": "Event ID",
+      "outboxId": "Outbox ID",
+      "direction": "Direction",
+      "plate": "Plate",
+      "reviewRequired": "Review required",
+      "yes": "Yes",
+      "no": "No"
+    },
+    "footnote": "Capture Debug is for reading input signals and OCR preview only. Business decisions should be made in Run Lane or Review Queue."
+  },
+  "dashboardPage": {
+    "eyebrow": "Operations",
+    "title": "Operations dashboard",
+    "description": "A consolidated handoff view for lane health, review queue, device health, and outbox pressure.",
+    "badges": {
+      "laneCards": "lane cards",
+      "reviewQueue": "review queue",
+      "timeline": "timeline",
+      "deviceHealth": "device health",
+      "outbox": "outbox"
+    },
+    "cards": {
+      "laneMonitor": {
+        "title": "Lane monitor",
+        "description": "Read barrier health, latest sessions, and live pressure before acting."
+      },
+      "reviewQueue": {
+        "title": "Review queue",
+        "description": "Track manual decisions that need acknowledgement or assignment."
+      },
+      "deviceHealth": {
+        "title": "Device health",
+        "description": "Check heartbeat drift, degraded devices, and capture dependencies."
+      },
+      "outbox": {
+        "title": "Outbox triage",
+        "description": "Inspect failed deliveries before operator handoff or escalation."
+      }
+    },
+    "sessionDetail": {
+      "title": "Session handoff",
+      "description": "Use Session History when an operator needs to walk back from a live alert into evidence and timeline."
+    }
+  },
+  "devicesPage": {
+    "title": "Devices",
+    "description": "Inspect live topology, heartbeat status, and device mapping before troubleshooting onsite hardware.",
+    "refresh": "Refresh",
+    "unavailable": "Unavailable",
+    "metrics": {
+      "sites": "Sites",
+      "gates": "Gates",
+      "lanes": "Lanes",
+      "devices": "Devices",
+      "heartbeats": "Heartbeats"
+    },
+    "topology": {
+      "title": "Live topology",
+      "description": "Site, gate, lane, and mapped device inventory with the latest heartbeat status.",
+      "loading": "Loading topology...",
+      "empty": "No topology is available in the current scope.",
+      "noMappedDevices": "No mapped devices on this lane.",
+      "unassigned": "Unassigned",
+      "noHeartbeat": "No heartbeat",
+      "age_one": "{{count}} second old",
+      "age_other": "{{count}} seconds old",
+      "latency_one": "{{count}} ms",
+      "latency_other": "{{count}} ms"
+    },
+    "realityCheck": {
+      "title": "Reality check",
+      "description": "Use this panel to confirm whether issues come from topology, heartbeat flow, or backend aggregation.",
+      "health": {
+        "title": "Health endpoint",
+        "description": "Latest backend health timestamp: {{value}}."
+      },
+      "api": {
+        "title": "Topology API",
+        "description": "Topology is built from the same site, gate, lane, and device APIs used by the admin surface."
+      },
+      "heartbeat": {
+        "title": "Heartbeat coverage",
+        "description": "A device without heartbeat data can still exist in topology, but it should be treated as unknown until the next signed report."
+      },
+      "aggregate": {
+        "title": "Aggregate gaps",
+        "description": "Compare device counts, mapped roles, and stale heartbeat age to spot wiring or provisioning drift."
+      },
+      "links": {
+        "title": "Cross-check links",
+        "description": "Use Device Health, Capture Debug, and Run Lane together when you need to prove whether the fault is sensor-side or workflow-side."
+      }
+    }
+  },
+  "gatePage": {
+    "badges": {
+      "legacy": "legacy",
+      "deprecated": "deprecated"
+    },
+    "title": "Gate route has moved",
+    "description": "The old gate surface now redirects to clearer role-specific routes so operations and diagnostics stay separated.",
+    "links": {
+      "runLane": "Open Run Lane",
+      "captureDebug": "Open Capture Debug"
+    },
+    "cleanup": {
+      "title": "Cleanup note",
+      "description": "Keep this route only long enough to avoid dead imports and broken bookmarks, then remove it once every entry point has migrated."
+    }
+  },
+  "gateEventsPage": {
+    "badges": {
+      "legacy": "legacy",
+      "deprecated": "deprecated",
+      "splitComplete": "split complete"
+    },
+    "title": "Gate Events Monitor has been replaced",
+    "description": "The old mixed surface has been split into focused routes for device onboarding and capture diagnostics.",
+    "links": {
+      "captureDebug": "Open Capture Debug",
+      "mobilePair": "Open Mobile Camera Pair"
+    },
+    "whySplit": {
+      "title": "Why split",
+      "description": "Pair QR handles device onboarding. Capture Debug handles ingest and OCR observation. Keeping them together made QA and operations harder to control."
+    }
+  },
+  "reportsPage": {
+    "eyebrow": "Monitoring",
+    "title": "Reports",
+    "description": "Summary stays scoped by site and time window so bookmarks, refreshes, and operator handoff remain stable.",
+    "siteOptions": {
+      "active": "active",
+      "off": "off"
+    },
+    "days": {
+      "label_one": "{{count}} day",
+      "label_other": "{{count}} days",
+      "description_one": "Most recent {{count}} day in the aggregation window",
+      "description_other": "Most recent {{count}} days in the aggregation window",
+      "badge_one": "{{count}}d",
+      "badge_other": "{{count}}d"
+    },
+    "badges": {
+      "site": "site {{value}}",
+      "sitePending": "site {{value}}",
+      "window_one": "{{count}}d window",
+      "window_other": "{{count}}d window"
+    },
+    "states": {
+      "ready": "ready",
+      "loading": "loading",
+      "degraded": "degraded",
+      "empty": "empty",
+      "summaryReady": "summary ready",
+      "awaitingLoad": "awaiting load"
+    },
+    "actions": {
+      "refresh": "Refresh",
+      "load": "Load"
+    },
+    "operatorNote": {
+      "title": "Operator note",
+      "description": "Compare this summary against queue, lane monitor, and subscriptions before handing off anomalies."
+    },
+    "empty": {
+      "title": "No summary available",
+      "description": "Select a valid site and load the summary. No data appears until the backend returns a result for that site."
+    },
+    "metrics": {
+      "site": {
+        "label": "Site",
+        "helper": "Site code"
+      },
+      "window": {
+        "label": "Window",
+        "helper": "Aggregation window"
+      },
+      "total": {
+        "label": "Total",
+        "helper": "Total gate events"
+      },
+      "entryExit": {
+        "label": "Entry vs Exit",
+        "helper": "Entry and exit split"
+      }
+    },
+    "panels": {
+      "incidents": {
+        "title": "Incidents",
+        "open": "open",
+        "critical_one": "{{count}} critical",
+        "critical_other": "{{count}} critical",
+        "link": "View in Review Queue"
+      },
+      "lanes": {
+        "title": "Lanes",
+        "total": "total",
+        "attention_one": "{{count}} attention",
+        "attention_other": "{{count}} attention",
+        "offline_one": "{{count}} offline",
+        "offline_other": "{{count}} offline",
+        "link": "View Lane Monitor"
+      },
+      "subscriptions": {
+        "title": "Subscriptions",
+        "active": "active",
+        "expiringSoon_one": "{{count}} expiring soon",
+        "expiringSoon_other": "{{count}} expiring soon",
+        "link": "View Subscriptions"
+      }
+    },
+    "breakdown": {
+      "title": "Summary breakdown",
+      "description": "Showing data exactly as returned by the backend.",
+      "entry": {
+        "title": "ENTRY",
+        "description": "Vehicle entries in the report window."
+      },
+      "exit": {
+        "title": "EXIT",
+        "description": "Vehicle exits in the report window."
+      }
+    },
+    "notes": {
+      "title": "Data notes",
+      "items": {
+        "groupByDirection": "The backend groups gate events by direction over the selected time window.",
+        "noGateLaneBreakdown": "The current endpoint does not break data down by gate or lane.",
+        "dependencyVsEmpty": "Dependency failures and empty data are separated so operators can tell the difference."
+      }
+    },
+    "quickFacts": {
+      "title": "Quick facts",
+      "description": "Directly from the current summary.",
+      "site": "Site currently being summarised.",
+      "window": "Time window used by the report query.",
+      "analytics": "These two figures represent all analytics currently exposed by the API."
+    }
+  },
+  "mobileCapturePage": {
+    "validationTitle": "Check mobile capture input",
+    "detailsShow": "Show details",
+    "detailsHide": "Hide details",
+    "codeLabel": "code",
+    "devContext": "dev: effective signing context",
+    "diagnostics": {
+      "missingLabel": "{{field}} missing",
+      "missingSecretDetail": "Device secret is required for device-signed requests when no pair token is active.",
+      "missingFieldDetail": "{{field}} must be present in the live form before heartbeat or capture can be signed.",
+      "manualOverrideLabel": "Live form overrides query seed",
+      "manualOverrideDetail": "This is expected after editing device or lane fields. The current form wins for signed actions in this tab.",
+      "pairTokenMissingLabel": "Pair token missing",
+      "pairTokenMissingDetail": "Requests still use the live device context, but traceability back to a pairing session is weaker.",
+      "queryPrefillLabel": "Query prefill applied once",
+      "queryPrefillDetail": "URL parameters are read only at mount. Later edits in this tab are not overwritten by stale query values."
+    },
+    "validation": {
+      "missingSecret": "Device secret is required when no pair token is active.",
+      "missingField": "{{field}} is required for device-signed requests."
+    },
+    "errors": {
+      "noImageTitle": "No image selected",
+      "noImageMessage": "Select an image before previewing.",
+      "contextIncompleteTitle": "Context incomplete",
+      "contextIncompleteMessage": "Missing: {{fields}}",
+      "nothingToSendTitle": "Nothing to send",
+      "nothingToSendMessage": "At least one image or plate hint is required.",
+      "previewFailed": "Preview failed",
+      "heartbeatFailed": "Heartbeat failed",
+      "captureFailed": "Capture failed",
+      "deviceSignatureInvalidTitle": "Device signature invalid",
+      "deviceAuthenticationFailedTitle": "Device authentication failed",
+      "deviceSignatureInvalidMessage": "Backend rejected the signed request. The current device secret or device code does not match the registered device.",
+      "deviceAuthenticationFailedMessage": "Backend rejected the signed device request. Re-check the current device code and device secret shown in the form.",
+      "deviceAuthHint": "Open the effective context card, compare the live form state against the registered device, then retry heartbeat or capture in the same tab.",
+      "serviceUnavailableTitle": "{{dependency}} unavailable",
+      "serviceUnavailableMessageWithHint": "{{message}} {{hint}}",
+      "serviceUnavailableMessageFallback": "{{message}} Check that {{dependency}} is running.",
+      "serviceUnavailableHint": "errorCode: DEP_UNAVAILABLE | dependency: {{dependency}}",
+      "strictPlateMessage": "Detected plate does not match the supported Vietnam plate format.",
+      "strictPlateReason": "Reason: {{reason}}",
+      "strictPlateSuggestion": "Try using plateHint or retake the image with a clearer plate.",
+      "imageHintMessage": "Add an image or a plate hint so the system can identify the vehicle.",
+      "pairTokenInvalidMessage": "The pair token is expired or invalid. Scan a fresh QR code from Mobile Camera Pair."
+    },
+    "badges": {
+      "mobileSurface": "mobile surface",
+      "pairTokenActive": "pair token active",
+      "ready": "ready",
+      "contextIncomplete": "context incomplete"
+    },
+    "title": "Mobile capture",
+    "descriptionPairToken": "Pair token is active, so no device secret is required. Choose an image and optionally enter a plate hint.",
+    "descriptionNoPairToken": "Query parameters only prefill once. The form below is the source of truth for heartbeat and capture.",
+    "captureCardTitle": "Capture surface",
+    "captureCardDescription": "Choose an image and optionally enter a plate hint. The plate hint takes priority over OCR. Use the pair token for capture and heartbeat when available.",
+    "chooseImage": "Choose or capture an image...",
+    "clearSelectedFile": "Clear selected file",
+    "plateHintLabel": "Plate hint",
+    "plateHintPlaceholder": "Example: 20AA56789 or 51A-12345",
+    "plateOverrideLabel": "Plate confirm / override",
+    "plateOverridePlaceholder": "Enter a confirmed plate",
+    "localPreviewAlt": "Local preview",
+    "processing": "Processing...",
+    "preview": "Preview",
+    "sending": "Sending...",
+    "sendCapture": "Send capture",
+    "sendingHeartbeat": "Sending heartbeat...",
+    "heartbeatOnline": "Heartbeat ONLINE",
+    "contextSectionTitle": "Device settings and context",
+    "deviceContextTitle": "Device context",
+    "deviceContextDescription": "Edit the values used by heartbeat and capture in this panel.",
+    "fields": {
+      "site": "Site",
+      "lane": "Lane",
+      "direction": "Direction",
+      "entry": "Entry",
+      "exit": "Exit",
+      "deviceCode": "Device code",
+      "deviceSecret": "Device secret"
+    },
+    "placeholders": {
+      "siteCode": "siteCode",
+      "laneCode": "laneCode",
+      "deviceCode": "deviceCode",
+      "deviceSecret": "deviceSecret",
+      "deviceSecretPair": "Not required when using a pair token"
+    },
+    "deviceSecretHintPair": "When the page is opened from a pair link or QR code, heartbeat and capture use the pair token and do not need a device secret.",
+    "deviceSecretHintLocal": "Only required when no pair token is used. Configure the API with DEVICE_CAPTURE_DEFAULT_SECRET or DEVICE_CAPTURE_SECRET_<deviceCode> in .env.",
+    "previewCardTitle": "Preview",
+    "previewConfirmNeeded": "confirm needed",
+    "previewReady": "ready",
+    "previewPlate": "Plate",
+    "previewConfidence": "Confidence",
+    "previewWinner": "Winner",
+    "applyTopResult": "Apply top result",
+    "captureAcceptedTitle": "Capture accepted",
+    "captureSession": "Session",
+    "capturePlate": "Plate",
+    "captureLane": "Lane",
+    "captureDirection": "Direction",
+    "openSessionHistory": "Session history",
+    "openRunLane": "Run lane",
+    "footnote": "Edge camera surface signed by the live device context. Query prefill is seed-only and does not mutate this tab after mount.",
+    "status": {
+      "previewReady": "Preview ready ? {{status}}",
+      "heartbeatSent": "Heartbeat sent ? ONLINE",
+      "heartbeatHintPair": "This heartbeat used the active pair token and the current live context.",
+      "heartbeatHintLocal": "This heartbeat used the same live form state shown in the effective context card.",
+      "captureAccepted": "Capture accepted ? {{status}}",
+      "captureHintPair": "This capture used the active pair token and current live context.",
+      "captureHintLocal": "This capture used the same live device context as heartbeat."
+    },
+    "journal": {
+      "previewReadySummary": "Preview ready ? {{status}}",
+      "previewFailedSummary": "Preview failed ? {{title}}",
+      "heartbeatSentSummary": "Heartbeat sent ? ONLINE",
+      "heartbeatFailedSummary": "Heartbeat failed ? {{title}}",
+      "captureAcceptedSummary": "Capture accepted ? {{status}}",
+      "captureFailedSummary": "Capture failed ? {{title}}"
+    }
+  },
+  "mobileCaptureContext": {
+    "ready": "ready",
+    "attention": "attention",
+    "blocked": "blocked",
+    "title": "Effective device context",
+    "description": "Heartbeat and capture use the live form shown here rather than stale query params.",
+    "effectiveSigningContext": "Effective signing context",
+    "initialSeed": "Initial seed / pair prefill",
+    "transportTraceability": "Transport / traceability",
+    "pairToken": "pair token",
+    "manualOverrideActive": "manual override active",
+    "noSite": "no-site",
+    "noLane": "no-lane",
+    "noDevice": "no-device",
+    "localOnly": "local-only",
+    "seedLabel": "seed={{value}}",
+    "prefillLabel": "prefill={{value}}",
+    "pairLabel": "pair={{value}}",
+    "lastHeartbeatLabel": "lastHB={{value}}",
+    "heartbeatRequestLabel": "hbReq={{value}}",
+    "captureRequestLabel": "captureReq={{value}}",
+    "secretLabel": "secret {{value}}",
+    "consistent": "Current live context is internally consistent.",
+    "consistentDescription": "Heartbeat and capture will sign with the same device scope."
+  },
+  "mobileCaptureJournal": {
+    "title": "Ops journal",
+    "description": "Preview, heartbeat, and capture logs from the latest actions.",
+    "clear": "Clear",
+    "empty": "No activity yet.",
+    "collapse": "Collapse",
+    "showMore": "Show more"
+  },
+  "mobileCaptureReceipt": {
+    "title": "Capture receipt",
+    "description": "Authoritative response from the backend after a signed ALPR capture is accepted.",
+    "changed": "changed",
+    "idempotent": "idempotent",
+    "session": "Session",
+    "plate": "Plate",
+    "readEvent": "readEvent={{value}}",
+    "confidenceOccurred": "confidence={{confidence}} ? occurred={{occurred}}",
+    "openEvidence": "Open evidence",
+    "openSessionHistory": "Open session history",
+    "openRunLane": "Open run lane",
+    "evidenceAlt": "capture evidence"
+  },
+  "accountPage": {
+    "pageTitle": "Tai khoan",
+    "pageDesc": "Quan ly ho so nguoi dung, thong tin dang nhap va phan cong vai tro.",
+    "tabs": {
+      "myProfile": "Ho so cua toi",
+      "admin": "Quan ly nguoi dung"
+    },
+    "profile": {
+      "changePassword": "Doi mat khau",
+      "changePasswordDesc": "Cap nhat mat khau tai khoan. Toi thieu 8 ky tu.",
+      "newPassword": "Mat khau moi",
+      "newPasswordPlaceholder": "Nhap mat khau moi",
+      "confirmPassword": "Xac nhan mat khau",
+      "confirmPasswordPlaceholder": "Nhap lai mat khau",
+      "savePassword": "Luu mat khau",
+      "passwordUpdated": "Mat khau da duoc cap nhat",
+      "passwordRequired": "Vui long nhap mat khau moi",
+      "passwordMinLength": "Mat khau phai co it nhat 8 ky tu",
+      "passwordMismatch": "Mat khau xac nhan khong khop"
+    },
+    "admin": {
+      "newUser": "Tao nguoi dung",
+      "searchPlaceholder": "Tim kiem theo ten dang nhap...",
+      "allStatuses": "Tat ca trang thai",
+      "allRoles": "Tat ca vai tro",
+      "statusActive": "Hoat dong",
+      "statusDisabled": "Da vo hieu hoa",
+      "refresh": "Lam moi",
+      "clearFilters": "Xoa bo loc",
+      "loading": "Dang tai...",
+      "results": "{{count}} nguoi dung",
+      "previous": "Truoc",
+      "next": "Tiep",
+      "page": "Trang {{page}}",
+      "editUser": "Sua nguoi dung",
+      "editUserDesc": "Cap nhat ten dang nhap, vai tro hoac dat lai mat khau cho {{username}}.",
+      "setSiteScopes": "Pham vi trang",
+      "setSiteScopesDesc": "Gan hoac xoa pham vi truy cap trang cho {{username}}.",
+      "setSiteScopesUpdated": "Da cap nhat pham vi trang cho {{username}}",
+      "disable": "Vo hieu hoa",
+      "enable": "Kich hoat",
+      "userDisabled": "{{username}} da bi vo hieu hoa",
+      "userEnabled": "{{username}} da duoc kich hoat",
+      "revokeSessions": "Thu hoi phien",
+      "sessionsRevoked": "{{count}} phien hoat dong da bi thu hoi",
+      "userUpdated": "Da cap nhat: {{username}}",
+      "userCreated": "Da tao: {{username}}",
+      "noUsers": "Khong tim thay nguoi dung",
+      "noUsersDesc": "Thu thay doi bo loc hoac tao nguoi dung moi.",
+      "noSitesAvailable": "Khong co trang nao kha dung",
+      "username": "Ten dang nhap",
+      "usernamePlaceholder": "VD: nguyen.van.a",
+      "usernameMinLength": "Ten dang nhap phai co it nhat 3 ky tu",
+      "usernameInvalid": "Ten dang nhap chi gom chu cai, so, dau gach ngang hoac gach duoi",
+      "role": "Vai tro",
+      "newPasswordOptional": "Mat khau moi (tuy chon)",
+      "newPasswordPlaceholder": "De trong neu khong doi mat khau",
+      "passwordLeaveBlank": "De trong de giu nguyen mat khau hien tai",
+      "password": "Mat khau",
+      "passwordPlaceholder": "Toi thieu 8 ky tu",
+      "confirmPassword": "Xac nhan mat khau",
+      "confirmPasswordPlaceholder": "Nhap lai mat khau",
+      "passwordMinLength": "Mat khau phai co it nhat 8 ky tu",
+      "passwordMismatch": "Mat khau xac nhan khong khop",
+      "createUser": "Tao nguoi dung",
+      "createUserDesc": "Tao tai khoan moi voi vai tro va pham vi trang tuy chon."
+    },
+    "dialog": {
+      "cancel": "Huy",
+      "save": "Luu thay doi"
+    }
+  }
+}

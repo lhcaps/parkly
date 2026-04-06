@@ -1,0 +1,1 @@
+﻿src/features/topology-admin/DevicePool.tsx(4,26): error TS2307: Cannot find module '@/components/ui/skeleton' or its corresponding type declarations.

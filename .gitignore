@@ -1,0 +1,228 @@
+# =============================================
+# 📦 Package Manager
+# =============================================
+# pnpm
+.pnpm/
+pnpm-debug.log*
+.pnpm-store/
+
+# npm/yarn fallbacks
+node_modules/
+package-lock.json
+yarn.lock
+
+# =============================================
+# 🏗️ Build Outputs
+# =============================================
+.next/
+out/
+dist/
+build/
+*.tgz
+.turbo/
+
+# Prisma generated client
+apps/api/node_modules/.prisma/
+packages/*/node_modules/.prisma/
+
+# =============================================
+# 🔐 Environment & Secrets
+# =============================================
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+cursor.env
+
+# Keep example files
+!.env.example
+apps/api/.env.example
+apps/web/.env.example
+
+# =============================================
+# 🗄️ Database & Runtime
+# =============================================
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.log
+
+# Runtime artifacts
+.runtime/
+.backups/
+instance/
+
+# Flyway migrations outputs
+apps/api/db/flyway.conf
+
+# =============================================
+# 🤖 ALPR Service (External ML Service)
+# =============================================
+# ALPR service is a separate heavy ML service
+# Should be deployed and run independently
+services/alpr/
+!services/alpr/README.md
+!services/alpr/requirements.txt
+!services/alpr/requirements-cpu.txt
+
+# ALPR model weights (large binary files - use Git LFS or download separately)
+# !services/alpr/yolov8n.pt  # Uncomment if you want to track the model file
+
+# ML caches
+*.cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+
+# =============================================
+# 📸 Media & Uploads
+# =============================================
+media/
+uploads/
+*.media
+*.upload
+
+# Keep empty placeholder for structure
+uploads/.gitkeep
+
+# =============================================
+# 🧪 Testing & Coverage
+# =============================================
+htmlcov/
+.coverage
+.coverage.*
+.cache/
+nosetests.xml
+coverage.xml
+*.cover
+.pytest_cache/
+pytest_cache/
+vitest.config.*.timestamp-*
+
+# Test scripts that may be generated
+apps/web/scripts/smoke-web.mjs
+
+# =============================================
+# 📝 Documentation & Evidence
+# =============================================
+release-evidence/
+
+# =============================================
+# 🎨 IDE & Editor
+# =============================================
+.idea/
+*.iml
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Cursor / AI Agent artifacts
+.cursor/
+.cursorignore
+.agents/
+
+# =============================================
+# 💻 OS Specific
+# =============================================
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.lnk
+
+# =============================================
+# 🔒 Security & Keys
+# =============================================
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.jks
+
+# =============================================
+# 📦 Docker & Infrastructure
+# =============================================
+.dockerignore
+
+# Docker volumes (runtime data)
+*.vol
+
+# Keep docker-compose files
+!infra/docker/docker-compose*.yml
+!infra/docker/minio/
+
+# =============================================
+# 🗂️ Temporary & Backup Files
+# =============================================
+*.tmp
+*.temp
+*.bak
+*.orig
+*___jb_tmp___*
+*.backup
+*.sql.bak
+
+# Python
+profile_default/
+ipython_config.py
+.python-version
+
+# Jupyter
+.ipynb_checkpoints/
+
+# =============================================
+# 🌐 Web Build Artifacts
+# =============================================
+apps/web/dist/
+apps/web/.parcel-cache/
+
+# TypeScript
+*.tsbuildinfo
+
+# ESLint
+.eslintcache
+.stylelintcache
+
+# =============================================
+# 📊 Observability & Metrics
+# =============================================
+*.prom
+*.metrics
+*.grafana/
+
+# =============================================
+# 🔧 Development Scripts (Not for Production)
+# =============================================
+debug_lines.py
+find_chars.py
+find_garbled.py
+fix_*.py
+fix_encoding*.py
+fix_log*.txt
+fix_strings.py
+
+# =============================================
+# 📦 Workspace Specific
+# =============================================
+packages/*/dist/
+packages/*/build/
+packages/*/.turbo/
+
+# Workspace-specific / user-local artifacts
+vibecoding-all/
+parkly.zip
+
+# Private/Untracked overrides
+cursor.env

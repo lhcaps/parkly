@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-background text-foreground antialiased;
+}
+
+.dark body {
+  @apply bg-background text-foreground;
+}
+
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+}
+
+@layer components {
+  .ops-sticky-bar {
+    @apply sticky top-[72px] z-[5] rounded-[1.75rem] border border-border/75 bg-card/88 backdrop-blur-2xl;
+    box-shadow: 0 18px 52px rgba(34, 92, 136, 0.09);
+  }
+
+  .ops-detail-card {
+    @apply rounded-3xl border border-border/75 bg-card/92;
+    box-shadow: 0 24px 68px rgba(34, 92, 136, 0.12);
+  }
+
+  .ops-meta-panel {
+    @apply rounded-3xl border border-border/75 bg-secondary/72 p-4;
+  }
+
+  .ops-table-dense th {
+    @apply sticky top-0 z-[1] bg-card/98 backdrop-blur-xl;
+  }
+
+  .ops-table-dense td,
+  .ops-table-dense th {
+    @apply px-4 py-3 align-top;
+  }
+
+  .ops-skeleton {
+    @apply animate-pulse rounded-xl bg-muted/60;
+  }
+}
