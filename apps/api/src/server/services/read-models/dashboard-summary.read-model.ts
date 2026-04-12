@@ -1,7 +1,6 @@
 import { Prisma } from '@prisma/client'
 
 import { prisma } from '../../../lib/prisma'
-import { getLaneStatusSnapshot } from '../gate-realtime.service'
 import type {
   DashboardIncidentSiteRow,
   DashboardLaneSiteRow,
@@ -31,9 +30,10 @@ function requireSiteCodes(siteCodes: string[]) {
   return normalized
 }
 
-function siteCodeFilter(siteCodes: string[]) {
-  const normalized = requireSiteCodes(siteCodes)
-  return Prisma.sql`AND ps.site_code IN (${Prisma.join(normalized)})`
+function siteCodeSqlList(siteCodes: string[]) {
+  return Prisma.join(
+    requireSiteCodes(siteCodes).map((siteCode) => Prisma.sql`CAST(${siteCode} AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci`),
+  )
 }
 
 export async function queryIncidentSummarySiteRows(args: {
@@ -44,23 +44,22 @@ export async function queryIncidentSummarySiteRows(args: {
   const rows = await prisma.$queryRaw<Array<Record<string, unknown>>>(Prisma.sql`
     SELECT
       ps.site_code AS siteCode,
-      COUNT(gi.incident_id) AS totalCount,
-      COALESCE(SUM(CASE WHEN gi.status = 'OPEN' THEN 1 ELSE 0 END), 0) AS openCount,
-      COALESCE(SUM(CASE WHEN gi.status = 'ACKED' THEN 1 ELSE 0 END), 0) AS ackedCount,
-      COALESCE(SUM(CASE WHEN gi.status = 'RESOLVED' THEN 1 ELSE 0 END), 0) AS resolvedCount,
-      COALESCE(SUM(CASE WHEN gi.status = 'IGNORED' THEN 1 ELSE 0 END), 0) AS ignoredCount,
-      COALESCE(SUM(CASE WHEN gi.status = 'OPEN' AND gi.severity = 'CRITICAL' THEN 1 ELSE 0 END), 0) AS criticalOpenCount,
-      COALESCE(SUM(CASE WHEN gi.severity = 'INFO' THEN 1 ELSE 0 END), 0) AS infoCount,
-      COALESCE(SUM(CASE WHEN gi.severity = 'WARN' THEN 1 ELSE 0 END), 0) AS warnCount,
-      COALESCE(SUM(CASE WHEN gi.severity = 'CRITICAL' THEN 1 ELSE 0 END), 0) AS criticalCount,
-      COALESCE(SUM(CASE WHEN gi.resolved_at IS NOT NULL AND gi.resolved_at >= ${cutoff} THEN 1 ELSE 0 END), 0) AS resolvedWithinWindowCount,
-      MIN(CASE WHEN gi.status IN ('OPEN', 'ACKED') THEN gi.created_at END) AS oldestActiveCreatedAt,
-      MAX(gi.updated_at) AS lastUpdatedAt
+      COUNT(di.incidentId) AS totalCount,
+      COALESCE(SUM(CASE WHEN di.status = 'OPEN' COLLATE utf8mb4_0900_ai_ci THEN 1 ELSE 0 END), 0) AS openCount,
+      COALESCE(SUM(CASE WHEN di.status = 'ACKED' COLLATE utf8mb4_0900_ai_ci THEN 1 ELSE 0 END), 0) AS ackedCount,
+      COALESCE(SUM(CASE WHEN di.status = 'RESOLVED' COLLATE utf8mb4_0900_ai_ci THEN 1 ELSE 0 END), 0) AS resolvedCount,
+      COALESCE(SUM(CASE WHEN di.status = 'IGNORED' COLLATE utf8mb4_0900_ai_ci THEN 1 ELSE 0 END), 0) AS ignoredCount,
+      COALESCE(SUM(CASE WHEN di.status = 'OPEN' COLLATE utf8mb4_0900_ai_ci AND di.severity = 'CRITICAL' COLLATE utf8mb4_0900_ai_ci THEN 1 ELSE 0 END), 0) AS criticalOpenCount,
+      COALESCE(SUM(CASE WHEN di.severity = 'INFO' COLLATE utf8mb4_0900_ai_ci THEN 1 ELSE 0 END), 0) AS infoCount,
+      COALESCE(SUM(CASE WHEN di.severity = 'WARN' COLLATE utf8mb4_0900_ai_ci THEN 1 ELSE 0 END), 0) AS warnCount,
+      COALESCE(SUM(CASE WHEN di.severity = 'CRITICAL' COLLATE utf8mb4_0900_ai_ci THEN 1 ELSE 0 END), 0) AS criticalCount,
+      COALESCE(SUM(CASE WHEN di.resolvedAt IS NOT NULL AND di.resolvedAt >= ${cutoff} THEN 1 ELSE 0 END), 0) AS resolvedWithinWindowCount,
+      MIN(CASE WHEN di.status IN ('OPEN' COLLATE utf8mb4_0900_ai_ci, 'ACKED' COLLATE utf8mb4_0900_ai_ci) THEN di.createdAt END) AS oldestActiveCreatedAt,
+      MAX(di.updatedAt) AS lastUpdatedAt
     FROM parking_sites ps
-    LEFT JOIN gate_incidents gi
-      ON gi.site_id = ps.site_id
-    WHERE 1 = 1
-      ${siteCodeFilter(args.siteCodes)}
+    LEFT JOIN pkg_dashboard_incident_summary_v di
+      ON di.siteCode = ps.site_code
+    WHERE ps.site_code IN (${siteCodeSqlList(args.siteCodes)})
     GROUP BY ps.site_code
     ORDER BY ps.site_code ASC
   `)
@@ -87,26 +86,19 @@ export async function queryOccupancySummarySiteRows(args: {
 }): Promise<DashboardOccupancySiteRow[]> {
   const rows = await prisma.$queryRaw<Array<Record<string, unknown>>>(Prisma.sql`
     SELECT
-      ps.site_code AS siteCode,
-      COUNT(sp.spot_id) AS totalSpots,
-      COALESCE(SUM(CASE WHEN pop.occupancy_status = 'EMPTY' THEN 1 ELSE 0 END), 0) AS emptyCount,
-      COALESCE(SUM(CASE WHEN pop.occupancy_status = 'OCCUPIED_MATCHED' THEN 1 ELSE 0 END), 0) AS occupiedMatchedCount,
-      COALESCE(SUM(CASE WHEN pop.occupancy_status = 'OCCUPIED_UNKNOWN' THEN 1 ELSE 0 END), 0) AS occupiedUnknownCount,
-      COALESCE(SUM(CASE WHEN pop.occupancy_status = 'OCCUPIED_VIOLATION' THEN 1 ELSE 0 END), 0) AS occupiedViolationCount,
-      COALESCE(SUM(CASE WHEN pop.occupancy_status = 'SENSOR_STALE' THEN 1 ELSE 0 END), 0) AS sensorStaleCount,
-      COALESCE(SUM(CASE WHEN sp.spot_id IS NOT NULL AND pop.projection_id IS NULL THEN 1 ELSE 0 END), 0) AS unreportedCount,
-      COALESCE(SUM(CASE WHEN pop.occupancy_status IN ('OCCUPIED_MATCHED', 'OCCUPIED_UNKNOWN', 'OCCUPIED_VIOLATION', 'SENSOR_STALE') THEN 1 ELSE 0 END), 0) AS occupiedTotal,
-      MAX(pop.updated_at) AS lastProjectedAt
-    FROM parking_sites ps
-    LEFT JOIN spots sp
-      ON sp.site_id = ps.site_id
-    LEFT JOIN spot_occupancy_projection pop
-      ON pop.site_id = sp.site_id
-     AND pop.spot_id = sp.spot_id
-    WHERE 1 = 1
-      ${siteCodeFilter(args.siteCodes)}
-    GROUP BY ps.site_code
-    ORDER BY ps.site_code ASC
+      o.siteCode,
+      o.totalSpots,
+      o.emptyCount,
+      o.occupiedMatchedCount,
+      o.occupiedUnknownCount,
+      o.occupiedViolationCount,
+      o.sensorStaleCount,
+      o.unreportedCount,
+      o.occupiedTotal,
+      o.lastProjectedAt
+    FROM pkg_dashboard_occupancy_summary_v o
+    WHERE o.siteCode IN (${siteCodeSqlList(args.siteCodes)})
+    ORDER BY o.siteCode ASC
   `)
 
   return rows.map((row) => {
@@ -137,40 +129,19 @@ export async function querySubscriptionSummarySiteRows(args: {
     SELECT
       ps.site_code AS siteCode,
       COUNT(s.subscription_id) AS totalSubscriptions,
-      COALESCE(SUM(CASE WHEN s.status = 'ACTIVE' AND CURDATE() BETWEEN s.start_date AND s.end_date THEN 1 ELSE 0 END), 0) AS activeCount,
-      COALESCE(SUM(CASE WHEN s.status = 'EXPIRED' OR (s.status = 'ACTIVE' AND s.end_date < CURDATE()) THEN 1 ELSE 0 END), 0) AS expiredCount,
-      COALESCE(SUM(CASE WHEN s.status = 'CANCELLED' THEN 1 ELSE 0 END), 0) AS cancelledCount,
-      COALESCE(SUM(CASE WHEN s.status = 'SUSPENDED' THEN 1 ELSE 0 END), 0) AS suspendedCount,
-      COALESCE(SUM(CASE WHEN s.plan_type = 'MONTHLY' AND s.status = 'ACTIVE' AND CURDATE() BETWEEN s.start_date AND s.end_date THEN 1 ELSE 0 END), 0) AS monthlyActiveCount,
-      COALESCE(SUM(CASE WHEN s.plan_type = 'VIP' AND s.status = 'ACTIVE' AND CURDATE() BETWEEN s.start_date AND s.end_date THEN 1 ELSE 0 END), 0) AS vipActiveCount,
-      COALESCE(SUM(CASE WHEN s.status = 'ACTIVE' AND CURDATE() BETWEEN s.start_date AND s.end_date AND s.end_date <= DATE_ADD(CURDATE(), INTERVAL ${expiringInDays} DAY) THEN 1 ELSE 0 END), 0) AS expiringSoonCount,
-      (
-        SELECT COUNT(*)
-        FROM subscription_vehicles sv
-        JOIN subscriptions s2
-          ON s2.subscription_id = sv.subscription_id
-        WHERE sv.site_id = ps.site_id
-          AND sv.status = 'ACTIVE'
-          AND s2.status = 'ACTIVE'
-          AND CURDATE() BETWEEN s2.start_date AND s2.end_date
-          AND CURDATE() BETWEEN COALESCE(sv.valid_from, s2.start_date) AND COALESCE(sv.valid_to, s2.end_date)
-      ) AS activeVehicleLinkCount,
-      (
-        SELECT COUNT(*)
-        FROM subscription_spots ss
-        JOIN subscriptions s3
-          ON s3.subscription_id = ss.subscription_id
-        WHERE ss.site_id = ps.site_id
-          AND ss.status = 'ACTIVE'
-          AND s3.status = 'ACTIVE'
-          AND CURDATE() BETWEEN s3.start_date AND s3.end_date
-          AND CURDATE() BETWEEN COALESCE(ss.assigned_from, s3.start_date) AND COALESCE(ss.assigned_until, s3.end_date)
-      ) AS activeSpotLinkCount
+      COALESCE(SUM(CASE WHEN s.active_window_flag = 1 THEN 1 ELSE 0 END), 0) AS activeCount,
+      COALESCE(SUM(CASE WHEN s.effective_status = 'EXPIRED' COLLATE utf8mb4_unicode_ci THEN 1 ELSE 0 END), 0) AS expiredCount,
+      COALESCE(SUM(CASE WHEN s.effective_status = 'CANCELLED' COLLATE utf8mb4_unicode_ci THEN 1 ELSE 0 END), 0) AS cancelledCount,
+      COALESCE(SUM(CASE WHEN s.effective_status = 'SUSPENDED' COLLATE utf8mb4_unicode_ci THEN 1 ELSE 0 END), 0) AS suspendedCount,
+      COALESCE(SUM(CASE WHEN s.plan_type = 'MONTHLY' COLLATE utf8mb4_0900_ai_ci AND s.active_window_flag = 1 THEN 1 ELSE 0 END), 0) AS monthlyActiveCount,
+      COALESCE(SUM(CASE WHEN s.plan_type = 'VIP' COLLATE utf8mb4_0900_ai_ci AND s.active_window_flag = 1 THEN 1 ELSE 0 END), 0) AS vipActiveCount,
+      COALESCE(SUM(CASE WHEN s.active_window_flag = 1 AND s.days_to_expiry BETWEEN 0 AND ${expiringInDays} THEN 1 ELSE 0 END), 0) AS expiringSoonCount,
+      COALESCE(SUM(s.active_vehicle_link_count), 0) AS activeVehicleLinkCount,
+      COALESCE(SUM(s.active_spot_link_count), 0) AS activeSpotLinkCount
     FROM parking_sites ps
-    LEFT JOIN subscriptions s
+    LEFT JOIN pkg_subscription_effective_status_v s
       ON s.site_id = ps.site_id
-    WHERE 1 = 1
-      ${siteCodeFilter(args.siteCodes)}
+    WHERE ps.site_code IN (${siteCodeSqlList(args.siteCodes)})
     GROUP BY ps.site_code, ps.site_id
     ORDER BY ps.site_code ASC
   `)
@@ -190,67 +161,55 @@ export async function querySubscriptionSummarySiteRows(args: {
   }))
 }
 
-type LaneStatusSnapshotRow = Awaited<ReturnType<typeof getLaneStatusSnapshot>>[number]
-
-function isOpenLaneSession(status: string | null) {
-  return ['OPEN', 'WAITING_READ', 'WAITING_DECISION', 'APPROVED', 'WAITING_PAYMENT'].includes(String(status ?? '').trim().toUpperCase())
-}
-
-export function summarizeLaneStatusBySite(rows: LaneStatusSnapshotRow[]): DashboardLaneSiteRow[] {
-  const map = new Map<string, DashboardLaneSiteRow>()
-
-  for (const row of rows) {
-    const siteCode = String(row.siteCode ?? '').trim()
-    if (!siteCode) continue
-
-    const entry = map.get(siteCode) ?? {
-      siteCode,
-      totalLanes: 0,
-      entryCount: 0,
-      exitCount: 0,
-      activeCount: 0,
-      inactiveCount: 0,
-      maintenanceCount: 0,
-      healthyCount: 0,
-      degradedCount: 0,
-      barrierFaultCount: 0,
-      offlineCount: 0,
-      attentionCount: 0,
-      activePresenceCount: 0,
-      openSessionCount: 0,
-    }
-
-    entry.totalLanes += 1
-    if (row.direction === 'ENTRY') entry.entryCount += 1
-    if (row.direction === 'EXIT') entry.exitCount += 1
-
-    const operationalStatus = String(row.laneOperationalStatus ?? '').trim().toUpperCase()
-    if (operationalStatus === 'ACTIVE') entry.activeCount += 1
-    else if (operationalStatus === 'MAINTENANCE') entry.maintenanceCount += 1
-    else entry.inactiveCount += 1
-
-    const aggregateHealth = String(row.aggregateHealth ?? '').trim().toUpperCase()
-    if (aggregateHealth === 'HEALTHY') entry.healthyCount += 1
-    else if (aggregateHealth === 'OFFLINE') entry.offlineCount += 1
-    else if (aggregateHealth === 'BARRIER_FAULT') entry.barrierFaultCount += 1
-    else entry.degradedCount += 1
-
-    if (aggregateHealth !== 'HEALTHY') entry.attentionCount += 1
-    entry.activePresenceCount += toNumber(row.activePresenceCount)
-    if (isOpenLaneSession(row.lastSessionStatus ?? null)) entry.openSessionCount += 1
-
-    map.set(siteCode, entry)
-  }
-
-  return [...map.values()].sort((a, b) => a.siteCode.localeCompare(b.siteCode))
-}
-
 export async function queryLaneSummarySiteRows(args: {
   siteCodes: string[]
 }): Promise<DashboardLaneSiteRow[]> {
-  const rows = await getLaneStatusSnapshot()
-  const allowed = new Set(requireSiteCodes(args.siteCodes))
-  return summarizeLaneStatusBySite(rows.filter((row) => allowed.has(String(row.siteCode ?? ''))))
+  const rows = await prisma.$queryRaw<Array<Record<string, unknown>>>(Prisma.sql`
+    SELECT
+      ps.site_code AS siteCode,
+      COUNT(lh.lane_id) AS totalLanes,
+      COALESCE(SUM(CASE WHEN lh.direction = 'ENTRY' COLLATE utf8mb4_0900_ai_ci THEN 1 ELSE 0 END), 0) AS entryCount,
+      COALESCE(SUM(CASE WHEN lh.direction = 'EXIT' COLLATE utf8mb4_0900_ai_ci THEN 1 ELSE 0 END), 0) AS exitCount,
+      COALESCE(SUM(CASE WHEN lh.laneOperationalStatus = 'ACTIVE' COLLATE utf8mb4_0900_ai_ci THEN 1 ELSE 0 END), 0) AS activeCount,
+      COALESCE(SUM(CASE WHEN lh.laneOperationalStatus = 'INACTIVE' COLLATE utf8mb4_0900_ai_ci THEN 1 ELSE 0 END), 0) AS inactiveCount,
+      COALESCE(SUM(CASE WHEN lh.laneOperationalStatus = 'MAINTENANCE' COLLATE utf8mb4_0900_ai_ci THEN 1 ELSE 0 END), 0) AS maintenanceCount,
+      COALESCE(SUM(CASE WHEN lh.aggregateHealth = 'HEALTHY' COLLATE utf8mb4_unicode_ci THEN 1 ELSE 0 END), 0) AS healthyCount,
+      COALESCE(SUM(CASE WHEN lh.aggregateHealth = 'OFFLINE' COLLATE utf8mb4_unicode_ci THEN 1 ELSE 0 END), 0) AS offlineCount,
+      COALESCE(SUM(CASE WHEN lh.aggregateHealth = 'BARRIER_FAULT' COLLATE utf8mb4_unicode_ci THEN 1 ELSE 0 END), 0) AS barrierFaultCount,
+      COALESCE(SUM(CASE WHEN lh.aggregateHealth NOT IN ('HEALTHY' COLLATE utf8mb4_unicode_ci, 'OFFLINE' COLLATE utf8mb4_unicode_ci, 'BARRIER_FAULT' COLLATE utf8mb4_unicode_ci) THEN 1 ELSE 0 END), 0) AS degradedCount,
+      COALESCE(SUM(CASE WHEN lh.aggregateHealth <> 'HEALTHY' COLLATE utf8mb4_unicode_ci THEN 1 ELSE 0 END), 0) AS attentionCount,
+      COALESCE(SUM(lh.activePresenceCount), 0) AS activePresenceCount,
+      COALESCE(SUM(CASE WHEN lh.lastSessionStatus IN (
+        'OPEN' COLLATE utf8mb4_0900_ai_ci,
+        'WAITING_READ' COLLATE utf8mb4_0900_ai_ci,
+        'WAITING_DECISION' COLLATE utf8mb4_0900_ai_ci,
+        'APPROVED' COLLATE utf8mb4_0900_ai_ci,
+        'WAITING_PAYMENT' COLLATE utf8mb4_0900_ai_ci
+      ) THEN 1 ELSE 0 END), 0) AS openSessionCount
+    FROM parking_sites ps
+    LEFT JOIN pkg_gate_lane_health_v lh
+      ON lh.site_id = ps.site_id
+    WHERE ps.site_code IN (${siteCodeSqlList(args.siteCodes)})
+    GROUP BY ps.site_code, ps.site_id
+    ORDER BY ps.site_code ASC
+  `)
+
+  return rows.map((row) => ({
+    siteCode: String(row.siteCode ?? ''),
+    totalLanes: toNumber(row.totalLanes),
+    entryCount: toNumber(row.entryCount),
+    exitCount: toNumber(row.exitCount),
+    activeCount: toNumber(row.activeCount),
+    inactiveCount: toNumber(row.inactiveCount),
+    maintenanceCount: toNumber(row.maintenanceCount),
+    healthyCount: toNumber(row.healthyCount),
+    degradedCount: toNumber(row.degradedCount),
+    barrierFaultCount: toNumber(row.barrierFaultCount),
+    offlineCount: toNumber(row.offlineCount),
+    attentionCount: toNumber(row.attentionCount),
+    activePresenceCount: toNumber(row.activePresenceCount),
+    openSessionCount: toNumber(row.openSessionCount),
+  }))
 }
 
 export async function queryTopologyCountsPerSite(args: {
@@ -258,22 +217,17 @@ export async function queryTopologyCountsPerSite(args: {
 }): Promise<DashboardTopologySiteRow[]> {
   const rows = await prisma.$queryRaw<Array<Record<string, unknown>>>(Prisma.sql`
     SELECT
-      ps.site_code AS siteCode,
-      COUNT(DISTINCT z.zone_id) AS zoneCount,
-      COUNT(DISTINCT gl.gate_code) AS gateCount,
-      COUNT(DISTINCT gl.lane_id) AS laneCount,
-      COUNT(DISTINCT gd.device_id) AS deviceCount,
-      COUNT(DISTINCT CASE WHEN z.zone_id IS NOT NULL THEN z.code END) AS uniqueZoneCount,
-      GROUP_CONCAT(DISTINCT CASE WHEN z.code IS NOT NULL THEN z.code END SEPARATOR ',') AS zoneCodes,
-      GROUP_CONCAT(DISTINCT CASE WHEN z.name IS NOT NULL THEN z.name END SEPARATOR '|||') AS zoneNames,
-      GROUP_CONCAT(DISTINCT CASE WHEN z.vehicle_type IS NOT NULL THEN z.vehicle_type END SEPARATOR ',') AS vehicleTypes
-    FROM parking_sites ps
-    LEFT JOIN zones z ON z.site_id = ps.site_id
-    LEFT JOIN gate_lanes gl ON gl.site_id = ps.site_id
-    LEFT JOIN gate_devices gd ON gd.site_id = ps.site_id
-    WHERE ps.site_code IN (${Prisma.join(requireSiteCodes(args.siteCodes))})
-    GROUP BY ps.site_code
-    ORDER BY ps.site_code ASC
+      t.siteCode,
+      t.zoneCount,
+      t.gateCount,
+      t.laneCount,
+      t.deviceCount,
+      t.zoneCodes,
+      t.zoneNames,
+      t.vehicleTypes
+    FROM pkg_dashboard_topology_summary_v t
+    WHERE t.siteCode IN (${siteCodeSqlList(args.siteCodes)})
+    ORDER BY t.siteCode ASC
   `)
 
   return rows.map((row) => {

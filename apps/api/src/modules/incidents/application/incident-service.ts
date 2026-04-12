@@ -126,6 +126,15 @@ type IncidentDeps = {
   publish: typeof publishIncidentEnvelope
   now: () => Date
   noiseControl?: Partial<IncidentNoiseControlConfig>
+  resolveIncident?: (args: {
+    incidentId: string
+    action: IncidentResolveAction
+    status: IncidentStatus
+    actorRole: string
+    actorUserId?: string | null
+    note?: string | null
+    evidenceMediaId?: string | null
+  }) => Promise<IncidentSummary>
   audit?: (args: {
     action: string
     incident: IncidentSummary
@@ -205,48 +214,45 @@ function mapHistoryRow(row: any): IncidentHistoryEntry {
 function rowSelectSql() {
   return `
     SELECT
-      gi.incident_id AS incidentId,
-      gi.site_id AS siteId,
-      ps.site_code AS siteCode,
-      gi.lane_id AS laneId,
-      gl.lane_code AS laneCode,
-      gi.device_id AS deviceId,
-      gd.device_code AS deviceCode,
-      gi.session_id AS sessionId,
-      gi.severity AS severity,
-      gi.status AS status,
-      gi.incident_type AS incidentType,
-      gi.title AS title,
-      gi.detail AS detail,
-      gi.source_key AS sourceKey,
-      gi.resolution_action AS resolutionAction,
-      gi.resolved_by_user_id AS resolvedByUserId,
-      gi.resolved_by_role AS resolvedByRole,
-      gi.evidence_media_id AS evidenceMediaId,
-      gi.last_signal_at AS lastSignalAt,
-      gi.snapshot_json AS snapshotJson,
-      gi.created_at AS createdAt,
-      gi.updated_at AS updatedAt,
-      gi.resolved_at AS resolvedAt
-    FROM gate_incidents gi
-    JOIN parking_sites ps ON ps.site_id = gi.site_id
-    LEFT JOIN gate_lanes gl ON gl.lane_id = gi.lane_id
-    LEFT JOIN gate_devices gd ON gd.device_id = gi.device_id
+      fi.incidentId,
+      fi.siteId,
+      fi.siteCode,
+      fi.laneId,
+      fi.laneCode,
+      fi.deviceId,
+      fi.deviceCode,
+      fi.sessionId,
+      fi.severity,
+      fi.status,
+      fi.incidentType,
+      fi.title,
+      fi.detail,
+      fi.sourceKey,
+      fi.resolutionAction,
+      fi.resolvedByUserId,
+      fi.resolvedByRole,
+      fi.evidenceMediaId,
+      fi.lastSignalAt,
+      fi.snapshotJson,
+      fi.createdAt,
+      fi.updatedAt,
+      fi.resolvedAt
+    FROM pkg_gate_incident_feed_v fi
   `
 }
 
 export function getDefaultIncidentDeps(): IncidentDeps {
   const store: IncidentStore = {
     findActiveBySourceKey: async (sourceKey) => {
-      const rows = await prisma.$queryRawUnsafe<any[]>(`${rowSelectSql()} WHERE gi.source_key = ? AND gi.status IN ('OPEN','ACKED') ORDER BY gi.incident_id DESC LIMIT 1`, sourceKey)
+      const rows = await prisma.$queryRawUnsafe<any[]>(`${rowSelectSql()} WHERE fi.sourceKey = ? AND fi.status IN ('OPEN','ACKED') ORDER BY fi.incidentId DESC LIMIT 1`, sourceKey)
       return rows[0] ? mapIncidentRow(rows[0]) : null
     },
     findById: async (incidentId) => {
-      const rows = await prisma.$queryRawUnsafe<any[]>(`${rowSelectSql()} WHERE gi.incident_id = ? LIMIT 1`, incidentId)
+      const rows = await prisma.$queryRawUnsafe<any[]>(`${rowSelectSql()} WHERE fi.incidentId = ? LIMIT 1`, incidentId)
       return rows[0] ? mapIncidentRow(rows[0]) : null
     },
     findLatestBySourceKey: async (sourceKey) => {
-      const rows = await prisma.$queryRawUnsafe<any[]>(`${rowSelectSql()} WHERE gi.source_key = ? ORDER BY gi.incident_id DESC LIMIT 1`, sourceKey)
+      const rows = await prisma.$queryRawUnsafe<any[]>(`${rowSelectSql()} WHERE fi.sourceKey = ? ORDER BY fi.incidentId DESC LIMIT 1`, sourceKey)
       return rows[0] ? mapIncidentRow(rows[0]) : null
     },
     createIncident: async (input) => {
@@ -293,13 +299,13 @@ export function getDefaultIncidentDeps(): IncidentDeps {
       const pageSize = Math.min(200, Math.max(1, Number(limit ?? 50)))
       const rows = await prisma.$queryRawUnsafe<any[]>(
         `${rowSelectSql()}
-         WHERE (? IS NULL OR ps.site_code = ?)
-           AND (? IS NULL OR gi.status = ?)
-           AND (? IS NULL OR gi.severity = ?)
-           AND (? IS NULL OR gi.incident_type = ?)
-           AND (? IS NULL OR gi.source_key = ?)
-           AND (? IS NULL OR gi.incident_id < ?)
-         ORDER BY gi.incident_id DESC
+         WHERE (? IS NULL OR fi.siteCode = ?)
+           AND (? IS NULL OR fi.status = ?)
+           AND (? IS NULL OR fi.severity = ?)
+           AND (? IS NULL OR fi.incidentType = ?)
+           AND (? IS NULL OR fi.sourceKey = ?)
+           AND (? IS NULL OR fi.incidentId < ?)
+         ORDER BY fi.incidentId DESC
          LIMIT ?`,
         siteCode ?? null, siteCode ?? null,
         status ?? null, status ?? null,
@@ -339,7 +345,25 @@ export function getDefaultIncidentDeps(): IncidentDeps {
       return mapHistoryRow(rows[0])
     },
   }
-  return { store, publish: publishIncidentEnvelope, now: () => new Date(), audit: writeIncidentAuditLog }
+  return {
+    store,
+    publish: publishIncidentEnvelope,
+    now: () => new Date(),
+    audit: writeIncidentAuditLog,
+    resolveIncident: async (args) => {
+      await prisma.$executeRawUnsafe(
+        `CALL pkg_incident_resolve(?, ?, ?, ?, ?, ?, ?)`,
+        args.incidentId,
+        args.action,
+        args.status,
+        args.actorRole,
+        args.actorUserId ?? null,
+        args.note ?? null,
+        args.evidenceMediaId ?? null,
+      )
+      return (await store.findById(args.incidentId)) as IncidentSummary
+    },
+  }
 }
 
 function buildProjectionSignal(projection: SpotProjectionRow, deps: IncidentDeps, hitCount?: number) {
@@ -609,8 +633,39 @@ export async function resolveGateIncident(args: { incidentId: string; action: In
   }
   const nextStatus = statusForAction(args.action)
   const nowIso = deps.now().toISOString()
-  const updated = await deps.store.updateIncident(args.incidentId, { status: nextStatus, resolutionAction: args.action, resolvedByUserId: args.actor.actorUserId == null ? null : String(args.actor.actorUserId), resolvedByRole: args.actor.role, evidenceMediaId: args.evidenceMediaId ?? null, resolvedAt: nowIso })
-  await deps.store.appendHistory({ incidentId: updated.incidentId, actionCode: args.action, previousStatus: existing.status, nextStatus: updated.status, actorRole: args.actor.role, actorUserId: args.actor.actorUserId == null ? null : String(args.actor.actorUserId), note: args.note ?? null, evidenceMediaId: args.evidenceMediaId ?? null, snapshotBefore: existing.snapshot, snapshotAfter: updated.snapshot })
+  const updated = deps.resolveIncident
+    ? await deps.resolveIncident({
+        incidentId: args.incidentId,
+        action: args.action,
+        status: nextStatus,
+        actorRole: args.actor.role,
+        actorUserId: args.actor.actorUserId == null ? null : String(args.actor.actorUserId),
+        note: args.note ?? null,
+        evidenceMediaId: args.evidenceMediaId ?? null,
+      })
+    : await deps.store.updateIncident(args.incidentId, {
+        status: nextStatus,
+        resolutionAction: args.action,
+        resolvedByUserId: args.actor.actorUserId == null ? null : String(args.actor.actorUserId),
+        resolvedByRole: args.actor.role,
+        evidenceMediaId: args.evidenceMediaId ?? null,
+        resolvedAt: nowIso,
+      })
+
+  if (!deps.resolveIncident) {
+    await deps.store.appendHistory({
+      incidentId: updated.incidentId,
+      actionCode: args.action,
+      previousStatus: existing.status,
+      nextStatus: updated.status,
+      actorRole: args.actor.role,
+      actorUserId: args.actor.actorUserId == null ? null : String(args.actor.actorUserId),
+      note: args.note ?? null,
+      evidenceMediaId: args.evidenceMediaId ?? null,
+      snapshotBefore: existing.snapshot,
+      snapshotAfter: updated.snapshot,
+    })
+  }
   await audit({
     action: `INCIDENT_${args.action}`,
     incident: updated,

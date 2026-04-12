@@ -21,6 +21,9 @@ export function DangerConfirmDialog({
   busy = false,
   tone = 'danger',
   meta,
+  dialogTestId,
+  cancelTestId,
+  confirmTestId,
   trigger,
 }: {
   title: string
@@ -32,6 +35,9 @@ export function DangerConfirmDialog({
   busy?: boolean
   tone?: 'danger' | 'warning'
   meta?: ReactNode
+  dialogTestId?: string
+  cancelTestId?: string
+  confirmTestId?: string
   trigger: (props: TriggerRenderProps) => ReactNode
 }) {
   const [open, setOpen] = useState(false)
@@ -83,6 +89,7 @@ export function DangerConfirmDialog({
               aria-modal="true"
               aria-labelledby={titleId}
               aria-describedby={description ? descriptionId : undefined}
+              data-testid={dialogTestId}
               className="relative z-[101] w-full max-w-md rounded-3xl border border-border/90 bg-card/98 p-5 shadow-[0_30px_90px_rgba(0,0,0,0.35)]"
             >
               <div className="flex items-start gap-3">
@@ -97,10 +104,23 @@ export function DangerConfirmDialog({
               </div>
 
               <div className="mt-5 flex flex-wrap justify-end gap-2">
-                <Button ref={cancelRef} type="button" variant="outline" onClick={() => setOpen(false)} disabled={confirming}>
+                <Button
+                  ref={cancelRef}
+                  type="button"
+                  variant="outline"
+                  onClick={() => setOpen(false)}
+                  disabled={confirming}
+                  data-testid={cancelTestId}
+                >
                   {cancelLabel}
                 </Button>
-                <Button type="button" variant={tone === 'danger' ? 'destructive' : 'secondary'} onClick={() => void handleConfirm()} disabled={confirming}>
+                <Button
+                  type="button"
+                  variant={tone === 'danger' ? 'destructive' : 'secondary'}
+                  onClick={() => void handleConfirm()}
+                  disabled={confirming}
+                  data-testid={confirmTestId}
+                >
                   {confirming ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                   {confirmLabel}
                 </Button>

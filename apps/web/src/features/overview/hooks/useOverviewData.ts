@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useSseSnapshot } from '@/features/_shared/use-sse-snapshot'
 import { getDashboardSummary } from '@/lib/api/dashboard'
 import { getOutboxItems } from '@/lib/api/outbox'
 import { getReviewQueue } from '@/lib/api/reviews'
@@ -7,30 +6,12 @@ import { getSessions } from '@/lib/api/sessions'
 import { getSites } from '@/lib/api/topology'
 import type { DashboardSiteOverviewRow, DashboardSummaryDocument } from '@/lib/contracts/dashboard'
 import type { SelectOption } from '@/components/ui/select'
-import { makeSseUrl, type DeviceHealthSnapshot, type LaneStatusSnapshot, type OutboxListItem, type ReviewQueueItem, type SessionSummary } from '@/lib/api'
+import type { OutboxListItem, ReviewQueueItem, SessionSummary } from '@/lib/api'
 
 type AsyncSection<T> = {
   loading: boolean
   error: string
   data: T
-}
-
-type LiveLaneSummary = {
-  total: number
-  attention: number
-  offline: number
-  barrierFault: number
-  openSessions: number
-  topProblemLanes: Array<{
-    siteCode: string
-    laneCode: string
-    gateCode: string
-    direction: string
-    aggregateHealth: string
-    aggregateReason: string
-    lastSessionStatus: string | null
-    lastBarrierStatus: string | null
-  }>
 }
 
 function toMessage(error: unknown) {
@@ -53,13 +34,6 @@ function makeLoadingSection<T>(data: T): AsyncSection<T> {
   }
 }
 
-function laneSeverity(row: LaneStatusSnapshot['rows'][number]) {
-  if (row.aggregateHealth === 'OFFLINE') return 4
-  if (row.aggregateHealth === 'BARRIER_FAULT') return 3
-  if (row.aggregateHealth.startsWith('DEGRADED')) return 2
-  return 1
-}
-
 export function useOverviewData() {
   const [selectedSiteCode, setSelectedSiteCode] = useState('')
   const [siteOptions, setSiteOptions] = useState<SelectOption[]>([
@@ -77,16 +51,6 @@ export function useOverviewData() {
   const [outboxSummary, setOutboxSummary] = useState<AsyncSection<OutboxListItem[]>>(makeLoadingSection([]))
   const [refreshedAt, setRefreshedAt] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
-
-  const { data: deviceHealthSnapshot, state: deviceHealthState } = useSseSnapshot<DeviceHealthSnapshot>({
-    url: makeSseUrl('/api/stream/device-health'),
-    eventName: 'device_health_snapshot',
-  })
-
-  const { data: laneSnapshot, state: laneState } = useSseSnapshot<LaneStatusSnapshot>({
-    url: makeSseUrl('/api/stream/lane-status'),
-    eventName: 'lane_status_snapshot',
-  })
 
   const loadOverviewData = useCallback(async () => {
     setRefreshing(true)
@@ -176,60 +140,6 @@ export function useOverviewData() {
     void loadOverviewData()
   }, [loadOverviewData])
 
-  const deviceAlertSummary = useMemo(() => {
-    const rows = deviceHealthSnapshot?.rows ?? []
-    const deduped = new Map<string, typeof rows[number]>()
-
-    for (const row of rows) {
-      const key = [
-        row.siteCode,
-        row.gateCode ?? 'NA',
-        row.laneCode ?? 'UNASSIGNED',
-        row.deviceCode,
-        row.deviceRole ?? row.deviceType ?? 'NA',
-      ].join(':')
-      if (!deduped.has(key)) deduped.set(key, row)
-    }
-
-    const normalized = Array.from(deduped.values())
-    const offline = normalized.filter((row) => row.derivedHealth === 'OFFLINE').length
-    const degraded = normalized.filter((row) => row.derivedHealth === 'DEGRADED').length
-    const online = normalized.filter((row) => row.derivedHealth === 'ONLINE').length
-
-    return {
-      total: normalized.length,
-      offline,
-      degraded,
-      online,
-      attention: offline + degraded,
-    }
-  }, [deviceHealthSnapshot?.rows])
-
-  const liveLaneSummary = useMemo<LiveLaneSummary>(() => {
-    const rows = laneSnapshot?.rows ?? []
-    const ordered = [...rows].sort((a, b) => laneSeverity(b) - laneSeverity(a) || a.laneCode.localeCompare(b.laneCode))
-    return {
-      total: rows.length,
-      attention: rows.filter((row) => row.aggregateHealth !== 'HEALTHY').length,
-      offline: rows.filter((row) => row.aggregateHealth === 'OFFLINE').length,
-      barrierFault: rows.filter((row) => row.aggregateHealth === 'BARRIER_FAULT').length,
-      openSessions: rows.reduce((sum, row) => sum + (row.lastSessionStatus && row.lastSessionStatus !== 'PASSED' && row.lastSessionStatus !== 'CANCELLED' ? 1 : 0), 0),
-      topProblemLanes: ordered
-        .filter((row) => row.aggregateHealth !== 'HEALTHY')
-        .slice(0, 5)
-        .map((row) => ({
-          siteCode: row.siteCode,
-          laneCode: row.laneCode,
-          gateCode: row.gateCode,
-          direction: row.direction,
-          aggregateHealth: row.aggregateHealth,
-          aggregateReason: row.aggregateReason,
-          lastSessionStatus: row.lastSessionStatus,
-          lastBarrierStatus: row.lastBarrierStatus,
-        })),
-    }
-  }, [laneSnapshot?.rows])
-
   const reviewStatusSummary = useMemo(() => ({
     open: queueSummary.data.filter((row) => row.status === 'OPEN').length,
     claimed: queueSummary.data.filter((row) => row.status === 'CLAIMED').length,
@@ -268,19 +178,17 @@ export function useOverviewData() {
   const dependencyErrors = [dashboard.error, recentSessions.error, queueSummary.error, outboxSummary.error].filter(Boolean)
   const pageState = useMemo<'ready' | 'attention' | 'degraded' | 'unavailable'>(() => {
     const allHttpUnavailable = Boolean(dashboard.error && recentSessions.error && queueSummary.error && outboxSummary.error)
-    if (allHttpUnavailable && !laneState.connected && !deviceHealthState.connected) return 'unavailable'
+    if (allHttpUnavailable) return 'unavailable'
     if (dependencyErrors.length > 0) return 'degraded'
     if (
       (dashboard.data?.overview.laneAttentionCount ?? 0) > 0
       || reviewStatusSummary.open > 0
       || outboxStatusSummary.failed > 0
-      || deviceAlertSummary.attention > 0
-      || liveLaneSummary.attention > 0
     ) {
       return 'attention'
     }
     return 'ready'
-  }, [dashboard.data?.overview.laneAttentionCount, dashboard.error, dependencyErrors.length, deviceAlertSummary.attention, deviceHealthState.connected, liveLaneSummary.attention, laneState.connected, outboxStatusSummary.failed, outboxSummary.error, queueSummary.error, recentSessions.error, reviewStatusSummary.open])
+  }, [dashboard.data?.overview.laneAttentionCount, dashboard.error, dependencyErrors.length, outboxStatusSummary.failed, outboxSummary.error, queueSummary.error, recentSessions.error, reviewStatusSummary.open])
 
   return {
     selectedSiteCode,
@@ -294,10 +202,6 @@ export function useOverviewData() {
     outboxStatusSummary,
     dashboardSiteRows,
     effectiveSiteRows,
-    deviceAlertSummary,
-    deviceHealthState,
-    liveLaneSummary,
-    laneState,
     staleMinutes,
     pageState,
     refreshedAt,

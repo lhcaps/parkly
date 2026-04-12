@@ -135,12 +135,10 @@ async function resolveExistingCustomerReference(customerRefInput: string) {
 async function requireSubscription(subscriptionId: string | bigint) {
   const rows = await prisma.$queryRawUnsafe<any[]>(
     `
-      SELECT s.subscription_id, s.site_id, ps.site_code, ps.name AS site_name, s.customer_id,
-             c.full_name AS customer_name, s.plan_type, s.start_date, s.end_date, s.status
-      FROM subscriptions s
-      JOIN parking_sites ps ON ps.site_id = s.site_id
-      JOIN customers c ON c.customer_id = s.customer_id
-      WHERE s.subscription_id = ?
+      SELECT subscription_id, site_id, site_code, site_name, customer_id,
+             customer_name, customer_phone, plan_type, start_date, end_date, status, effective_status
+      FROM pkg_subscription_effective_status_v
+      WHERE subscription_id = ?
       LIMIT 1
     `,
     String(subscriptionId),
@@ -263,16 +261,12 @@ async function assertActivePrimarySpotUnique(args: { subscriptionId: string | bi
 async function assertAssignedSpotConflict(args: { siteCode: string; spotId: string | bigint; excludeId?: string | bigint | null }) {
   const rows = await prisma.$queryRawUnsafe<any[]>(
     `
-      SELECT ss.subscription_spot_id, ss.subscription_id
-      FROM subscription_spots ss
-      JOIN subscriptions s ON s.subscription_id = ss.subscription_id
-      JOIN parking_sites ps ON ps.site_id = ss.site_id
-      WHERE ps.site_code = ?
-        AND ss.spot_id = ?
-        AND ss.status = 'ACTIVE'
-        AND s.status IN ('ACTIVE','SUSPENDED')
-        AND CURDATE() BETWEEN COALESCE(ss.assigned_from, s.start_date) AND COALESCE(ss.assigned_until, s.end_date)
-        AND (? IS NULL OR ss.subscription_spot_id <> ?)
+      SELECT subscription_spot_id, subscription_id
+      FROM pkg_subscription_spot_assignments_v
+      WHERE site_code = ?
+        AND spot_id = ?
+        AND active_window_flag = 1
+        AND (? IS NULL OR subscription_spot_id <> ?)
       LIMIT 1
     `,
     args.siteCode,
@@ -295,29 +289,24 @@ async function loadLinks(subscriptionIds: string[]) {
 
   const spotRows = await prisma.$queryRawUnsafe<any[]>(
     `
-      SELECT ss.subscription_spot_id, ss.subscription_id, ss.site_id, ps.site_code, ss.spot_id,
-             sp.code AS spot_code, z.code AS zone_code, ss.assigned_mode, ss.status,
-             ss.is_primary, ss.assigned_from, ss.assigned_until, ss.note
-      FROM subscription_spots ss
-      JOIN parking_sites ps ON ps.site_id = ss.site_id
-      JOIN spots sp ON sp.spot_id = ss.spot_id
-      JOIN zones z ON z.zone_id = sp.zone_id
-      WHERE ss.subscription_id IN (${placeholders})
-      ORDER BY ss.subscription_id ASC, ss.is_primary DESC, ss.subscription_spot_id ASC
+      SELECT subscription_spot_id, subscription_id, site_id, site_code, spot_id,
+             spot_code, zone_code, assigned_mode, status,
+             is_primary, assigned_from, assigned_until, note
+      FROM pkg_subscription_spot_assignments_v
+      WHERE subscription_id IN (${placeholders})
+      ORDER BY subscription_id ASC, is_primary DESC, subscription_spot_id ASC
     `,
     ...subscriptionIds,
   );
 
   const vehicleRows = await prisma.$queryRawUnsafe<any[]>(
     `
-      SELECT sv.subscription_vehicle_id, sv.subscription_id, sv.site_id, ps.site_code,
-             sv.vehicle_id, v.license_plate, v.vehicle_type, sv.plate_compact,
-             sv.status, sv.is_primary, sv.valid_from, sv.valid_to, sv.note
-      FROM subscription_vehicles sv
-      JOIN parking_sites ps ON ps.site_id = sv.site_id
-      JOIN vehicles v ON v.vehicle_id = sv.vehicle_id
-      WHERE sv.subscription_id IN (${placeholders})
-      ORDER BY sv.subscription_id ASC, sv.is_primary DESC, sv.subscription_vehicle_id ASC
+      SELECT subscription_vehicle_id, subscription_id, site_id, site_code,
+             vehicle_id, license_plate, vehicle_type, plate_compact,
+             status, is_primary, valid_from, valid_to, note
+      FROM pkg_subscription_vehicle_active_v
+      WHERE subscription_id IN (${placeholders})
+      ORDER BY subscription_id ASC, is_primary DESC, subscription_vehicle_id ASC
     `,
     ...subscriptionIds,
   );
@@ -381,38 +370,22 @@ export async function listAdminSubscriptions(args: {
 
   const rows = await prisma.$queryRawUnsafe<any[]>(
     `
-      SELECT s.subscription_id, s.site_id, ps.site_code, ps.name AS site_name,
-             s.customer_id, c.full_name AS customer_name, c.phone AS customer_phone,
-             s.plan_type, s.start_date, s.end_date, s.status,
-             CASE
-               WHEN s.status = 'SUSPENDED' THEN 'SUSPENDED'
-               WHEN s.status = 'CANCELLED' THEN 'CANCELLED'
-               WHEN s.status = 'EXPIRED' OR s.end_date < CURDATE() THEN 'EXPIRED'
-               ELSE 'ACTIVE'
-             END AS effective_status
-      FROM subscriptions s
-      JOIN parking_sites ps ON ps.site_id = s.site_id
-      JOIN customers c ON c.customer_id = s.customer_id
-      WHERE (? IS NULL OR ps.site_code = ?)
+      SELECT s.subscription_id, s.site_id, s.site_code, s.site_name,
+             s.customer_id, s.customer_name, s.customer_phone,
+             s.plan_type, s.start_date, s.end_date, s.status, s.effective_status
+      FROM pkg_subscription_effective_status_v s
+      WHERE (? IS NULL OR s.site_code = ?)
         AND (? IS NULL OR s.subscription_id < ?)
         AND (
           ? = '' OR EXISTS (
             SELECT 1
-            FROM subscription_vehicles sv
+            FROM pkg_subscription_vehicle_active_v sv
             WHERE sv.subscription_id = s.subscription_id
               AND sv.plate_compact = ?
               AND sv.status IN ('ACTIVE','SUSPENDED')
           )
         )
-        AND (
-          ? IS NULL OR ? = '' OR
-          CASE
-            WHEN s.status = 'SUSPENDED' THEN 'SUSPENDED'
-            WHEN s.status = 'CANCELLED' THEN 'CANCELLED'
-            WHEN s.status = 'EXPIRED' OR s.end_date < CURDATE() THEN 'EXPIRED'
-            ELSE 'ACTIVE'
-          END = ?
-        )
+        AND (? IS NULL OR ? = '' OR s.effective_status = ?)
       ORDER BY s.subscription_id DESC
       LIMIT ?
     `,
@@ -465,39 +438,18 @@ export async function createAdminSubscription(input: {
   status?: 'ACTIVE' | 'EXPIRED' | 'CANCELLED' | 'SUSPENDED';
 }, opts: { actorUserId?: bigint } = {}) {
   const site = await requireSiteByCode(input.siteCode);
-  const customerRows = [{ customer_id: (await resolveExistingCustomerReference(input.customerId)).customerId }];
-  if (!customerRows[0]) throw new ApiError({ code: 'NOT_FOUND', message: 'Không tìm thấy customer', details: { customerId: input.customerId } });
-
+  const customer = await resolveExistingCustomerReference(input.customerId);
   await prisma.$executeRawUnsafe(
-    `INSERT INTO subscriptions (site_id, customer_id, plan_type, start_date, end_date, status) VALUES (?, ?, ?, ?, ?, ?)`,
+    `CALL pkg_subscription_create(?, ?, ?, ?, ?, ?)`,
     site.siteId.toString(),
-    String(customerRows[0].customer_id),
+    customer.customerId,
     input.planType,
     input.startDate,
     input.endDate,
     input.status ?? 'ACTIVE',
   );
-  const createdRows = await prisma.$queryRawUnsafe<any[]>(
-    `
-      SELECT subscription_id
-      FROM subscriptions
-      WHERE site_id = ?
-        AND customer_id = ?
-        AND plan_type = ?
-        AND start_date = ?
-        AND end_date = ?
-        AND status = ?
-      ORDER BY subscription_id DESC
-      LIMIT 1
-    `,
-    site.siteId.toString(),
-    String(customerRows[0].customer_id),
-    input.planType,
-    input.startDate,
-    input.endDate,
-    input.status ?? 'ACTIVE',
-  );
-  const createdId = createdRows[0]?.subscription_id == null ? null : String(createdRows[0].subscription_id);
+  const createdRows = await prisma.$queryRawUnsafe<any[]>(`SELECT LAST_INSERT_ID() AS id`);
+  const createdId = createdRows[0]?.id == null ? null : String(createdRows[0].id);
   if (!createdId) {
     throw new ApiError({
       code: 'INTERNAL_ERROR',
@@ -519,19 +471,12 @@ export async function updateAdminSubscription(subscriptionId: string, patch: {
   const before = await getAdminSubscriptionDetail(subscriptionId);
   await requireSubscription(subscriptionId);
   await prisma.$executeRawUnsafe(
-    `
-      UPDATE subscriptions
-      SET plan_type = COALESCE(?, plan_type),
-          start_date = COALESCE(?, start_date),
-          end_date = COALESCE(?, end_date),
-          status = COALESCE(?, status)
-      WHERE subscription_id = ?
-    `,
+    `CALL pkg_subscription_update(?, ?, ?, ?, ?)`,
+    subscriptionId,
     patch.planType ?? null,
     patch.startDate ?? null,
     patch.endDate ?? null,
     patch.status ?? null,
-    subscriptionId,
   );
   const detail = await getAdminSubscriptionDetail(subscriptionId);
   await writeAuditLog({ siteId: detail.siteId, actorUserId: opts.actorUserId, action: 'SUBSCRIPTION_UPDATED', entityTable: 'subscriptions', entityId: subscriptionId, beforeSnapshot: before, afterSnapshot: detail });
@@ -552,7 +497,7 @@ export async function getAdminSubscriptionDetail(subscriptionId: string) {
     startDate: toDateOnly(row.start_date),
     endDate: toDateOnly(row.end_date),
     status: String(row.status),
-    effectiveStatus: resolveEffectiveSubscriptionStatus({ status: String(row.status), startDate: row.start_date, endDate: row.end_date }),
+    effectiveStatus: String(row.effective_status ?? resolveEffectiveSubscriptionStatus({ status: String(row.status), startDate: row.start_date, endDate: row.end_date })),
     spots: links.spotsBySubId.get(String(row.subscription_id)) ?? [],
     vehicles: links.vehiclesBySubId.get(String(row.subscription_id)) ?? [],
   };
@@ -563,17 +508,14 @@ export async function listAdminSubscriptionSpots(args: { siteCode?: string; subs
   const cursor = decodeCursor(args.cursor);
   const rows = await prisma.$queryRawUnsafe<any[]>(
     `
-      SELECT ss.subscription_spot_id, ss.subscription_id, ps.site_code, sp.spot_id, sp.code AS spot_code, z.code AS zone_code,
-             ss.assigned_mode, ss.status, ss.is_primary, ss.assigned_from, ss.assigned_until, ss.note
-      FROM subscription_spots ss
-      JOIN parking_sites ps ON ps.site_id = ss.site_id
-      JOIN spots sp ON sp.spot_id = ss.spot_id
-      JOIN zones z ON z.zone_id = sp.zone_id
-      WHERE (? IS NULL OR ps.site_code = ?)
-        AND (? IS NULL OR ss.subscription_id = ?)
-        AND (? IS NULL OR ss.status = ?)
-        AND (? IS NULL OR ss.subscription_spot_id < ?)
-      ORDER BY ss.subscription_spot_id DESC
+      SELECT subscription_spot_id, subscription_id, site_code, spot_id, spot_code, zone_code,
+             assigned_mode, status, is_primary, assigned_from, assigned_until, note
+      FROM pkg_subscription_spot_assignments_v
+      WHERE (? IS NULL OR site_code = ?)
+        AND (? IS NULL OR subscription_id = ?)
+        AND (? IS NULL OR status = ?)
+        AND (? IS NULL OR subscription_spot_id < ?)
+      ORDER BY subscription_spot_id DESC
       LIMIT ?
     `,
     args.siteCode ?? null, args.siteCode ?? null,
@@ -609,7 +551,7 @@ export async function createAdminSubscriptionSpot(input: { subscriptionId: strin
   if ((input.status ?? 'ACTIVE') === 'ACTIVE') await assertAssignedSpotConflict({ siteCode: input.siteCode, spotId: input.spotId });
   const site = await requireSiteByCode(input.siteCode);
   await prisma.$executeRawUnsafe(
-    `INSERT INTO subscription_spots (subscription_id, site_id, spot_id, assigned_mode, status, is_primary, assigned_from, assigned_until, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `CALL pkg_subscription_assign_spot(?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     input.subscriptionId, site.siteId.toString(), input.spotId,
     input.assignedMode ?? 'ASSIGNED', input.status ?? 'ACTIVE', input.isPrimary ? 1 : 0,
     input.assignedFrom ?? null, input.assignedUntil ?? null, input.note ?? null,
@@ -633,8 +575,14 @@ export async function updateAdminSubscriptionSpot(subscriptionSpotId: string, pa
   if (patch.isPrimary) await assertActivePrimarySpotUnique({ subscriptionId: String(current.subscription_id), excludeId: subscriptionSpotId });
   if ((patch.status ?? 'ACTIVE') === 'ACTIVE') await assertAssignedSpotConflict({ siteCode, spotId: String(current.spot_id), excludeId: subscriptionSpotId });
   await prisma.$executeRawUnsafe(
-    `UPDATE subscription_spots SET status = COALESCE(?, status), assigned_mode = COALESCE(?, assigned_mode), is_primary = COALESCE(?, is_primary), assigned_from = COALESCE(?, assigned_from), assigned_until = COALESCE(?, assigned_until), note = COALESCE(?, note) WHERE subscription_spot_id = ?`,
-    patch.status ?? null, patch.assignedMode ?? null, patch.isPrimary == null ? null : (patch.isPrimary ? 1 : 0), patch.assignedFrom ?? null, patch.assignedUntil ?? null, patch.note ?? null, subscriptionSpotId,
+    `CALL pkg_subscription_update_spot(?, ?, ?, ?, ?, ?, ?)`,
+    subscriptionSpotId,
+    patch.status ?? null,
+    patch.assignedMode ?? null,
+    patch.isPrimary == null ? null : (patch.isPrimary ? 1 : 0),
+    patch.assignedFrom ?? null,
+    patch.assignedUntil ?? null,
+    patch.note ?? null,
   );
   const data = await listAdminSubscriptionSpots({ subscriptionId: String(current.subscription_id), limit: 200 });
   const detail = data.items.find((item) => item.subscriptionSpotId === subscriptionSpotId) ?? null;
@@ -648,17 +596,15 @@ export async function listAdminSubscriptionVehicles(args: { siteCode?: string; s
   const plate = compactPlate(args.plate);
   const rows = await prisma.$queryRawUnsafe<any[]>(
     `
-      SELECT sv.subscription_vehicle_id, sv.subscription_id, ps.site_code, sv.vehicle_id, v.license_plate, v.vehicle_type,
-             sv.plate_compact, sv.status, sv.is_primary, sv.valid_from, sv.valid_to, sv.note
-      FROM subscription_vehicles sv
-      JOIN parking_sites ps ON ps.site_id = sv.site_id
-      JOIN vehicles v ON v.vehicle_id = sv.vehicle_id
-      WHERE (? IS NULL OR ps.site_code = ?)
-        AND (? IS NULL OR sv.subscription_id = ?)
-        AND (? = '' OR sv.plate_compact = ?)
-        AND (? IS NULL OR sv.status = ?)
-        AND (? IS NULL OR sv.subscription_vehicle_id < ?)
-      ORDER BY sv.subscription_vehicle_id DESC
+      SELECT subscription_vehicle_id, subscription_id, site_code, vehicle_id, license_plate, vehicle_type,
+             plate_compact, status, is_primary, valid_from, valid_to, note
+      FROM pkg_subscription_vehicle_active_v
+      WHERE (? IS NULL OR site_code = ?)
+        AND (? IS NULL OR subscription_id = ?)
+        AND (? = '' OR plate_compact = ?)
+        AND (? IS NULL OR status = ?)
+        AND (? IS NULL OR subscription_vehicle_id < ?)
+      ORDER BY subscription_vehicle_id DESC
       LIMIT ?
     `,
     args.siteCode ?? null, args.siteCode ?? null,
@@ -691,12 +637,18 @@ export async function listAdminSubscriptionVehicles(args: { siteCode?: string; s
 
 export async function createAdminSubscriptionVehicle(input: { subscriptionId: string; siteCode: string; vehicleId: string; status?: SubscriptionVehicleStatus; isPrimary?: boolean; validFrom?: string | null; validTo?: string | null; note?: string | null; }, opts: { actorUserId?: bigint } = {}) {
   await assertSiteConsistency(input.siteCode, input.subscriptionId, null, input.siteCode);
-  const vehicle = await requireVehicle(input.vehicleId);
   if (input.isPrimary) await assertActivePrimaryVehicleUnique({ subscriptionId: input.subscriptionId });
   const site = await requireSiteByCode(input.siteCode);
   await prisma.$executeRawUnsafe(
-    `INSERT INTO subscription_vehicles (subscription_id, site_id, vehicle_id, plate_compact, status, is_primary, valid_from, valid_to, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    input.subscriptionId, site.siteId.toString(), input.vehicleId, compactPlate(String(vehicle.license_plate)), input.status ?? 'ACTIVE', input.isPrimary ? 1 : 0, input.validFrom ?? null, input.validTo ?? null, input.note ?? null,
+    `CALL pkg_subscription_bind_vehicle(?, ?, ?, ?, ?, ?, ?, ?)`,
+    input.subscriptionId,
+    site.siteId.toString(),
+    input.vehicleId,
+    input.status ?? 'ACTIVE',
+    input.isPrimary ? 1 : 0,
+    input.validFrom ?? null,
+    input.validTo ?? null,
+    input.note ?? null,
   );
   const idRows = await prisma.$queryRawUnsafe<any[]>(`SELECT LAST_INSERT_ID() AS id`);
   const createdId = String(idRows[0].id);
@@ -714,8 +666,13 @@ export async function updateAdminSubscriptionVehicle(subscriptionVehicleId: stri
   const before = beforeData.items.find((item) => item.subscriptionVehicleId === subscriptionVehicleId) ?? null;
   if (patch.isPrimary) await assertActivePrimaryVehicleUnique({ subscriptionId: String(current.subscription_id), excludeId: subscriptionVehicleId });
   await prisma.$executeRawUnsafe(
-    `UPDATE subscription_vehicles SET status = COALESCE(?, status), is_primary = COALESCE(?, is_primary), valid_from = COALESCE(?, valid_from), valid_to = COALESCE(?, valid_to), note = COALESCE(?, note) WHERE subscription_vehicle_id = ?`,
-    patch.status ?? null, patch.isPrimary == null ? null : (patch.isPrimary ? 1 : 0), patch.validFrom ?? null, patch.validTo ?? null, patch.note ?? null, subscriptionVehicleId,
+    `CALL pkg_subscription_update_vehicle(?, ?, ?, ?, ?, ?)`,
+    subscriptionVehicleId,
+    patch.status ?? null,
+    patch.isPrimary == null ? null : (patch.isPrimary ? 1 : 0),
+    patch.validFrom ?? null,
+    patch.validTo ?? null,
+    patch.note ?? null,
   );
   const data = await listAdminSubscriptionVehicles({ subscriptionId: String(current.subscription_id), limit: 200 });
   const detail = data.items.find((item) => item.subscriptionVehicleId === subscriptionVehicleId) ?? null;

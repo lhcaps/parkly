@@ -35,6 +35,19 @@ services:
       retries: 20
     restart: unless-stopped
 
+  mongo:
+    image: mongo:8.0
+    ports:
+      - "${COMPOSE_MONGO_PORT:-27017}:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand({ ping: 1 }).ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
   minio:
     profiles: ["storage"]
     image: minio/minio:RELEASE.2025-02-18T16-25-55Z
@@ -115,6 +128,7 @@ services:
 volumes:
   mysql-data:
   redis-data:
+  mongo-data:
   minio-data:
   prometheus-data:
   alertmanager-data:

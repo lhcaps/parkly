@@ -120,6 +120,19 @@ function ceilDiv(a: number, b: number): number {
   return Math.floor((a + b - 1) / b);
 }
 
+function readJsonRecord(value: unknown): Record<string, unknown> {
+  if (value == null) return {};
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+    } catch {
+      return {};
+    }
+  }
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
 export async function quoteTariff(args: {
   siteId: bigint;
   vehicleType: 'CAR' | 'MOTORBIKE';
@@ -133,38 +146,64 @@ export async function quoteTariff(args: {
   total: number;
 }> {
   const minutes = Math.max(0, Math.floor((args.exitTime.getTime() - args.entryTime.getTime()) / 60000));
+  const entryTimeSql = args.entryTime.toISOString().slice(0, 19).replace('T', ' ');
+  const ruleRows = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(
+    `
+      SELECT
+        tariff_id AS tariffId,
+        rule_id AS ruleId,
+        rule_type AS ruleType,
+        param_json AS paramJson,
+        priority_sort AS prioritySort
+      FROM pkg_pricing_effective_rules_v
+      WHERE site_id = ?
+        AND applies_to = 'TICKET'
+        AND vehicle_type = ?
+        AND tariff_is_active = 1
+        AND valid_from <= ?
+        AND (valid_until IS NULL OR valid_until >= DATE(?))
+        AND (
+          rule_id IS NULL
+          OR (
+            rule_is_active = 1
+            AND (effective_date IS NULL OR effective_date <= DATE(?))
+            AND (expiration_date IS NULL OR expiration_date >= DATE(?))
+          )
+        )
+      ORDER BY tariff_id DESC, priority_sort ASC, rule_id ASC
+    `,
+    args.siteId.toString(),
+    args.vehicleType,
+    entryTimeSql,
+    entryTimeSql,
+    entryTimeSql,
+    entryTimeSql,
+  );
 
-  const tariff = await prisma.tariffs.findFirst({
-    where: {
-      site_id: args.siteId,
-      is_active: true,
-      applies_to: 'TICKET',
-      vehicle_type: args.vehicleType,
-      valid_from: { lte: args.entryTime },
-    },
-    orderBy: { valid_from: 'desc' },
-    include: { tariff_rules: { orderBy: { priority: 'asc' } } },
-  });
-
-  if (!tariff) {
+  const tariffId = ruleRows[0]?.tariffId == null ? null : BigInt(ruleRows[0].tariffId as any);
+  if (!tariffId) {
     return { tariffId: null, minutes, breakdown: [], subtotal: 0, total: 0 };
   }
+
+  const tariffRules = ruleRows.filter((row) => String(row.tariffId ?? '') === tariffId.toString());
 
   let freeMinutes = 0;
   let perHour = 0;
   let dailyCap: number | null = null;
 
-  for (const r of tariff.tariff_rules) {
-    if (r.rule_type === 'FREE_MINUTES') {
-      const m = Number((r.param_json as any)?.minutes ?? 0);
+  for (const r of tariffRules) {
+    const paramJson = readJsonRecord(r.paramJson);
+
+    if (r.ruleType === 'FREE_MINUTES') {
+      const m = Number(paramJson?.minutes ?? 0);
       if (Number.isFinite(m) && m > 0) freeMinutes = Math.max(freeMinutes, Math.floor(m));
     }
-    if (r.rule_type === 'HOURLY') {
-      const v = Number((r.param_json as any)?.perHour ?? (r.param_json as any)?.pricePerHour ?? 0);
+    if (r.ruleType === 'HOURLY') {
+      const v = Number(paramJson?.perHour ?? paramJson?.pricePerHour ?? 0);
       if (Number.isFinite(v) && v > 0) perHour = Math.max(perHour, v);
     }
-    if (r.rule_type === 'DAILY_CAP') {
-      const c = Number((r.param_json as any)?.capAmount ?? 0);
+    if (r.ruleType === 'DAILY_CAP') {
+      const c = Number(paramJson?.capAmount ?? 0);
       if (Number.isFinite(c) && c > 0) dailyCap = dailyCap == null ? c : Math.min(dailyCap, c);
     }
   }
@@ -192,7 +231,7 @@ export async function quoteTariff(args: {
   }
 
   return {
-    tariffId: tariff.tariff_id,
+    tariffId,
     minutes,
     breakdown,
     subtotal,

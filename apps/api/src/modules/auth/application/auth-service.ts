@@ -736,7 +736,7 @@ export function createSqlAuthSecurityStore(): AuthSecurityStore {
           SELECT session_id AS sessionId, user_id AS userId, role_code AS roleCode,
                  created_at AS createdAt, revoked_at AS revokedAt,
                  access_expires_at AS accessExpiresAt, refresh_expires_at AS refreshExpiresAt
-          FROM auth_user_sessions
+          FROM pkg_auth_active_sessions_v
           WHERE user_id = ?
           ORDER BY created_at ASC
         `,
@@ -765,7 +765,14 @@ export function createSqlAuthSecurityStore(): AuthSecurityStore {
         .filter((row) => row.revokedAt == null)
         .filter((row) => !args.exceptSessionId || row.sessionId !== args.exceptSessionId)
         .map((row) => row.sessionId)
-      await this.revokeSessionsById({ sessionIds: targetIds, revokedAt: args.revokedAt, reason: args.reason })
+      if (targetIds.length === 0) return { revokedSessionIds: [] }
+      await prisma.$executeRawUnsafe(
+        `CALL pkg_auth_revoke_user_sessions(?, ?, ?, ?)`,
+        args.userId,
+        args.revokedAt.slice(0, 19).replace('T', ' '),
+        args.reason ?? null,
+        args.exceptSessionId ?? null,
+      )
       return { revokedSessionIds: targetIds }
     },
 
@@ -792,39 +799,61 @@ export function createSqlAuthSecurityStore(): AuthSecurityStore {
       const revokedCutoff = new Date(now.getTime() - Math.max(1, Math.trunc(args.revokedRetentionDays || 1)) * 86_400_000)
       const limit = Math.max(1, Math.trunc(args.batchLimit || 1))
 
-      const deletedExpired = await prisma.$executeRawUnsafe(
+      const expiredBeforeRows = await prisma.$queryRawUnsafe<Array<{ count: number }>>(
         `
-          DELETE FROM auth_user_sessions
+          SELECT COUNT(*) AS count
+          FROM auth_user_sessions
           WHERE refresh_expires_at < ?
-          ORDER BY refresh_expires_at ASC
-          LIMIT ?
         `,
         expiredCutoff.toISOString().slice(0, 19).replace('T', ' '),
+      )
+
+      const revokedBeforeRows = await prisma.$queryRawUnsafe<Array<{ count: number }>>(
+        `
+          SELECT COUNT(*) AS count
+          FROM auth_user_sessions
+          WHERE revoked_at IS NOT NULL AND revoked_at < ?
+        `,
+        revokedCutoff.toISOString().slice(0, 19).replace('T', ' '),
+      )
+
+      await prisma.$executeRawUnsafe(
+        `CALL pkg_auth_cleanup_sessions(?, ?, ?, ?)`,
+        now.toISOString().slice(0, 19).replace('T', ' '),
+        Math.max(1, Math.trunc(args.expiredRetentionDays || 1)),
+        Math.max(1, Math.trunc(args.revokedRetentionDays || 1)),
         limit,
       )
 
-      const deletedRevoked = await prisma.$executeRawUnsafe(
+      const expiredAfterRows = await prisma.$queryRawUnsafe<Array<{ count: number }>>(
         `
-          DELETE FROM auth_user_sessions
+          SELECT COUNT(*) AS count
+          FROM auth_user_sessions
+          WHERE refresh_expires_at < ?
+        `,
+        expiredCutoff.toISOString().slice(0, 19).replace('T', ' '),
+      )
+
+      const revokedAfterRows = await prisma.$queryRawUnsafe<Array<{ count: number }>>(
+        `
+          SELECT COUNT(*) AS count
+          FROM auth_user_sessions
           WHERE revoked_at IS NOT NULL AND revoked_at < ?
-          ORDER BY revoked_at ASC
-          LIMIT ?
         `,
         revokedCutoff.toISOString().slice(0, 19).replace('T', ' '),
-        limit,
       )
 
       return {
-        deletedExpired: Number(deletedExpired) || 0,
-        deletedRevoked: Number(deletedRevoked) || 0,
+        deletedExpired: Math.max(0, Number(expiredBeforeRows[0]?.count ?? 0) - Number(expiredAfterRows[0]?.count ?? 0)),
+        deletedRevoked: Math.max(0, Number(revokedBeforeRows[0]?.count ?? 0) - Number(revokedAfterRows[0]?.count ?? 0)),
       }
     },
 
     async setUserStatus(args) {
       await prisma.$executeRawUnsafe(
-        `UPDATE users SET status = ? WHERE user_id = ?`,
-        args.status,
+        `CALL pkg_auth_set_user_status(?, ?)`,
         args.userId,
+        args.status,
       )
     },
   }

@@ -113,6 +113,7 @@ export function LoginPanel() {
               </Label>
               <Input
                 id="login-username"
+                data-testid="login-username"
                 value={username}
                 onChange={(event) => setUsername(event.target.value)}
                 placeholder="ops"
@@ -128,6 +129,7 @@ export function LoginPanel() {
               <Input
                 id="login-password"
                 type="password"
+                data-testid="login-password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="••••••••••"
@@ -152,6 +154,7 @@ export function LoginPanel() {
               <Button
                 type="submit"
                 disabled={auth.isBusy || !username.trim() || !password}
+                data-testid="login-submit"
                 className="h-12 w-full gap-2 rounded-xl text-base font-semibold shadow-lg sm:w-auto sm:min-w-[148px]"
                 style={{
                   background: 'hsl(var(--primary))',

@@ -2,6 +2,7 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 import { Prisma, gate_event_outbox_status } from '@prisma/client';
+import { closeMongo } from '../lib/mongo';
 import { prisma } from '../lib/prisma';
 import { trySyncOutboxToMongo } from '../services/event.service';
 import { randomUUID } from 'node:crypto';
@@ -82,5 +83,6 @@ main()
     process.exitCode = 1;
   })
   .finally(async () => {
+    await closeMongo().catch(() => void 0);
     await prisma.$disconnect();
   });

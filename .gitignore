@@ -53,6 +53,14 @@ apps/web/.env.example
 .runtime/
 .backups/
 instance/
+output/
+apps/output/
+apps/*/output/
+apps/*/coverage/
+apps/api/release-evidence/backend-*/
+mermaid-filter.err
+*.stdout.log
+*.stderr.log
 
 # Flyway migrations outputs
 apps/api/db/flyway.conf
@@ -104,8 +112,9 @@ coverage.xml
 pytest_cache/
 vitest.config.*.timestamp-*
 
-# Test scripts that may be generated
-apps/web/scripts/smoke-web.mjs
+# Generated local diagnostics
+apps/web/ts-errors*.txt
+apps/web/docs/frontend/evidence/latest-smoke.json
 
 # =============================================
 # 📝 Documentation & Evidence
@@ -131,6 +140,8 @@ release-evidence/
 .cursor/
 .cursorignore
 .agents/
+.playwright-cli/
+.vs/
 
 # =============================================
 # 💻 OS Specific

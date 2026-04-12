@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Languages, Settings2, Wrench } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { DatabaseZap, Languages, Settings2, Wrench } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PageHeader } from '@/components/ops/console'
 import { AppearancePreferencesTab } from '@/features/settings/components/AppearancePreferencesTab'
 import { OperatorSetupTab } from '@/features/settings/components/OperatorSetupTab'
 import { DeveloperDebugTab } from '@/features/settings/components/DeveloperDebugTab'
+import { SqlModulesTab } from '@/features/settings/components/SqlModulesTab'
 import { useAuth } from '@/features/auth/auth-context'
 import {
   clearLocalAppCache,
@@ -18,8 +20,9 @@ import {
 import { getApiBasePreview, getRefreshToken, getToken } from '@/lib/http/client'
 
 export function SettingsPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const auth = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [prefs, setPrefs] = useState(readDefaultContextPrefs())
   const [message, setMessage] = useState('')
   const [devMessage, setDevMessage] = useState('')
@@ -35,6 +38,14 @@ export function SettingsPage() {
     const token = getRefreshToken()
     return token ? `${token.slice(0, 8)}...${token.slice(-4)}` : ''
   }, [message, devMessage])
+  const activeTab = useMemo(() => {
+    const raw = String(searchParams.get('tab') ?? '').trim().toLowerCase()
+    return raw === 'appearance' || raw === 'developer' || raw === 'sql' ? raw : 'operator'
+  }, [searchParams])
+  const sqlTabLabel = useMemo(
+    () => (i18n.language.startsWith('en') ? 'SQL modules' : 'Module SQL'),
+    [i18n.language],
+  )
 
   function savePrefsValue() {
     const next = writeDefaultContextPrefs(prefs)
@@ -55,6 +66,16 @@ export function SettingsPage() {
     setDevMessage(t('settingsPage.cacheCleared'))
   }
 
+  function handleTabChange(nextTab: string) {
+    const nextParams = new URLSearchParams(searchParams)
+    if (nextTab === 'operator') {
+      nextParams.delete('tab')
+    } else {
+      nextParams.set('tab', nextTab)
+    }
+    setSearchParams(nextParams, { replace: true })
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -63,7 +84,7 @@ export function SettingsPage() {
         description={t('settingsPage.description')}
       />
 
-      <Tabs defaultValue="operator" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsList className="w-full justify-start gap-2 rounded-2xl border border-border bg-muted/60 p-1.5">
           <TabsTrigger value="operator">
             <Settings2 className="h-5 w-5" />
@@ -76,6 +97,10 @@ export function SettingsPage() {
           <TabsTrigger value="developer">
             <Wrench className="h-5 w-5" />
             {t('settingsPage.tabDeveloper')}
+          </TabsTrigger>
+          <TabsTrigger value="sql" data-testid="settings-tab-sql">
+            <DatabaseZap className="h-5 w-5" />
+            {sqlTabLabel}
           </TabsTrigger>
         </TabsList>
 
@@ -107,6 +132,10 @@ export function SettingsPage() {
             onClearCache={clearCacheValue}
             onResetPrefs={resetPrefsValue}
           />
+        </TabsContent>
+
+        <TabsContent value="sql">
+          <SqlModulesTab role={auth.principal?.role} />
         </TabsContent>
       </Tabs>
     </div>

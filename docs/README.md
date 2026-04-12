@@ -1,6 +1,6 @@
 # Parkly Documentation
 
-Last updated: 2026-03-30
+Last updated: 2026-04-12
 Canonical project snapshot: [SPEC-v11.md](./SPEC-v11.md)
 Primary audience: engineering, release managers, operators, and auditors
 
@@ -9,7 +9,7 @@ Primary audience: engineering, release managers, operators, and auditors
 | Document | Purpose |
 | --- | --- |
 | [SPEC-v11.md](./SPEC-v11.md) | Enterprise snapshot of the full project as of March 30, 2026 |
-| [spec/Parkly_Project_Snapshot_v11_20260330.docx](./spec/Parkly_Project_Snapshot_v11_20260330.docx) | Enterprise Word export generated from the current v11 snapshot |
+| [spec/Parkly_Project_Snapshot_v12_20260407.docx](./spec/Parkly_Project_Snapshot_v12_20260407.docx) | Latest Word export for the current project snapshot bundle |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Runtime topology, bounded contexts, and deployment shape |
 | [API.md](./API.md) | API contract summary, auth surfaces, envelopes, and integration rules |
 | [RBAC_MATRIX_API.md](./RBAC_MATRIX_API.md) | Canonical role model and endpoint-group access matrix |

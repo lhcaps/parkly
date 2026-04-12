@@ -91,3 +91,15 @@ test('config source no longer ships query-token auth or default legacy role toke
   assert.doesNotMatch(configSource, /worker_dev_token_change_me/)
   assert.doesNotMatch(envExample, /API_ALLOW_QUERY_TOKEN=/)
 })
+
+test('V34 migration creates subscription plate sync trigger without PREPARE', () => {
+  const migrationSource = fs.readFileSync(
+    path.join(repoRoot, 'apps', 'api', 'db', 'migrations', 'V34__module_read_models_and_ops.sql'),
+    'utf8',
+  )
+
+  assert.match(migrationSource, /CREATE TRIGGER trg_vehicles_sync_subscription_plate/)
+  assert.doesNotMatch(migrationSource, /PREPARE\s+pkg_v34_stmt/i)
+  assert.doesNotMatch(migrationSource, /EXECUTE\s+pkg_v34_stmt/i)
+  assert.doesNotMatch(migrationSource, /DEALLOCATE PREPARE\s+pkg_v34_stmt/i)
+})

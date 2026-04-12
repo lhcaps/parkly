@@ -306,6 +306,7 @@ model tickets {
   @@index([site_id, vehicle_id], map: "ix_tickets_site_vehicle")
   @@index([site_id, vehicle_id, status], map: "ix_tickets_site_vehicle_status")
   @@index([site_id, entry_time, status], map: "ix_tickets_site_date_status")
+  @@index([site_id, vehicle_id, status], map: "ix_tickets_open_vehicle")
 }
 
 model vehicles {

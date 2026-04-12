@@ -107,6 +107,7 @@ import { registerWebhookRoutes } from '../modules/webhooks/interfaces/http/regis
 import { registerTopologyAdminRoutes } from '../modules/topology/interfaces/topology-admin.routes';
 import { registerUserManagementRoutes } from '../modules/users/interfaces/user-management.routes';
 import { registerCustomerManagementRoutes } from '../modules/customers/interfaces/customer-management.routes';
+import { registerSqlSurfaceRoutes } from '../modules/system/interfaces/http/register-sql-surface-routes';
 import { requireIdempotency } from '../middlewares/idempotency.middleware';
 import { buildHealthBreakdown } from './health';
 import { buildErrorLogPayload, createAccessSummaryMiddleware, createHttpLoggerMiddleware } from './logger';
@@ -927,6 +928,7 @@ export async function buildApp() {
   registerTopologyAdminRoutes(api);
   registerUserManagementRoutes(api);
   registerCustomerManagementRoutes(api);
+  registerSqlSurfaceRoutes(api);
 
   const SiteQuery = z.object({
     includeInactive: z.coerce.boolean().optional(),

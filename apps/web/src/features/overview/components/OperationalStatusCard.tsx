@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { memo, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { Badge, type BadgeProps } from '@/components/ui/badge'
@@ -33,7 +33,7 @@ const STATUS_META: Record<OperationalStatus, { labelKey: string; badgeVariant: B
   },
 }
 
-export function OperationalStatusCard({
+export const OperationalStatusCard = memo(function OperationalStatusCard({
   title,
   value,
   helper,
@@ -82,11 +82,11 @@ export function OperationalStatusCard({
   }
 
   return (
-    <Card className={cn('shadow-[0_18px_56px_rgba(35,94,138,0.1)] transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_72px_rgba(35,94,138,0.16)]', meta.cardClass)}>
+    <Card className={cn('shadow-[0_8px_24px_rgba(35,94,138,0.08)] transition-colors duration-150', meta.cardClass)}>
       <CardContent className="space-y-4 pt-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-start gap-3">
-            <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border bg-white/45 transition-transform duration-300 hover:scale-105 dark:bg-transparent', meta.iconClass)}>
+            <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border bg-white/45 dark:bg-transparent', meta.iconClass)}>
               <Icon className="h-5 w-5" />
             </div>
             <div className="min-w-0">
@@ -113,4 +113,4 @@ export function OperationalStatusCard({
       </CardContent>
     </Card>
   )
-}
+})

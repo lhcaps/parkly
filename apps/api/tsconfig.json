@@ -1,9 +1,9 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "module": "CommonJS",
-    "moduleResolution": "Node",
-    "baseUrl": ".",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "rootDir": "../..",
     "paths": {
       "@parkly/contracts": ["../../packages/contracts/src/index.ts"],
       "@parkly/gate-core": ["../../packages/gate-core/src/index.ts"]
