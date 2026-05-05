@@ -1,7 +1,7 @@
 # Parkly Repo Audit — Brutal Assessment
 
 **Audited:** 2026-05-05
-**Context:** Brownfield codebase, no git, no `.planning/` directory yet. This audit is the foundation for the GSD roadmap.
+**Context:** Brownfield codebase. This audit was created during the initial GSD planning pass and is now committed under `.planning/`. The codebase was audited as-is before any Phase 0 or Phase 1 work began.
 
 ---
 

@@ -9,7 +9,7 @@ Your code must be production-ready, highly optimized, secure, and strictly adher
 - Optimize for readability, performance, and concurrency safe (avoid race conditions).
 
 ## 2. Technology Stack (STRICT)
-- **Backend:** Node.js 20 LTS, Express.js 4, TypeScript (Strict Mode).
+- **Backend:** Node.js 22 LTS, Express.js 4, TypeScript (Strict Mode).
 - **Database:** Prisma 7 ORM, MySQL 8.x, Redis 7 (Cache, Redlock, Rate Limit).
 - **Background Jobs:** BullMQ (Outbox pattern, DLQ).
 - **Frontend:** React 18, Vite, TanStack Query, Zustand, React Router v6.

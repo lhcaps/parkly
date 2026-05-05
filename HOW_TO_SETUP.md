@@ -4,7 +4,7 @@ This file is the short local bootstrap path. Keep it aligned with real scripts, 
 
 ## Prerequisites
 
-- Node.js 20.x
+- Node.js 22.x
 - pnpm 10.x
 - Docker Desktop
 
