@@ -1,6 +1,6 @@
 # Parkly Documentation
 
-Last updated: 2026-04-12
+Last updated: 2026-05-05
 Canonical project snapshot: [SPEC-v11.md](./SPEC-v11.md)
 Primary audience: engineering, release managers, operators, and auditors
 
@@ -15,6 +15,7 @@ Primary audience: engineering, release managers, operators, and auditors
 | [RBAC_MATRIX_API.md](./RBAC_MATRIX_API.md) | Canonical role model and endpoint-group access matrix |
 | [ADR.md](./ADR.md) | Architecture decisions that govern core platform behavior |
 | [RUNBOOK.md](./RUNBOOK.md) | Day-2 operations, incident handling, backup, restore, and release procedures |
+| [PARKLY_GOLDEN_PATH.md](./PARKLY_GOLDEN_PATH.md) | 3-min + 10-min demo walkthrough |
 | [ERROR_CODES.md](./ERROR_CODES.md) | Standard error catalog used by the API envelope |
 | [RETENTION_POLICY.md](./RETENTION_POLICY.md) | Data retention and cleanup policy for demo and release profiles |
 | [EVIDENCE.md](./EVIDENCE.md) | Required evidence for CI, QA, release sign-off, and auditability |

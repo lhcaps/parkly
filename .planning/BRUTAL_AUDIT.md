@@ -1,5 +1,7 @@
 # Parkly Repo Audit — Brutal Assessment
 
+> **Status note:** Some findings in this audit were resolved by Phase 0A (`413fcb7`), including README positioning, Node version alignment, and contracts package documentation. This file is preserved as the original pre-Phase-0A audit record.
+
 **Audited:** 2026-05-05
 **Context:** Brownfield codebase. This audit was created during the initial GSD planning pass and is now committed under `.planning/`. The codebase was audited as-is before any Phase 0 or Phase 1 work began.
 
