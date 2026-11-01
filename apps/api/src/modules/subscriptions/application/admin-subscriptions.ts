@@ -448,8 +448,12 @@ export async function createAdminSubscription(input: {
     input.endDate,
     input.status ?? 'ACTIVE',
   );
-  const createdRows = await prisma.$queryRawUnsafe<any[]>(`SELECT LAST_INSERT_ID() AS id`);
-  const createdId = createdRows[0]?.id == null ? null : String(createdRows[0].id);
+  const createdRows = await prisma.$queryRawUnsafe<any[]>(
+    `SELECT subscription_id FROM subscriptions WHERE site_id = ? AND customer_id = ? ORDER BY subscription_id DESC LIMIT 1`,
+    site.siteId.toString(),
+    customer.customerId,
+  );
+  const createdId = createdRows[0]?.subscription_id == null ? null : String(createdRows[0].subscription_id);
   if (!createdId) {
     throw new ApiError({
       code: 'INTERNAL_ERROR',

@@ -159,7 +159,7 @@ test('source regression: compose packaging, launcher scripts, env và runbook đ
   assert.match(envExample, /PARKLY_ALLOW_MEDIA_OVERRIDE=OFF/)
   assert.match(envExample, /COMPOSE_MINIO_API_PORT=9000/)
   assert.match(envExample, /MEDIA_STORAGE_DRIVER=LOCAL/)
-  assert.match(compose, /services:\n  mysql:/)
+  assert.match(compose, /services:\r?\n  mysql:/)
   assert.match(compose, /profiles: \["storage"\]/)
   assert.match(compose, /bootstrap\.sql:\/docker-entrypoint-initdb\.d\/001-bootstrap\.sql/)
   assert.match(runbook, /BE-PR-23 chốt 3 profile triển khai đủ ít nhưng rõ/)

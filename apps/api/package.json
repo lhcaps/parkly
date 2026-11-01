@@ -72,7 +72,7 @@
     "cleanup:retention": "cross-env RETENTION_DRY_RUN=OFF tsx src/scripts/retention-cleanup.ts --apply",
     "test:pr28": "node --import tsx --test src/tests/pr28-retention-cleanup.test.ts",
     "compose:up:local": "docker compose -f ../../infra/docker/docker-compose.local.yml up -d mysql redis mongo",
-    "compose:up:demo": "docker compose -f ../../infra/docker/docker-compose.local.yml up -d mysql redis mongo",
+    "compose:up:demo": "docker compose -f ../../infra/docker/docker-compose.local.yml up -d mysql redis",
     "compose:up:mongo": "docker compose -f ../../infra/docker/docker-compose.local.yml up -d mongo",
     "compose:up:rc": "docker compose -f ../../infra/docker/docker-compose.local.yml --profile storage up -d mysql redis mongo minio minio-init",
     "compose:up:observability": "docker compose -f ../../infra/docker/docker-compose.local.yml --profile observability up -d prometheus alertmanager grafana",

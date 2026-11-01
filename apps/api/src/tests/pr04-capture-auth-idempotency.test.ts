@@ -24,6 +24,10 @@ test('capture contract now requires deviceCode timestamp and signature', () => {
 })
 
 test('valid device signature is accepted', () => {
+  const prevActive = process.env.DEVICE_CAPTURE_SECRET_ACTIVE;
+  const prevNext = process.env.DEVICE_CAPTURE_SECRET_NEXT;
+  delete process.env.DEVICE_CAPTURE_SECRET_ACTIVE;
+  delete process.env.DEVICE_CAPTURE_SECRET_NEXT;
   process.env.DEVICE_CAPTURE_AUTH_MODE = 'ON'
   process.env.DEVICE_CAPTURE_DEFAULT_SECRET = 'unit-secret'
   process.env.DEVICE_CAPTURE_MAX_SKEW_SECONDS = '300'
@@ -60,7 +64,9 @@ test('valid device signature is accepted', () => {
   })
 
   assert.equal(result.verified, true)
-  assert.equal(result.secretSource, 'DEVICE_CAPTURE_DEFAULT_SECRET')
+  assert.equal(result.secretSource, 'DEVICE_CAPTURE_DEFAULT_SECRET');
+  if (prevActive !== undefined) process.env.DEVICE_CAPTURE_SECRET_ACTIVE = prevActive;
+  if (prevNext !== undefined) process.env.DEVICE_CAPTURE_SECRET_NEXT = prevNext;
 })
 
 test('bad signature is rejected clearly', () => {
