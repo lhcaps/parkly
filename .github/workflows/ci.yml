@@ -22,6 +22,28 @@ jobs:
     name: Quality Gate
     runs-on: ubuntu-24.04
     timeout-minutes: 40
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: test_root_password
+          MYSQL_DATABASE: parking_mgmt
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -ptest_root_password --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
     steps:
       - uses: actions/checkout@v4
 
@@ -43,13 +65,26 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Setup Flyway
+        run: |
+          wget -qO- https://download.red-gate.com/maven/release/com/redgate/flyway/flyway-commandline/12.0.2/flyway-commandline-12.0.2-linux-x64.tar.gz | tar xz
+          echo "$PWD/flyway-12.0.2" >> $GITHUB_PATH
+
       - name: Install Playwright browser runtime
         run: pnpm --dir apps/web playwright:runtime:install
 
       - name: Run monorepo quality gate
         env:
           QUALITY_GATE_PROFILE: demo
-          QUALITY_GATE_BOOTSTRAP: OFF
+          DATABASE_URL: mysql://root:test_root_password@127.0.0.1:3306/parking_mgmt
+          DATABASE_ADMIN_USER: root
+          DATABASE_ADMIN_PASSWORD: test_root_password
+          DATABASE_HOST: 127.0.0.1
+          DATABASE_PORT: 3306
+          DATABASE_NAME: parking_mgmt
+          FLYWAY_USER: root
+          FLYWAY_PASSWORD: test_root_password
+          REDIS_URL: redis://127.0.0.1:6379
           API_INTERNAL_SERVICE_TOKEN_ACTIVE: c4ca4238a0b923820dcc509a6f75849b3e1f0e2b4c6d8a0f1234567890abcdef
           DEVICE_CAPTURE_SECRET_ACTIVE: e4d909c290d0fb1ca068ffaddf22cbd0a1b2c3d4e5f60718293a4b5c6d7e8f90
         run: pnpm test:full
