@@ -47,6 +47,8 @@ jobs:
         run: pnpm --dir apps/web playwright:runtime:install
 
       - name: Run monorepo quality gate
+        env:
+          QUALITY_GATE_PROFILE: demo
         run: pnpm test:full
 
       - name: Upload coverage and test artifacts
