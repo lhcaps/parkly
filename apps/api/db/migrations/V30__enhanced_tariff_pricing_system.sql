@@ -191,9 +191,27 @@ MODIFY COLUMN rule_type ENUM(
 -- ============================================================
 -- SECTION 8: Cập nhật compound_tariff_rules
 -- ============================================================
-ALTER TABLE compound_tariff_rules
-ADD COLUMN tariff_rule_id BIGINT NULL AFTER priority,
-ADD CONSTRAINT fk_compound_rule FOREIGN KEY (tariff_rule_id) REFERENCES tariff_rules(rule_id) ON DELETE SET NULL;
+CREATE TABLE IF NOT EXISTS compound_tariff_rules (
+    compound_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    tariff_id BIGINT NOT NULL,
+    rule_name VARCHAR(255) NOT NULL,
+    rule_description TEXT NULL,
+    operator ENUM('AND', 'OR', 'AND_NOT', 'XOR') DEFAULT 'AND',
+    min_rules_required INT DEFAULT 1,
+    rule_conditions JSON NOT NULL,
+    result_action ENUM('APPLY_RATE', 'SKIP_RULES', 'OVERRIDE_RATE', 'APPLY_DISCOUNT', 'REJECT') DEFAULT 'APPLY_RATE',
+    result_value JSON NULL,
+    priority INT DEFAULT 0,
+    tariff_rule_id BIGINT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    INDEX ix_compound_tariff (tariff_id),
+    INDEX ix_compound_active (is_active, priority),
+    INDEX fk_compound_rule (tariff_rule_id),
+    CONSTRAINT fk_compound_rule FOREIGN KEY (tariff_rule_id) REFERENCES tariff_rules(rule_id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
 -- SECTION 9: Cập nhật tariffs table (thêm các cột mới nếu chưa có)
