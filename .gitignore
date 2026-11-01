@@ -90,8 +90,9 @@ venv/
 # =============================================
 # 📸 Media & Uploads
 # =============================================
-media/
+/media/
 uploads/
+!apps/api/src/modules/media/
 *.media
 *.upload
 
