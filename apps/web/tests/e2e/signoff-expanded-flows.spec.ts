@@ -532,15 +532,15 @@ test('mobile capture accepts a pair-token flow and saves receipt evidence', asyn
 
   await page.goto('/mobile-capture?siteCode=SITE01&laneCode=LANE01&direction=ENTRY&deviceCode=CAM01&token=pair_demo')
 
-  await expect(page.getByRole('heading', { name: /Ghi nhận qua mobile/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Ghi nhận qua mobile|Capture di động/i })).toBeVisible()
   await page.locator('input[type="file"]').setInputFiles({
     name: 'capture.png',
     mimeType: 'image/png',
     buffer: TEST_PNG,
   })
-  await page.getByRole('button', { name: 'Gửi ghi nhận' }).click()
+  await page.getByRole('button', { name: /Gửi ghi nhận|Gửi capture/i }).click()
 
-  await expect(page.getByRole('heading', { name: /Đã nhận ghi nhận/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Đã nhận ghi nhận|Capture được chấp thuận/i })).toBeVisible()
   await expect(page.getByText('GS-2001', { exact: true })).toBeVisible()
   await expect(page.locator('body')).not.toContainText('Ã')
   await expect(page.locator('body')).not.toContainText('Â')

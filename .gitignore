@@ -37,8 +37,8 @@ cursor.env
 
 # Keep example files
 !.env.example
-apps/api/.env.example
-apps/web/.env.example
+!apps/api/.env.example
+!apps/web/.env.example
 
 # =============================================
 # 🗄️ Database & Runtime
@@ -90,8 +90,9 @@ venv/
 # =============================================
 # 📸 Media & Uploads
 # =============================================
-media/
+/media/
 uploads/
+!apps/api/src/modules/media/
 *.media
 *.upload
 

@@ -191,9 +191,27 @@ MODIFY COLUMN rule_type ENUM(
 -- ============================================================
 -- SECTION 8: Cập nhật compound_tariff_rules
 -- ============================================================
-ALTER TABLE compound_tariff_rules
-ADD COLUMN tariff_rule_id BIGINT NULL AFTER priority,
-ADD CONSTRAINT fk_compound_rule FOREIGN KEY (tariff_rule_id) REFERENCES tariff_rules(rule_id) ON DELETE SET NULL;
+CREATE TABLE IF NOT EXISTS compound_tariff_rules (
+    compound_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    tariff_id BIGINT NOT NULL,
+    rule_name VARCHAR(255) NOT NULL,
+    rule_description TEXT NULL,
+    operator ENUM('AND', 'OR', 'AND_NOT', 'XOR') DEFAULT 'AND',
+    min_rules_required INT DEFAULT 1,
+    rule_conditions JSON NOT NULL,
+    result_action ENUM('APPLY_RATE', 'SKIP_RULES', 'OVERRIDE_RATE', 'APPLY_DISCOUNT', 'REJECT') DEFAULT 'APPLY_RATE',
+    result_value JSON NULL,
+    priority INT DEFAULT 0,
+    tariff_rule_id BIGINT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    INDEX ix_compound_tariff (tariff_id),
+    INDEX ix_compound_active (is_active, priority),
+    INDEX fk_compound_rule (tariff_rule_id),
+    CONSTRAINT fk_compound_rule FOREIGN KEY (tariff_rule_id) REFERENCES tariff_rules(rule_id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
 -- SECTION 9: Cập nhật tariffs table (thêm các cột mới nếu chưa có)
@@ -203,6 +221,14 @@ SET @sql = (SELECT IF(
     (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tariffs' AND COLUMN_NAME = 'short_code') = 0,
     'ALTER TABLE tariffs ADD COLUMN short_code VARCHAR(20) NULL AFTER vehicle_type',
+    'SELECT 1'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = (SELECT IF(
+    (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tariffs' AND COLUMN_NAME = 'zone_code') = 0,
+    'ALTER TABLE tariffs ADD COLUMN zone_code VARCHAR(32) NULL AFTER valid_from',
     'SELECT 1'
 ));
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
@@ -289,6 +315,56 @@ SET @sql = (SELECT IF(
     'SELECT 1'
 ));
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- ============================================================
+-- SECTION 10B: Thêm các cột cho tariff_rules nếu chưa có
+-- ============================================================
+SET @sql = (SELECT IF(
+    (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tariff_rules' AND COLUMN_NAME = 'rule_code') = 0,
+    'ALTER TABLE tariff_rules ADD COLUMN rule_code VARCHAR(64) NULL AFTER priority,
+     ADD COLUMN zone_code VARCHAR(32) NULL AFTER rule_code,
+     ADD COLUMN time_range_json JSON NULL AFTER zone_code,
+     ADD COLUMN vehicle_type_filter VARCHAR(20) NULL AFTER time_range_json,
+     ADD COLUMN condition_json JSON NULL AFTER vehicle_type_filter,
+     ADD COLUMN action_json JSON NULL AFTER condition_json,
+     ADD COLUMN is_compound BOOLEAN DEFAULT FALSE AFTER action_json,
+     ADD COLUMN compound_operator VARCHAR(10) NULL AFTER is_compound,
+     ADD COLUMN compound_rule_ids JSON NULL AFTER compound_operator,
+     ADD COLUMN priority_override INT NULL AFTER compound_rule_ids,
+     ADD COLUMN is_stackable BOOLEAN DEFAULT TRUE AFTER priority_override,
+     ADD COLUMN effective_date DATE NULL AFTER is_stackable,
+     ADD COLUMN expiration_date DATE NULL AFTER effective_date,
+     ADD COLUMN is_active BOOLEAN DEFAULT TRUE AFTER expiration_date,
+     ADD COLUMN is_flexible BOOLEAN DEFAULT FALSE AFTER is_active,
+     ADD COLUMN created_by_user_id BIGINT NULL AFTER is_flexible',
+    'SELECT 1'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- ============================================================
+-- SECTION 10C: Tạo bảng tariff_zones (nếu chưa có)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS tariff_zones (
+    tariff_zone_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    tariff_id BIGINT NOT NULL,
+    zone_code VARCHAR(32) NOT NULL,
+    zone_id BIGINT NULL,
+    is_primary BOOLEAN DEFAULT FALSE,
+    rate_multiplier DECIMAL(4,2) DEFAULT 1.00,
+    flat_addition DECIMAL(12,2) DEFAULT 0.00,
+    max_spots INT NULL,
+    spot_assignment_mode ENUM('FIXED', 'PREFERRED', 'FLOATING') DEFAULT 'FLOATING',
+    priority INT DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    UNIQUE KEY uq_tariff_zone (tariff_id, zone_code),
+    INDEX ix_tariff_zones_active (is_active, tariff_id),
+    INDEX ix_tariff_zones_tariff (tariff_id),
+    INDEX ix_tariff_zones_zone (zone_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Cấu hình zone cho biểu phí';
 
 -- ============================================================
 -- SECTION 11: Thêm indexes cho tariff_rules

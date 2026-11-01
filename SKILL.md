@@ -6,7 +6,7 @@ This document defines the core business logic, strict distributed-system pattern
 - **The Problem:** IoT devices are unpredictable. ALPR cameras and RFID readers can and will trigger simultaneously at the exact same millisecond. Network retries can cause duplicate requests.
 - **The Solution (Two-Level Protection):**
   1. **Mutation Idempotency:** ALL state-changing APIs (payments, barrier commands) MUST pass through the Two-Level Idempotency middleware (Fast-fail Redis `SETNX` + DB Persistence `api_idempotency_keys`).
-  2. **Lane Lock (`Redlock`):** ALL entry/exit gate reads MUST acquire a Redis Distributed Lock using `laneId` before opening `gate_passage_sessions`. If locked, the subsequent request must append its data to the currently opening session, NOT create a duplicate database record.
+  2. **Lane Lock (Redis ownership lock):** The gate capture route uses a site-and-lane-scoped lock before processing captures. The lock uses `SET NX PX` with an ownership-checked release, retries on contention, and returns a conflict when it cannot be acquired. It is not the multi-node Redlock algorithm; consider Redis availability and lease expiry when changing this flow.
 
 ## 2. Topology Management & Atomic Mutations
 - **The Problem:** Modifying physical infrastructure mapping (Sites -> Gates -> Lanes -> Devices) directly impacts thousands of historical sessions.

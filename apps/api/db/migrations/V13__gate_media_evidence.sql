@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS gate_read_media (
 ALTER TABLE gate_read_events
   ADD COLUMN source_media_id BIGINT NULL AFTER payload_json,
   ADD COLUMN raw_ocr_text TEXT NULL AFTER source_media_id,
-  ADD COLUMN ocr_confidence DECIMAL(5,4) NULL AFTER raw_ocr_text,
+  MODIFY COLUMN ocr_confidence DECIMAL(5,4) NULL AFTER raw_ocr_text,
   ADD COLUMN camera_frame_ref VARCHAR(255) NULL AFTER ocr_confidence,
   ADD COLUMN crop_ref VARCHAR(255) NULL AFTER camera_frame_ref,
   ADD COLUMN source_device_code VARCHAR(64) NULL AFTER crop_ref,

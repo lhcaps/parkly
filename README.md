@@ -30,7 +30,7 @@ Vehicle exits → Session resolved → Audit + outbox events delivered
                      ┌─────────────┼─────────────┐
                      │             │             │
                    MySQL         Redis        BullMQ
-                  (Prisma)    (Redlock)    (Outbox)
+                  (Prisma)  (lane lock)   (Outbox)
                      │             │             │
                      └─────────────┼─────────────┘
                                    │
@@ -39,7 +39,7 @@ Vehicle exits → Session resolved → Audit + outbox events delivered
                           [React SPA Console]
 ```
 
-Key patterns: outbox pattern for resilient external delivery, snapshot REST + SSE delta for real-time state, Redis Redlock for lane coordination, three auth planes (user JWT, device HMAC, service secrets).
+Key patterns: outbox pattern for external delivery, snapshot REST + SSE delta for real-time state, a custom Redis ownership lock for lane coordination, and three auth planes (user JWT, device HMAC, service secrets). The lane lock uses `SET NX PX` and ownership-checked Lua release; it is not the multi-node Redlock algorithm. Lock safety depends on the Redis instance and lease duration.
 
 ## Tech Stack
 
