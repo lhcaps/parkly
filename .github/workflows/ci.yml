@@ -49,6 +49,7 @@ jobs:
       - name: Run monorepo quality gate
         env:
           QUALITY_GATE_PROFILE: demo
+          QUALITY_GATE_BOOTSTRAP: OFF
           API_INTERNAL_SERVICE_TOKEN_ACTIVE: c4ca4238a0b923820dcc509a6f75849b3e1f0e2b4c6d8a0f1234567890abcdef
           DEVICE_CAPTURE_SECRET_ACTIVE: e4d909c290d0fb1ca068ffaddf22cbd0a1b2c3d4e5f60718293a4b5c6d7e8f90
         run: pnpm test:full
